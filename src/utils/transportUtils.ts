@@ -1,0 +1,64 @@
+import { BeamElement, TransportCategory, TRANSPORT_CATEGORIES } from '@/types/delivery';
+
+const EXTENDED_LENGTH_TYPES = ['Poteau BA', 'Potelet BA'];
+
+export function getTransportCategory(elements: BeamElement[]): TransportCategory {
+  if (elements.length === 0) return 'standard';
+
+  const totalWeight = elements.reduce((sum, el) => sum + el.weight, 0);
+  const maxLength = Math.max(...elements.map(el => el.length));
+  const hasExtendedType = elements.some(el => EXTENDED_LENGTH_TYPES.includes(el.productType));
+  const effectiveStandardMax = hasExtendedType ? 14.5 : 13.5;
+
+  if (maxLength <= effectiveStandardMax && totalWeight <= 27) return 'standard';
+  if (maxLength <= 16.5 && totalWeight <= 27) return 'cat1';
+  if (maxLength <= 21.5 && totalWeight <= 42) return 'cat2';
+  return 'cat3';
+}
+
+export function getTruckWeight(elements: BeamElement[]): number {
+  return elements.reduce((sum, el) => sum + el.weight, 0);
+}
+
+export function getTruckMaxLength(elements: BeamElement[]): number {
+  if (elements.length === 0) return 0;
+  return Math.max(...elements.map(el => el.length));
+}
+
+export function getTruckFactories(elements: BeamElement[]): string[] {
+  return [...new Set(elements.map(el => el.factory).filter(Boolean))];
+}
+
+export function getProductCountsByType(elements: BeamElement[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  elements.forEach(el => {
+    counts[el.productType] = (counts[el.productType] || 0) + 1;
+  });
+  return counts;
+}
+
+export function getCategoryColorClass(category: TransportCategory): string {
+  switch (category) {
+    case 'standard': return 'bg-transport-standard text-transport-standard-foreground';
+    case 'cat1': return 'bg-transport-cat1 text-transport-cat1-foreground';
+    case 'cat2': return 'bg-transport-cat2 text-transport-cat2-foreground';
+    case 'cat3': return 'bg-transport-cat3 text-transport-cat3-foreground';
+  }
+}
+
+export function getCategoryBorderClass(category: TransportCategory): string {
+  switch (category) {
+    case 'standard': return 'border-transport-standard';
+    case 'cat1': return 'border-transport-cat1';
+    case 'cat2': return 'border-transport-cat2';
+    case 'cat3': return 'border-transport-cat3';
+  }
+}
+
+export function isNonStandard(elements: BeamElement[]): boolean {
+  return getTransportCategory(elements) !== 'standard';
+}
+
+export function isMultiSite(elements: BeamElement[]): boolean {
+  return getTruckFactories(elements).length > 1;
+}
