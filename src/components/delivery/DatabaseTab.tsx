@@ -310,6 +310,14 @@ export default function DatabaseTab() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Summary bar */}
+          <div className="flex items-center gap-4 mb-3 px-2 py-2 rounded-md bg-muted/40 text-sm font-medium">
+            <span>{filteredElements.length}{filteredElements.length !== elements.length ? ` / ${elements.length}` : ''} éléments</span>
+            <span className="text-muted-foreground">•</span>
+            <span>{totalLength.toFixed(2)} m</span>
+            <span className="text-muted-foreground">•</span>
+            <span>{totalWeight.toFixed(3)} t</span>
+          </div>
           <div className="overflow-auto max-h-[65vh]">
             <Table>
               <TableHeader>
