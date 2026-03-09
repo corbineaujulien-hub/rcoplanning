@@ -1,22 +1,29 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Truck } from '@/types/delivery';
 
 interface NewTruckModalProps {
   open: boolean;
   onClose: () => void;
   onConfirm: (number: string, time: string) => void;
   date: string;
+  trucks?: Truck[];
 }
 
-export default function NewTruckModal({ open, onClose, onConfirm, date }: NewTruckModalProps) {
+export default function NewTruckModal({ open, onClose, onConfirm, date, trucks = [] }: NewTruckModalProps) {
   const [number, setNumber] = useState('');
   const [time, setTime] = useState('08:00');
 
+  const isDuplicate = useMemo(() => {
+    if (!number.trim()) return false;
+    return trucks.some(t => t.number.toLowerCase() === number.trim().toLowerCase());
+  }, [number, trucks]);
+
   const handleConfirm = () => {
-    if (!number.trim()) return;
+    if (!number.trim() || isDuplicate) return;
     onConfirm(number.trim(), time);
     setNumber('');
     setTime('08:00');
@@ -32,6 +39,9 @@ export default function NewTruckModal({ open, onClose, onConfirm, date }: NewTru
           <div className="space-y-2">
             <Label>Numéro de camion</Label>
             <Input value={number} onChange={e => setNumber(e.target.value)} placeholder="Ex: CAM-001" autoFocus />
+            {isDuplicate && (
+              <p className="text-sm text-destructive">Ce numéro de camion existe déjà.</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label>Horaire de livraison</Label>
@@ -40,7 +50,7 @@ export default function NewTruckModal({ open, onClose, onConfirm, date }: NewTru
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={handleConfirm} disabled={!number.trim()}>Créer le camion</Button>
+          <Button onClick={handleConfirm} disabled={!number.trim() || isDuplicate}>Créer le camion</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
