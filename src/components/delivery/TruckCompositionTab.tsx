@@ -446,7 +446,7 @@ export default function TruckCompositionTab() {
                         <div
                           key={`${dateStr}-${hour}`}
                           onDragOver={onDragOver}
-                          onDrop={e => onDropOnDay(e, dateStr)}
+                          onDrop={e => onDropOnDay(e, dateStr, hour)}
                           onDragEnter={onDragEnter}
                           onDragLeave={onDragLeave}
                           onClick={() => selectedIds.size > 0 && handleDrop(dateStr)}
