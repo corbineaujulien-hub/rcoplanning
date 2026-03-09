@@ -16,6 +16,7 @@ interface DeliveryContextType extends DeliveryState {
   addTruck: (truck: Truck) => void;
   updateTruck: (id: string, updates: Partial<Truck>) => void;
   deleteTruck: (id: string) => void;
+  deleteAllTrucks: () => void;
   addElementsToTruck: (truckId: string, elementIds: string[]) => void;
   removeElementFromTruck: (truckId: string, elementId: string) => void;
   getElementById: (id: string) => BeamElement | undefined;
