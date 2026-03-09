@@ -57,6 +57,22 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        "transport-standard": {
+          DEFAULT: "hsl(var(--transport-standard))",
+          foreground: "hsl(var(--transport-standard-foreground))",
+        },
+        "transport-cat1": {
+          DEFAULT: "hsl(var(--transport-cat1))",
+          foreground: "hsl(var(--transport-cat1-foreground))",
+        },
+        "transport-cat2": {
+          DEFAULT: "hsl(var(--transport-cat2))",
+          foreground: "hsl(var(--transport-cat2-foreground))",
+        },
+        "transport-cat3": {
+          DEFAULT: "hsl(var(--transport-cat3))",
+          foreground: "hsl(var(--transport-cat3-foreground))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
