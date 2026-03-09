@@ -109,6 +109,11 @@ export default function DatabaseTab() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>({});
 
+  // Duplicate detection state
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [pendingNew, setPendingNew] = useState<BeamElement[]>([]);
+  const [duplicates, setDuplicates] = useState<{ existing: BeamElement; incoming: BeamElement }[]>([]);
+
   // Manual add form state
   const [newRepere, setNewRepere] = useState('');
   const [newZone, setNewZone] = useState('');
@@ -160,6 +165,46 @@ export default function DatabaseTab() {
     setTimeout(() => fileInputRef.current?.click(), 100);
   };
 
+  const processNewElements = (newEls: BeamElement[]) => {
+    const existingMap = new Map(elements.map(el => [el.repere.toLowerCase(), el]));
+    const dupes: { existing: BeamElement; incoming: BeamElement }[] = [];
+    const fresh: BeamElement[] = [];
+
+    newEls.forEach(el => {
+      const match = existingMap.get(el.repere.toLowerCase());
+      if (match) {
+        dupes.push({ existing: match, incoming: el });
+      } else {
+        fresh.push(el);
+      }
+    });
+
+    // Add non-duplicates immediately
+    if (fresh.length > 0) addElements(fresh);
+
+    if (dupes.length > 0) {
+      setDuplicates(dupes);
+      setPendingNew(fresh);
+      setDuplicateDialogOpen(true);
+    }
+  };
+
+  const handleOverwriteDuplicates = () => {
+    duplicates.forEach(({ existing, incoming }) => {
+      updateElement(existing.id, {
+        zone: incoming.zone,
+        productType: incoming.productType,
+        section: incoming.section,
+        length: incoming.length,
+        weight: incoming.weight,
+        factory: incoming.factory,
+      });
+    });
+    setDuplicateDialogOpen(false);
+    setDuplicates([]);
+    setPendingNew([]);
+  };
+
   const handleAddManual = () => {
     const newEl: BeamElement = {
       id: crypto.randomUUID(),
@@ -171,14 +216,14 @@ export default function DatabaseTab() {
       weight: parseFloat(newWeight.replace(',', '.')) || 0,
       factory: newFactory,
     };
-    addElements([newEl]);
+    processNewElements([newEl]);
     resetForm();
   };
 
   const handlePaste = () => {
     if (!pasteText.trim()) return;
     const lines = pasteText.trim().split('\n');
-    const newElements: BeamElement[] = lines.map((line, i) => {
+    const newElements: BeamElement[] = lines.map((line) => {
       const cols = line.split('\t');
       return {
         id: crypto.randomUUID(),
@@ -191,7 +236,7 @@ export default function DatabaseTab() {
         factory: cols[6]?.trim() ?? '',
       };
     });
-    addElements(newElements);
+    processNewElements(newElements);
     setPasteText('');
     setAddDialogOpen(false);
   };
@@ -265,6 +310,14 @@ export default function DatabaseTab() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Summary bar */}
+          <div className="flex items-center gap-4 mb-3 px-2 py-2 rounded-md bg-muted/40 text-sm font-medium">
+            <span>{filteredElements.length}{filteredElements.length !== elements.length ? ` / ${elements.length}` : ''} éléments</span>
+            <span className="text-muted-foreground">•</span>
+            <span>{totalLength.toFixed(2)} m</span>
+            <span className="text-muted-foreground">•</span>
+            <span>{totalWeight.toFixed(3)} t</span>
+          </div>
           <div className="overflow-auto max-h-[65vh]">
             <Table>
               <TableHeader>
@@ -338,20 +391,6 @@ export default function DatabaseTab() {
                   ))
                 )}
               </TableBody>
-              {filteredElements.length > 0 && (
-                <TableFooter>
-                  <TableRow className="font-semibold bg-muted/30">
-                    <TableCell>{filteredElements.length} éléments</TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                    <TableCell>{totalLength.toFixed(2)} m</TableCell>
-                    <TableCell>{totalWeight.toFixed(3)} t</TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                </TableFooter>
-              )}
             </Table>
           </div>
         </CardContent>
@@ -455,6 +494,68 @@ export default function DatabaseTab() {
               <Upload className="h-4 w-4 mr-1" /> Importer les lignes collées
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate Comparison Dialog */}
+      <Dialog open={duplicateDialogOpen} onOpenChange={(open) => { if (!open) { setDuplicateDialogOpen(false); setDuplicates([]); setPendingNew([]); } }}>
+        <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Repères en doublon détectés</DialogTitle>
+            <DialogDescription>
+              {duplicates.length} repère(s) existe(nt) déjà. Comparez les données ci-dessous et choisissez si vous souhaitez écraser les lignes existantes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-20">Source</TableHead>
+                  <TableHead>Repère</TableHead>
+                  <TableHead>Zone</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Section</TableHead>
+                  <TableHead>Longueur</TableHead>
+                  <TableHead>Poids</TableHead>
+                  <TableHead>Usine</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {duplicates.map(({ existing, incoming }, i) => (
+                  <>
+                    <TableRow key={`ex-${i}`} className="bg-muted/30">
+                      <TableCell className="text-xs font-medium text-muted-foreground">Existant</TableCell>
+                      <TableCell>{existing.repere}</TableCell>
+                      <TableCell>{existing.zone}</TableCell>
+                      <TableCell>{existing.productType}</TableCell>
+                      <TableCell>{existing.section}</TableCell>
+                      <TableCell>{existing.length}</TableCell>
+                      <TableCell>{existing.weight}</TableCell>
+                      <TableCell>{existing.factory}</TableCell>
+                    </TableRow>
+                    <TableRow key={`in-${i}`} className="bg-primary/5 border-b-2 border-border">
+                      <TableCell className="text-xs font-medium text-primary">Nouveau</TableCell>
+                      <TableCell>{incoming.repere}</TableCell>
+                      <TableCell>{incoming.zone}</TableCell>
+                      <TableCell>{incoming.productType}</TableCell>
+                      <TableCell>{incoming.section}</TableCell>
+                      <TableCell>{incoming.length}</TableCell>
+                      <TableCell>{incoming.weight}</TableCell>
+                      <TableCell>{incoming.factory}</TableCell>
+                    </TableRow>
+                  </>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDuplicateDialogOpen(false); setDuplicates([]); setPendingNew([]); }}>
+              Annuler
+            </Button>
+            <Button onClick={handleOverwriteDuplicates}>
+              Écraser les existants ({duplicates.length})
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
