@@ -4,7 +4,7 @@ import { Truck } from '@/types/delivery';
 import { getTransportCategory, getTruckWeight, getCategoryColorClass } from '@/utils/transportUtils';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ChevronLeft, ChevronRight, Truck as TruckIcon, FileSpreadsheet, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Truck as TruckIcon, FileSpreadsheet, Calendar, MessageSquare } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, isSameMonth, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import TruckDetailModal from './TruckDetailModal';
