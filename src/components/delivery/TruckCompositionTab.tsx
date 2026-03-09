@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
-import { BeamElement, Truck, PRODUCT_TYPES, TRANSPORT_CATEGORIES, TransportCategory } from '@/types/delivery';
+import { BeamElement, Truck, TRANSPORT_CATEGORIES, TransportCategory } from '@/types/delivery';
 import { getTransportCategory, getTruckWeight, getCategoryColorClass, isNonStandard, isMultiSite, getTruckMaxLength, getTruckFactories } from '@/utils/transportUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,8 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ChevronLeft, ChevronRight, GripVertical, Truck as TruckIcon, Filter, X, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical, Truck as TruckIcon, Filter, X, Trash2, MessageSquare } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, isSameMonth, isSameDay, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import NewTruckModal from './NewTruckModal';
@@ -20,7 +21,7 @@ import { TransportAlertModal, MultiSiteAlertModal } from './AlertModal';
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 6); // 6h to 20h
 
 export default function TruckCompositionTab() {
-  const { elements, trucks, getTrucksForDate, getTruckElements, addTruck, addElementsToTruck, removeElementFromTruck, deleteTruck, updateTruck, isElementAssigned } = useDelivery();
+  const { elements, trucks, getTrucksForDate, getTruckElements, addTruck, addElementsToTruck, removeElementFromTruck, deleteTruck, deleteAllTrucks, updateTruck, isElementAssigned } = useDelivery();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -36,12 +37,13 @@ export default function TruckCompositionTab() {
   const [detailTruck, setDetailTruck] = useState<Truck | null>(null);
   const [alertTransport, setAlertTransport] = useState<{ category: any; weight: number; maxLen: number; callback: () => void } | null>(null);
   const [alertMultiSite, setAlertMultiSite] = useState<{ factories: string[]; callback: () => void } | null>(null);
-  // Drag state for truck badges
   const [draggedTruckIds, setDraggedTruckIds] = useState<string[]>([]);
   const [selectedTruckIds, setSelectedTruckIds] = useState<Set<string>>(new Set());
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
 
   const zones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))], [elements]);
   const factoryList = useMemo(() => [...new Set(elements.map(e => e.factory).filter(Boolean))], [elements]);
+  const productTypes = useMemo(() => [...new Set(elements.map(e => e.productType).filter(Boolean))].sort(), [elements]);
 
   const filteredElements = useMemo(() => {
     return elements.filter(el => {
@@ -80,7 +82,6 @@ export default function TruckCompositionTab() {
     });
   };
 
-  // Calendar logic
   const calendarDays = useMemo(() => {
     if (viewMode === 'month') {
       const start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 });
@@ -117,10 +118,8 @@ export default function TruckCompositionTab() {
     }
   };
 
-  const checkAlertsAndAssign = (truckId: string, elementIds: string[]) => {
-    const truck = trucks.find(t => t.id === truckId);
-    if (!truck) return;
-    const currentElements = getTruckElements(truckId);
+  const checkAlertsAndAssign = (truckId: string, elementIds: string[], truckElements?: BeamElement[]) => {
+    const currentElements = truckElements || getTruckElements(truckId);
     const newElements = elementIds.map(id => elements.find(e => e.id === id)!).filter(Boolean);
     const allElements = [...currentElements, ...newElements];
 
@@ -153,10 +152,33 @@ export default function TruckCompositionTab() {
 
   const handleNewTruckConfirm = (number: string, time: string) => {
     const truckId = crypto.randomUUID();
-    const newTruck: Truck = { id: truckId, number, date: newTruckDate, time, elementIds: [] };
+    // Include pendingElementIds directly in the new truck to avoid state timing issues
+    const newTruck: Truck = { id: truckId, number, date: newTruckDate, time, elementIds: [...pendingElementIds] };
     addTruck(newTruck);
     setShowNewTruck(false);
-    setTimeout(() => checkAlertsAndAssign(truckId, pendingElementIds), 50);
+
+    // Check alerts with the pending elements (truck not yet in state, so pass elements directly)
+    const pendingEls = pendingElementIds.map(id => elements.find(e => e.id === id)!).filter(Boolean);
+    if (isNonStandard(pendingEls)) {
+      const cat = getTransportCategory(pendingEls);
+      setAlertTransport({
+        category: cat,
+        weight: getTruckWeight(pendingEls),
+        maxLen: getTruckMaxLength(pendingEls),
+        callback: () => {
+          setAlertTransport(null);
+          if (isMultiSite(pendingEls)) {
+            setAlertMultiSite({ factories: getTruckFactories(pendingEls), callback: () => { setAlertMultiSite(null); setSelectedIds(new Set()); } });
+          } else {
+            setSelectedIds(new Set());
+          }
+        }
+      });
+    } else if (isMultiSite(pendingEls)) {
+      setAlertMultiSite({ factories: getTruckFactories(pendingEls), callback: () => { setAlertMultiSite(null); setSelectedIds(new Set()); } });
+    } else {
+      setSelectedIds(new Set());
+    }
   };
 
   const handleExistingPick = (truckId: string) => {
@@ -169,7 +191,6 @@ export default function TruckCompositionTab() {
     setShowNewTruck(true);
   };
 
-  // Element drag
   const onDragStart = (e: React.DragEvent, elId: string) => {
     if (!selectedIds.has(elId)) {
       setSelectedIds(new Set([elId]));
@@ -178,7 +199,6 @@ export default function TruckCompositionTab() {
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  // Truck badge drag
   const onTruckDragStart = (e: React.DragEvent, truckId: string) => {
     e.stopPropagation();
     const ids = selectedTruckIds.has(truckId) ? Array.from(selectedTruckIds) : [truckId];
@@ -197,9 +217,12 @@ export default function TruckCompositionTab() {
     (e.currentTarget as HTMLElement).classList.remove('drag-over');
     const type = e.dataTransfer.getData('text/plain');
     if (type === 'trucks') {
+      // In week view, only update date (preserve original time)
+      // In month view, update date only (no hour info)
       draggedTruckIds.forEach(id => {
         const updates: Partial<Truck> = { date: dateStr };
-        if (hour !== undefined) updates.time = `${String(hour).padStart(2, '0')}:00`;
+        // Only update time if explicitly dropping on a different hour cell in week view
+        // We do NOT change time when dragging trucks — only date changes
         updateTruck(id, updates);
       });
       setDraggedTruckIds([]);
@@ -217,7 +240,6 @@ export default function TruckCompositionTab() {
     (e.currentTarget as HTMLElement).classList.remove('drag-over');
   };
 
-  // Recap: trucks by factory × category
   const recapData = useMemo(() => {
     const allFactories = new Set<string>();
     const data: Record<string, Record<TransportCategory | 'total', number>> = {};
@@ -245,6 +267,9 @@ export default function TruckCompositionTab() {
     const cat = getTransportCategory(els);
     const weight = getTruckWeight(els);
     const isSelected = selectedTruckIds.has(truck.id);
+    const isEmpty = els.length === 0;
+    const hasComment = !!truck.comment?.trim();
+    const colorClass = isEmpty ? 'bg-foreground text-background' : getCategoryColorClass(cat);
     return (
       <div
         key={truck.id}
@@ -258,10 +283,11 @@ export default function TruckCompositionTab() {
             setDetailTruck(truck);
           }
         }}
-        className={`truck-badge ${getCategoryColorClass(cat)} flex items-center gap-1 cursor-grab active:cursor-grabbing ${isSelected ? 'ring-2 ring-accent' : ''}`}
+        className={`truck-badge ${colorClass} flex items-center gap-1 cursor-grab active:cursor-grabbing ${isSelected ? 'ring-2 ring-accent' : ''}`}
       >
         <TruckIcon className="h-3 w-3 flex-shrink-0" />
         <span className="truncate">{truck.number}</span>
+        {hasComment && <MessageSquare className="h-3 w-3 flex-shrink-0 opacity-70" />}
         {showTime && <span className="text-[10px] opacity-80">{truck.time}</span>}
         <span className="ml-auto text-[10px]">{weight.toFixed(1)}t</span>
       </div>
@@ -289,7 +315,7 @@ export default function TruckCompositionTab() {
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__all__">Tous les types</SelectItem>
-                  {PRODUCT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  {productTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={filterFactory} onValueChange={setFilterFactory}>
@@ -355,6 +381,11 @@ export default function TruckCompositionTab() {
             <div className="flex gap-1">
               <Button variant={viewMode === 'month' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('month')}>Mois</Button>
               <Button variant={viewMode === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('week')}>Semaine</Button>
+              {trucks.length > 0 && (
+                <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteAll(true)}>
+                  <Trash2 className="h-4 w-4 mr-1" /> Supprimer tout
+                </Button>
+              )}
             </div>
           </div>
 
@@ -400,8 +431,8 @@ export default function TruckCompositionTab() {
                 ))}
                 {/* Hour rows */}
                 {HOURS.map(hour => (
-                  <>
-                    <div key={`h-${hour}`} className="bg-muted p-1 text-center text-xs text-muted-foreground border-t border-border">
+                  <React.Fragment key={`row-${hour}`}>
+                    <div className="bg-muted p-1 text-center text-xs text-muted-foreground border-t border-border">
                       {String(hour).padStart(2, '0')}:00
                     </div>
                     {weekDays.map(day => {
@@ -414,7 +445,7 @@ export default function TruckCompositionTab() {
                         <div
                           key={`${dateStr}-${hour}`}
                           onDragOver={onDragOver}
-                          onDrop={e => onDropOnDay(e, dateStr, hour)}
+                          onDrop={e => onDropOnDay(e, dateStr)}
                           onDragEnter={onDragEnter}
                           onDragLeave={onDragLeave}
                           onClick={() => selectedIds.size > 0 && handleDrop(dateStr)}
@@ -424,7 +455,7 @@ export default function TruckCompositionTab() {
                         </div>
                       );
                     })}
-                  </>
+                  </React.Fragment>
                 ))}
               </div>
             </div>
@@ -525,6 +556,21 @@ export default function TruckCompositionTab() {
           onCancel={() => setAlertMultiSite(null)}
         />
       )}
+
+      <AlertDialog open={confirmDeleteAll} onOpenChange={setConfirmDeleteAll}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer toutes les compositions ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tous les camions seront supprimés et tous les repères redeviendront disponibles. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { deleteAllTrucks(); setConfirmDeleteAll(false); }}>Supprimer tout</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
