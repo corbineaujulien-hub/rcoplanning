@@ -16,6 +16,7 @@ interface DeliveryContextType extends DeliveryState {
   addTruck: (truck: Truck) => void;
   updateTruck: (id: string, updates: Partial<Truck>) => void;
   deleteTruck: (id: string) => void;
+  deleteAllTrucks: () => void;
   addElementsToTruck: (truckId: string, elementIds: string[]) => void;
   removeElementFromTruck: (truckId: string, elementId: string) => void;
   getElementById: (id: string) => BeamElement | undefined;
@@ -86,6 +87,10 @@ export function DeliveryProvider({ children }: { children: React.ReactNode }) {
     setState(s => ({ ...s, trucks: s.trucks.filter(t => t.id !== id) }));
   }, []);
 
+  const deleteAllTrucks = useCallback(() => {
+    setState(s => ({ ...s, trucks: [] }));
+  }, []);
+
   const addElementsToTruck = useCallback((truckId: string, elementIds: string[]) => {
     setState(s => ({
       ...s,
@@ -130,7 +135,7 @@ export function DeliveryProvider({ children }: { children: React.ReactNode }) {
   return (
     <DeliveryContext.Provider value={{
       ...state, setProjectInfo, setElements, addElements, updateElement, deleteElement,
-      addTruck, updateTruck, deleteTruck, addElementsToTruck, removeElementFromTruck,
+      addTruck, updateTruck, deleteTruck, deleteAllTrucks, addElementsToTruck, removeElementFromTruck,
       getElementById, getTruckElements, getUnassignedElements, isElementAssigned, getTrucksForDate,
     }}>
       {children}

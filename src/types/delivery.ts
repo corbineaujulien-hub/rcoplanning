@@ -26,6 +26,7 @@ export interface Truck {
   date: string;
   time: string;
   elementIds: string[];
+  comment?: string;
 }
 
 export type TransportCategory = 'standard' | 'cat1' | 'cat2' | 'cat3';

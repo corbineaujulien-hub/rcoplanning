@@ -3,11 +3,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useDelivery } from '@/context/DeliveryContext';
 import { Truck, TRANSPORT_CATEGORIES } from '@/types/delivery';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getProductCountsByType, getCategoryColorClass } from '@/utils/transportUtils';
-import { Truck as TruckIcon, Weight, Ruler, Factory, Package, Trash2, X, Pencil } from 'lucide-react';
+import { Truck as TruckIcon, Weight, Ruler, Factory, Package, Trash2, X, Pencil, MessageSquare } from 'lucide-react';
 
 interface TruckDetailModalProps {
   open: boolean;
@@ -21,6 +22,8 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
   const [editDate, setEditDate] = useState('');
   const [editTime, setEditTime] = useState('');
   const [editing, setEditing] = useState(false);
+  const [comment, setComment] = useState('');
+  const [commentDirty, setCommentDirty] = useState(false);
 
   if (!truck) return null;
 
@@ -31,6 +34,11 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
   const factories = getTruckFactories(elements);
   const counts = getProductCountsByType(elements);
   const catInfo = TRANSPORT_CATEGORIES[category];
+
+  // Sync comment state when truck changes
+  if (!commentDirty && comment !== (truck.comment || '')) {
+    setComment(truck.comment || '');
+  }
 
   const handleStartEdit = () => {
     setEditDate(truck.date);
@@ -55,9 +63,26 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
     removeElementFromTruck(truck.id, elementId);
   };
 
+  const handleCommentBlur = () => {
+    if (comment !== (truck.comment || '')) {
+      updateTruck(truck.id, { comment });
+    }
+    setCommentDirty(false);
+  };
+
+  const handleClose = () => {
+    // Save comment on close if dirty
+    if (commentDirty && comment !== (truck.comment || '')) {
+      updateTruck(truck.id, { comment });
+    }
+    setCommentDirty(false);
+    setEditing(false);
+    onClose();
+  };
+
   return (
     <>
-      <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <Dialog open={open} onOpenChange={v => !v && handleClose()}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -135,6 +160,20 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
                   </span>
                 ))}
               </div>
+            </div>
+
+            {/* Comment section */}
+            <div>
+              <Label className="text-sm text-muted-foreground flex items-center gap-1 mb-1">
+                <MessageSquare className="h-3 w-3" /> Commentaire
+              </Label>
+              <Textarea
+                value={comment}
+                onChange={e => { setComment(e.target.value); setCommentDirty(true); }}
+                onBlur={handleCommentBlur}
+                placeholder="Ajouter un commentaire libre..."
+                className="min-h-[60px] text-sm"
+              />
             </div>
           </div>
           <DialogFooter>
