@@ -217,12 +217,13 @@ export default function TruckCompositionTab() {
     (e.currentTarget as HTMLElement).classList.remove('drag-over');
     const type = e.dataTransfer.getData('text/plain');
     if (type === 'trucks') {
-      // In week view, only update date (preserve original time)
-      // In month view, update date only (no hour info)
+      const isMultiple = draggedTruckIds.length > 1;
       draggedTruckIds.forEach(id => {
         const updates: Partial<Truck> = { date: dateStr };
-        // Only update time if explicitly dropping on a different hour cell in week view
-        // We do NOT change time when dragging trucks — only date changes
+        // Single truck: allow hour change in week view; multiple: preserve original time
+        if (!isMultiple && hour !== undefined) {
+          updates.time = `${String(hour).padStart(2, '0')}:00`;
+        }
         updateTruck(id, updates);
       });
       setDraggedTruckIds([]);
