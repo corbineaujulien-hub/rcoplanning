@@ -135,7 +135,7 @@ export function DeliveryProvider({ children }: { children: React.ReactNode }) {
   return (
     <DeliveryContext.Provider value={{
       ...state, setProjectInfo, setElements, addElements, updateElement, deleteElement,
-      addTruck, updateTruck, deleteTruck, addElementsToTruck, removeElementFromTruck,
+      addTruck, updateTruck, deleteTruck, deleteAllTrucks, addElementsToTruck, removeElementFromTruck,
       getElementById, getTruckElements, getUnassignedElements, isElementAssigned, getTrucksForDate,
     }}>
       {children}
