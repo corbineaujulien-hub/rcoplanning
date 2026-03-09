@@ -165,6 +165,46 @@ export default function DatabaseTab() {
     setTimeout(() => fileInputRef.current?.click(), 100);
   };
 
+  const processNewElements = (newEls: BeamElement[]) => {
+    const existingMap = new Map(elements.map(el => [el.repere.toLowerCase(), el]));
+    const dupes: { existing: BeamElement; incoming: BeamElement }[] = [];
+    const fresh: BeamElement[] = [];
+
+    newEls.forEach(el => {
+      const match = existingMap.get(el.repere.toLowerCase());
+      if (match) {
+        dupes.push({ existing: match, incoming: el });
+      } else {
+        fresh.push(el);
+      }
+    });
+
+    // Add non-duplicates immediately
+    if (fresh.length > 0) addElements(fresh);
+
+    if (dupes.length > 0) {
+      setDuplicates(dupes);
+      setPendingNew(fresh);
+      setDuplicateDialogOpen(true);
+    }
+  };
+
+  const handleOverwriteDuplicates = () => {
+    duplicates.forEach(({ existing, incoming }) => {
+      updateElement(existing.id, {
+        zone: incoming.zone,
+        productType: incoming.productType,
+        section: incoming.section,
+        length: incoming.length,
+        weight: incoming.weight,
+        factory: incoming.factory,
+      });
+    });
+    setDuplicateDialogOpen(false);
+    setDuplicates([]);
+    setPendingNew([]);
+  };
+
   const handleAddManual = () => {
     const newEl: BeamElement = {
       id: crypto.randomUUID(),
@@ -176,14 +216,14 @@ export default function DatabaseTab() {
       weight: parseFloat(newWeight.replace(',', '.')) || 0,
       factory: newFactory,
     };
-    addElements([newEl]);
+    processNewElements([newEl]);
     resetForm();
   };
 
   const handlePaste = () => {
     if (!pasteText.trim()) return;
     const lines = pasteText.trim().split('\n');
-    const newElements: BeamElement[] = lines.map((line, i) => {
+    const newElements: BeamElement[] = lines.map((line) => {
       const cols = line.split('\t');
       return {
         id: crypto.randomUUID(),
@@ -196,7 +236,7 @@ export default function DatabaseTab() {
         factory: cols[6]?.trim() ?? '',
       };
     });
-    addElements(newElements);
+    processNewElements(newElements);
     setPasteText('');
     setAddDialogOpen(false);
   };
