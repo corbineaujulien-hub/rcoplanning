@@ -109,6 +109,11 @@ export default function DatabaseTab() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>({});
 
+  // Duplicate detection state
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [pendingNew, setPendingNew] = useState<BeamElement[]>([]);
+  const [duplicates, setDuplicates] = useState<{ existing: BeamElement; incoming: BeamElement }[]>([]);
+
   // Manual add form state
   const [newRepere, setNewRepere] = useState('');
   const [newZone, setNewZone] = useState('');
