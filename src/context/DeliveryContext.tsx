@@ -87,6 +87,10 @@ export function DeliveryProvider({ children }: { children: React.ReactNode }) {
     setState(s => ({ ...s, trucks: s.trucks.filter(t => t.id !== id) }));
   }, []);
 
+  const deleteAllTrucks = useCallback(() => {
+    setState(s => ({ ...s, trucks: [] }));
+  }, []);
+
   const addElementsToTruck = useCallback((truckId: string, elementIds: string[]) => {
     setState(s => ({
       ...s,
