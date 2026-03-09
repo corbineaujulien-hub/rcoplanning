@@ -39,9 +39,9 @@ export default function TruckCompositionTab() {
 
   const filteredElements = useMemo(() => {
     return elements.filter(el => {
-      if (filterZone && el.zone !== filterZone) return false;
-      if (filterType && el.productType !== filterType) return false;
-      if (filterFactory && el.factory !== filterFactory) return false;
+      if (filterZone && filterZone !== '__all__' && el.zone !== filterZone) return false;
+      if (filterType && filterType !== '__all__' && el.productType !== filterType) return false;
+      if (filterFactory && filterFactory !== '__all__' && el.factory !== filterFactory) return false;
       if (filterStatus === 'unloaded' && isElementAssigned(el.id)) return false;
       if (filterStatus === 'loaded' && !isElementAssigned(el.id)) return false;
       return true;
