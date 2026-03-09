@@ -99,10 +99,14 @@ export default function GeneralPlanningTab() {
                   const els = getTruckElements(truck.id);
                   const cat = getTransportCategory(els);
                   const weight = getTruckWeight(els);
+                  const hasComment = !!truck.comment?.trim();
+                  const isEmpty = els.length === 0;
+                  const colorClass = isEmpty ? 'bg-foreground text-background' : getCategoryColorClass(cat);
                   return (
-                    <div key={truck.id} onClick={() => setDetailTruck(truck)} className={`truck-badge ${getCategoryColorClass(cat)} flex items-center gap-1`}>
+                    <div key={truck.id} onClick={() => setDetailTruck(truck)} className={`truck-badge ${colorClass} flex items-center gap-1`}>
                       <TruckIcon className="h-3 w-3" />
                       <span className="truncate">{truck.number}</span>
+                      {hasComment && <MessageSquare className="h-3 w-3 flex-shrink-0 opacity-70" />}
                       <span className="ml-auto">{weight.toFixed(1)}t</span>
                     </div>
                   );

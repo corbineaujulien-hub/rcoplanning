@@ -158,6 +158,13 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
                   <span key={el.id} className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-mono">{el.repere}</span>
                 ))}
               </div>
+
+              {truck.comment?.trim() && (
+                <div className="flex items-start gap-1.5 text-sm text-muted-foreground bg-muted rounded-md p-2">
+                  <MessageSquare className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                  <span>{truck.comment}</span>
+                </div>
+              )}
             </CardContent>
           </Card>
         );
