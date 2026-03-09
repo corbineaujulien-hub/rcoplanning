@@ -496,6 +496,68 @@ export default function DatabaseTab() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Duplicate Comparison Dialog */}
+      <Dialog open={duplicateDialogOpen} onOpenChange={(open) => { if (!open) { setDuplicateDialogOpen(false); setDuplicates([]); setPendingNew([]); } }}>
+        <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Repères en doublon détectés</DialogTitle>
+            <DialogDescription>
+              {duplicates.length} repère(s) existe(nt) déjà. Comparez les données ci-dessous et choisissez si vous souhaitez écraser les lignes existantes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-20">Source</TableHead>
+                  <TableHead>Repère</TableHead>
+                  <TableHead>Zone</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Section</TableHead>
+                  <TableHead>Longueur</TableHead>
+                  <TableHead>Poids</TableHead>
+                  <TableHead>Usine</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {duplicates.map(({ existing, incoming }, i) => (
+                  <>
+                    <TableRow key={`ex-${i}`} className="bg-muted/30">
+                      <TableCell className="text-xs font-medium text-muted-foreground">Existant</TableCell>
+                      <TableCell>{existing.repere}</TableCell>
+                      <TableCell>{existing.zone}</TableCell>
+                      <TableCell>{existing.productType}</TableCell>
+                      <TableCell>{existing.section}</TableCell>
+                      <TableCell>{existing.length}</TableCell>
+                      <TableCell>{existing.weight}</TableCell>
+                      <TableCell>{existing.factory}</TableCell>
+                    </TableRow>
+                    <TableRow key={`in-${i}`} className="bg-primary/5 border-b-2 border-border">
+                      <TableCell className="text-xs font-medium text-primary">Nouveau</TableCell>
+                      <TableCell>{incoming.repere}</TableCell>
+                      <TableCell>{incoming.zone}</TableCell>
+                      <TableCell>{incoming.productType}</TableCell>
+                      <TableCell>{incoming.section}</TableCell>
+                      <TableCell>{incoming.length}</TableCell>
+                      <TableCell>{incoming.weight}</TableCell>
+                      <TableCell>{incoming.factory}</TableCell>
+                    </TableRow>
+                  </>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDuplicateDialogOpen(false); setDuplicates([]); setPendingNew([]); }}>
+              Annuler
+            </Button>
+            <Button onClick={handleOverwriteDuplicates}>
+              Écraser les existants ({duplicates.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
