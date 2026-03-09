@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
-import { BeamElement, Truck, PRODUCT_TYPES } from '@/types/delivery';
+import { BeamElement, Truck, PRODUCT_TYPES, TRANSPORT_CATEGORIES, TransportCategory } from '@/types/delivery';
 import { getTransportCategory, getTruckWeight, getCategoryColorClass, isNonStandard, isMultiSite, getTruckMaxLength, getTruckFactories } from '@/utils/transportUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ChevronLeft, ChevronRight, GripVertical, Truck as TruckIcon, Filter, X, Trash2 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, isSameMonth, isSameDay, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -16,8 +17,10 @@ import NewTruckModal from './NewTruckModal';
 import TruckDetailModal from './TruckDetailModal';
 import { TransportAlertModal, MultiSiteAlertModal } from './AlertModal';
 
+const HOURS = Array.from({ length: 15 }, (_, i) => i + 6); // 6h to 20h
+
 export default function TruckCompositionTab() {
-  const { elements, trucks, getTrucksForDate, getTruckElements, addTruck, addElementsToTruck, removeElementFromTruck, deleteTruck, isElementAssigned } = useDelivery();
+  const { elements, trucks, getTrucksForDate, getTruckElements, addTruck, addElementsToTruck, removeElementFromTruck, deleteTruck, updateTruck, isElementAssigned } = useDelivery();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -33,9 +36,12 @@ export default function TruckCompositionTab() {
   const [detailTruck, setDetailTruck] = useState<Truck | null>(null);
   const [alertTransport, setAlertTransport] = useState<{ category: any; weight: number; maxLen: number; callback: () => void } | null>(null);
   const [alertMultiSite, setAlertMultiSite] = useState<{ factories: string[]; callback: () => void } | null>(null);
+  // Drag state for truck badges
+  const [draggedTruckIds, setDraggedTruckIds] = useState<string[]>([]);
+  const [selectedTruckIds, setSelectedTruckIds] = useState<Set<string>>(new Set());
 
   const zones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))], [elements]);
-  const factories = useMemo(() => [...new Set(elements.map(e => e.factory).filter(Boolean))], [elements]);
+  const factoryList = useMemo(() => [...new Set(elements.map(e => e.factory).filter(Boolean))], [elements]);
 
   const filteredElements = useMemo(() => {
     return elements.filter(el => {
@@ -65,6 +71,15 @@ export default function TruckCompositionTab() {
     }
   };
 
+  const toggleTruckSelect = (truckId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedTruckIds(prev => {
+      const next = new Set(prev);
+      next.has(truckId) ? next.delete(truckId) : next.add(truckId);
+      return next;
+    });
+  };
+
   // Calendar logic
   const calendarDays = useMemo(() => {
     if (viewMode === 'month') {
@@ -77,6 +92,12 @@ export default function TruckCompositionTab() {
       return eachDayOfInterval({ start, end });
     }
   }, [currentDate, viewMode]);
+
+  const weekDays = useMemo(() => {
+    const start = startOfWeek(currentDate, { weekStartsOn: 1 });
+    const end = endOfWeek(currentDate, { weekStartsOn: 1 });
+    return eachDayOfInterval({ start, end });
+  }, [currentDate]);
 
   const navigate = (dir: number) => {
     setCurrentDate(prev => viewMode === 'month' ? (dir > 0 ? addMonths(prev, 1) : subMonths(prev, 1)) : (dir > 0 ? addWeeks(prev, 1) : subWeeks(prev, 1)));
@@ -148,6 +169,7 @@ export default function TruckCompositionTab() {
     setShowNewTruck(true);
   };
 
+  // Element drag
   const onDragStart = (e: React.DragEvent, elId: string) => {
     if (!selectedIds.has(elId)) {
       setSelectedIds(new Set([elId]));
@@ -156,15 +178,35 @@ export default function TruckCompositionTab() {
     e.dataTransfer.effectAllowed = 'move';
   };
 
+  // Truck badge drag
+  const onTruckDragStart = (e: React.DragEvent, truckId: string) => {
+    e.stopPropagation();
+    const ids = selectedTruckIds.has(truckId) ? Array.from(selectedTruckIds) : [truckId];
+    setDraggedTruckIds(ids);
+    e.dataTransfer.setData('text/plain', 'trucks');
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
   const onDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const onDropOnDay = (e: React.DragEvent, dateStr: string) => {
+  const onDropOnDay = (e: React.DragEvent, dateStr: string, hour?: number) => {
     e.preventDefault();
     (e.currentTarget as HTMLElement).classList.remove('drag-over');
-    handleDrop(dateStr);
+    const type = e.dataTransfer.getData('text/plain');
+    if (type === 'trucks') {
+      draggedTruckIds.forEach(id => {
+        const updates: Partial<Truck> = { date: dateStr };
+        if (hour !== undefined) updates.time = `${String(hour).padStart(2, '0')}:00`;
+        updateTruck(id, updates);
+      });
+      setDraggedTruckIds([]);
+      setSelectedTruckIds(new Set());
+    } else {
+      handleDrop(dateStr);
+    }
   };
 
   const onDragEnter = (e: React.DragEvent) => {
@@ -175,144 +217,269 @@ export default function TruckCompositionTab() {
     (e.currentTarget as HTMLElement).classList.remove('drag-over');
   };
 
+  // Recap: trucks by factory × category
+  const recapData = useMemo(() => {
+    const allFactories = new Set<string>();
+    const data: Record<string, Record<TransportCategory | 'total', number>> = {};
+
+    trucks.forEach(truck => {
+      const els = getTruckElements(truck.id);
+      const cat = getTransportCategory(els);
+      const facs = getTruckFactories(els);
+      if (facs.length === 0) facs.push('—');
+      facs.forEach(f => {
+        allFactories.add(f);
+        if (!data[f]) data[f] = { standard: 0, cat1: 0, cat2: 0, cat3: 0, total: 0 };
+        data[f][cat]++;
+        data[f].total++;
+      });
+    });
+
+    return { factories: [...allFactories].sort(), data };
+  }, [trucks, getTruckElements]);
+
   const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
+  const renderTruckBadge = (truck: Truck, showTime: boolean = false) => {
+    const els = getTruckElements(truck.id);
+    const cat = getTransportCategory(els);
+    const weight = getTruckWeight(els);
+    const isSelected = selectedTruckIds.has(truck.id);
+    return (
+      <div
+        key={truck.id}
+        draggable
+        onDragStart={e => onTruckDragStart(e, truck.id)}
+        onClick={e => {
+          if (e.ctrlKey || e.metaKey) {
+            toggleTruckSelect(truck.id, e);
+          } else {
+            e.stopPropagation();
+            setDetailTruck(truck);
+          }
+        }}
+        className={`truck-badge ${getCategoryColorClass(cat)} flex items-center gap-1 cursor-grab active:cursor-grabbing ${isSelected ? 'ring-2 ring-accent' : ''}`}
+      >
+        <TruckIcon className="h-3 w-3 flex-shrink-0" />
+        <span className="truncate">{truck.number}</span>
+        {showTime && <span className="text-[10px] opacity-80">{truck.time}</span>}
+        <span className="ml-auto text-[10px]">{weight.toFixed(1)}t</span>
+      </div>
+    );
+  };
+
   return (
-    <div className="flex gap-4 h-[calc(100vh-12rem)]">
-      {/* Left panel - element list */}
-      <Card className="w-80 flex-shrink-0 flex flex-col">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-1">
-            <Filter className="h-4 w-4 text-accent" /> Repères disponibles
-          </CardTitle>
-          <div className="space-y-2 mt-2">
-            <Select value={filterZone} onValueChange={setFilterZone}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Zone" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Toutes les zones</SelectItem>
-                {zones.map(z => <SelectItem key={z} value={z}>{z}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Tous les types</SelectItem>
-                {PRODUCT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterFactory} onValueChange={setFilterFactory}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Usine" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Toutes les usines</SelectItem>
-                {factories.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={v => setFilterStatus(v as any)}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous</SelectItem>
-                <SelectItem value="unloaded">Non chargé</SelectItem>
-                <SelectItem value="loaded">Chargé</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => { setFilterZone(''); setFilterType(''); setFilterFactory(''); setFilterStatus('all'); }}>
-              <X className="h-3 w-3 mr-1" /> Réinitialiser filtres
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="flex-1 overflow-auto p-2">
-          <div className="flex items-center gap-2 mb-2 px-1">
-            <Checkbox checked={selectedIds.size > 0 && selectedIds.size === filteredElements.filter(e => !isElementAssigned(e.id)).length} onCheckedChange={selectAll} />
-            <span className="text-xs text-muted-foreground">{selectedIds.size} sélectionné(s)</span>
-          </div>
-          <div className="space-y-1">
-            {filteredElements.map(el => {
-              const assigned = isElementAssigned(el.id);
-              return (
-                <div
-                  key={el.id}
-                  draggable={!assigned}
-                  onDragStart={e => onDragStart(e, el.id)}
-                  className={`flex items-center gap-2 p-2 rounded-md text-xs border transition-colors cursor-grab active:cursor-grabbing ${assigned ? 'bg-muted/50 opacity-60' : 'bg-card hover:bg-secondary/50'} ${selectedIds.has(el.id) ? 'border-accent ring-1 ring-accent/30' : 'border-transparent'}`}
-                >
-                  {!assigned && <Checkbox checked={selectedIds.has(el.id)} onCheckedChange={() => toggleSelect(el.id)} />}
-                  {assigned && <Badge variant="outline" className="text-[10px] px-1">Chargé</Badge>}
-                  <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <span className="font-mono font-medium">{el.repere}</span>
-                    <span className="text-muted-foreground ml-1">{el.productType}</span>
-                    <div className="text-muted-foreground">{el.length}m · {el.weight}t · {el.zone}</div>
+    <div className="flex flex-col gap-4">
+      <div className="flex gap-4 h-[calc(100vh-16rem)]">
+        {/* Left panel - element list */}
+        <Card className="w-80 flex-shrink-0 flex flex-col">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-1">
+              <Filter className="h-4 w-4 text-accent" /> Repères disponibles
+            </CardTitle>
+            <div className="space-y-2 mt-2">
+              <Select value={filterZone} onValueChange={setFilterZone}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Zone" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Toutes les zones</SelectItem>
+                  {zones.map(z => <SelectItem key={z} value={z}>{z}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Tous les types</SelectItem>
+                  {PRODUCT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filterFactory} onValueChange={setFilterFactory}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Usine" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Toutes les usines</SelectItem>
+                  {factoryList.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={filterStatus} onValueChange={v => setFilterStatus(v as any)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous</SelectItem>
+                  <SelectItem value="unloaded">Non chargé</SelectItem>
+                  <SelectItem value="loaded">Chargé</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => { setFilterZone(''); setFilterType(''); setFilterFactory(''); setFilterStatus('all'); }}>
+                <X className="h-3 w-3 mr-1" /> Réinitialiser filtres
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="flex-1 overflow-auto p-2">
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <Checkbox checked={selectedIds.size > 0 && selectedIds.size === filteredElements.filter(e => !isElementAssigned(e.id)).length} onCheckedChange={selectAll} />
+              <span className="text-xs text-muted-foreground">{selectedIds.size} sélectionné(s)</span>
+            </div>
+            <div className="space-y-1">
+              {filteredElements.map(el => {
+                const assigned = isElementAssigned(el.id);
+                return (
+                  <div
+                    key={el.id}
+                    draggable={!assigned}
+                    onDragStart={e => onDragStart(e, el.id)}
+                    className={`flex items-center gap-2 p-2 rounded-md text-xs border transition-colors cursor-grab active:cursor-grabbing ${assigned ? 'bg-muted/50 opacity-60' : 'bg-card hover:bg-secondary/50'} ${selectedIds.has(el.id) ? 'border-accent ring-1 ring-accent/30' : 'border-transparent'}`}
+                  >
+                    {!assigned && <Checkbox checked={selectedIds.has(el.id)} onCheckedChange={() => toggleSelect(el.id)} />}
+                    {assigned && <Badge variant="outline" className="text-[10px] px-1">Chargé</Badge>}
+                    <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="font-mono font-medium">{el.repere}</span>
+                      <span className="text-muted-foreground ml-1">{el.productType}</span>
+                      <div className="text-muted-foreground">{el.length}m · {el.weight}t · {el.zone}</div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Right panel - calendar */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => navigate(-1)}><ChevronLeft className="h-4 w-4" /></Button>
-            <h2 className="text-lg font-semibold capitalize min-w-[200px] text-center">
-              {viewMode === 'month' ? format(currentDate, 'MMMM yyyy', { locale: fr }) : `Semaine ${format(currentDate, 'II')} – ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'dd/MM', { locale: fr })} au ${format(endOfWeek(currentDate, { weekStartsOn: 1 }), 'dd/MM/yyyy', { locale: fr })}`}
-            </h2>
-            <Button variant="outline" size="icon" onClick={() => navigate(1)}><ChevronRight className="h-4 w-4" /></Button>
+        {/* Right panel - calendar */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" onClick={() => navigate(-1)}><ChevronLeft className="h-4 w-4" /></Button>
+              <h2 className="text-lg font-semibold capitalize min-w-[200px] text-center">
+                {viewMode === 'month' ? format(currentDate, 'MMMM yyyy', { locale: fr }) : `Semaine ${format(currentDate, 'II')} – ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'dd/MM', { locale: fr })} au ${format(endOfWeek(currentDate, { weekStartsOn: 1 }), 'dd/MM/yyyy', { locale: fr })}`}
+              </h2>
+              <Button variant="outline" size="icon" onClick={() => navigate(1)}><ChevronRight className="h-4 w-4" /></Button>
+            </div>
+            <div className="flex gap-1">
+              <Button variant={viewMode === 'month' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('month')}>Mois</Button>
+              <Button variant={viewMode === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('week')}>Semaine</Button>
+            </div>
           </div>
-          <div className="flex gap-1">
-            <Button variant={viewMode === 'month' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('month')}>Mois</Button>
-            <Button variant={viewMode === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('week')}>Semaine</Button>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden flex-1">
-          {dayNames.map(d => (
-            <div key={d} className="bg-primary text-primary-foreground text-center text-xs font-medium py-2">{d}</div>
-          ))}
-          {calendarDays.map(day => {
-            const dateStr = format(day, 'yyyy-MM-dd');
-            const dayTrucks = getTrucksForDate(dateStr);
-            const inMonth = viewMode === 'month' ? isSameMonth(day, currentDate) : true;
-            return (
-              <div
-                key={dateStr}
-                onDragOver={onDragOver}
-                onDrop={e => onDropOnDay(e, dateStr)}
-                onDragEnter={onDragEnter}
-                onDragLeave={onDragLeave}
-                onClick={() => selectedIds.size > 0 && handleDrop(dateStr)}
-                className={`bg-card p-1 ${viewMode === 'week' ? 'min-h-[300px]' : 'min-h-[80px]'} ${!inMonth ? 'opacity-40' : ''} ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''} transition-colors cursor-pointer hover:bg-secondary/30`}
-              >
-                <div className={`text-xs font-medium mb-1 ${isToday(day) ? 'text-accent' : 'text-muted-foreground'}`}>
-                  {format(day, 'd')}
-                </div>
-                <div className="space-y-1">
-                  {dayTrucks.map(truck => {
-                    const els = getTruckElements(truck.id);
-                    const cat = getTransportCategory(els);
-                    const weight = getTruckWeight(els);
-                    return (
-                      <div
-                        key={truck.id}
-                        onClick={e => { e.stopPropagation(); setDetailTruck(truck); }}
-                        className={`truck-badge ${getCategoryColorClass(cat)} flex items-center gap-1`}
-                      >
-                        <TruckIcon className="h-3 w-3" />
-                        <span className="truncate">{truck.number}</span>
-                        <span className="ml-auto">{weight.toFixed(1)}t</span>
-                      </div>
-                    );
-                  })}
-                </div>
+          {viewMode === 'month' ? (
+            <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden flex-1">
+              {dayNames.map(d => (
+                <div key={d} className="bg-primary text-primary-foreground text-center text-xs font-medium py-2">{d}</div>
+              ))}
+              {calendarDays.map(day => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const dayTrucks = getTrucksForDate(dateStr);
+                const inMonth = isSameMonth(day, currentDate);
+                return (
+                  <div
+                    key={dateStr}
+                    onDragOver={onDragOver}
+                    onDrop={e => onDropOnDay(e, dateStr)}
+                    onDragEnter={onDragEnter}
+                    onDragLeave={onDragLeave}
+                    onClick={() => selectedIds.size > 0 && handleDrop(dateStr)}
+                    className={`bg-card p-1 min-h-[80px] ${!inMonth ? 'opacity-40' : ''} ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''} transition-colors cursor-pointer hover:bg-secondary/30`}
+                  >
+                    <div className={`text-xs font-medium mb-1 ${isToday(day) ? 'text-accent' : 'text-muted-foreground'}`}>
+                      {format(day, 'd')}
+                    </div>
+                    <div className="space-y-1">
+                      {dayTrucks.map(truck => renderTruckBadge(truck, true))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* Week view: hourly grid */
+            <div className="flex-1 overflow-auto border rounded-lg">
+              <div className="grid grid-cols-[60px_repeat(7,1fr)] gap-px bg-border min-w-[700px]">
+                {/* Header row */}
+                <div className="bg-muted p-1 text-center text-xs font-medium">Heure</div>
+                {weekDays.map(day => (
+                  <div key={format(day, 'yyyy-MM-dd')} className={`bg-primary text-primary-foreground text-center text-xs font-medium py-2 ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''}`}>
+                    {format(day, 'EEE dd/MM', { locale: fr })}
+                  </div>
+                ))}
+                {/* Hour rows */}
+                {HOURS.map(hour => (
+                  <>
+                    <div key={`h-${hour}`} className="bg-muted p-1 text-center text-xs text-muted-foreground border-t border-border">
+                      {String(hour).padStart(2, '0')}:00
+                    </div>
+                    {weekDays.map(day => {
+                      const dateStr = format(day, 'yyyy-MM-dd');
+                      const hourTrucks = getTrucksForDate(dateStr).filter(t => {
+                        const h = parseInt(t.time.split(':')[0], 10);
+                        return h === hour;
+                      });
+                      return (
+                        <div
+                          key={`${dateStr}-${hour}`}
+                          onDragOver={onDragOver}
+                          onDrop={e => onDropOnDay(e, dateStr, hour)}
+                          onDragEnter={onDragEnter}
+                          onDragLeave={onDragLeave}
+                          onClick={() => selectedIds.size > 0 && handleDrop(dateStr)}
+                          className="bg-card p-0.5 min-h-[40px] border-t border-border transition-colors hover:bg-secondary/30"
+                        >
+                          {hourTrucks.map(truck => renderTruckBadge(truck))}
+                        </div>
+                      );
+                    })}
+                  </>
+                ))}
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Recap by factory × category */}
+      {trucks.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Récapitulatif par usine et catégorie de transport</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Usine</TableHead>
+                  {Object.values(TRANSPORT_CATEGORIES).map(c => (
+                    <TableHead key={c.category} className="text-center">{c.label}</TableHead>
+                  ))}
+                  <TableHead className="text-center font-bold">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recapData.factories.map(factory => (
+                  <TableRow key={factory}>
+                    <TableCell className="font-medium">{factory}</TableCell>
+                    {(['standard', 'cat1', 'cat2', 'cat3'] as TransportCategory[]).map(cat => (
+                      <TableCell key={cat} className="text-center">
+                        {recapData.data[factory]?.[cat] || 0}
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-center font-bold">{recapData.data[factory]?.total || 0}</TableCell>
+                  </TableRow>
+                ))}
+                {recapData.factories.length > 1 && (
+                  <TableRow className="bg-muted/50 font-bold">
+                    <TableCell>Total</TableCell>
+                    {(['standard', 'cat1', 'cat2', 'cat3'] as TransportCategory[]).map(cat => (
+                      <TableCell key={cat} className="text-center">
+                        {recapData.factories.reduce((sum, f) => sum + (recapData.data[f]?.[cat] || 0), 0)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-center">{trucks.length}</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Modals */}
-      <NewTruckModal open={showNewTruck} onClose={() => setShowNewTruck(false)} onConfirm={handleNewTruckConfirm} date={newTruckDate} />
+      <NewTruckModal open={showNewTruck} onClose={() => setShowNewTruck(false)} onConfirm={handleNewTruckConfirm} date={newTruckDate} trucks={trucks} />
 
       <Dialog open={showExistingPicker} onOpenChange={v => !v && setShowExistingPicker(false)}>
         <DialogContent>
