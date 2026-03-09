@@ -391,20 +391,6 @@ export default function DatabaseTab() {
                   ))
                 )}
               </TableBody>
-              {filteredElements.length > 0 && (
-                <TableFooter>
-                  <TableRow className="font-semibold bg-muted/30">
-                    <TableCell>{filteredElements.length} éléments</TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                    <TableCell>{totalLength.toFixed(2)} m</TableCell>
-                    <TableCell>{totalWeight.toFixed(3)} t</TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                </TableFooter>
-              )}
             </Table>
           </div>
         </CardContent>
