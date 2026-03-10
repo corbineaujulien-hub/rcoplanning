@@ -80,6 +80,20 @@ const FACTORY_COLORS: Record<string, string> = {
   'BERGERAC': '#4f46e5',
   'DSR': '#0284c7',
   'CSB': '#9333ea',
+  'THO': '#15803d',
+  'VOR': '#a21caf',
+  'TOU': '#0e7490',
+  'COU': '#059669',
+  'BER': '#4f46e5',
+  'VER': '#ca8a04',
+  'NER': '#be123c',
+  'EDP': '#6d28d9',
+  'VGB': '#0f766e',
+  'KP1': '#c2410c',
+  'A2C': '#1d4ed8',
+  'GUIMARD': '#7e22ce',
+  'IB': '#b45309',
+  'CGM': '#166534',
 };
 
 export function getFactoryColor(factory: string): string {
