@@ -8,8 +8,7 @@ import { Truck as TruckIcon, Weight, Ruler, Factory, Package, FileSpreadsheet, D
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import { renderSectionsToPdf, badge, badgeLarge, badgeSmall } from '@/utils/pdfExportUtils';
+import { exportWeekPdf } from '@/utils/pdfExportUtils';
 
 interface WeeklyPlanningTabProps {
   weekNumber: number;
