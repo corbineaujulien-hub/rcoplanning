@@ -105,7 +105,11 @@ export default function TruckCompositionTab() {
   }, [currentDate]);
 
   const navigate = (dir: number) => {
-    setCurrentDate(prev => viewMode === 'month' ? (dir > 0 ? addMonths(prev, 1) : subMonths(prev, 1)) : (dir > 0 ? addWeeks(prev, 1) : subWeeks(prev, 1)));
+    setCurrentDate(prev => {
+      if (viewMode === 'month') return dir > 0 ? addMonths(prev, 1) : subMonths(prev, 1);
+      if (viewMode === 'week') return dir > 0 ? addWeeks(prev, 1) : subWeeks(prev, 1);
+      return dir > 0 ? addDays(prev, 1) : subDays(prev, 1);
+    });
   };
 
   const handleDrop = (dateStr: string) => {
