@@ -64,10 +64,14 @@ function drawBadge(ctx: PdfContext, x: number, y: number, text: string, bg: stri
 function drawHeader(ctx: PdfContext, projectInfo: ProjectInfo, title: string) {
   const { pdf, margin, usableWidth } = ctx;
   
-  // Logo on top right
+  // Centered logo
   if (ctx.logoData) {
     try {
-      pdf.addImage(ctx.logoData, 'PNG', margin + usableWidth - 35, ctx.y, 35, 12);
+      const logoW = 40;
+      const logoH = 14;
+      const logoX = margin + (usableWidth - logoW) / 2;
+      pdf.addImage(ctx.logoData, 'PNG', logoX, ctx.y, logoW, logoH);
+      ctx.y += logoH + 2;
     } catch { /* ignore logo errors */ }
   }
 
@@ -141,14 +145,14 @@ function getCatBorderColor(cat: TransportCategory): string {
 }
 
 function estimateTruckHeight(els: BeamElement[], hasComment: boolean): number {
-  // Header line + info line + type groups
   const grouped = groupByType(els);
   const typeCount = Object.keys(grouped).length;
   let repereLines = 0;
   Object.values(grouped).forEach(reperes => {
-    repereLines += Math.ceil(reperes.length / 18) + 1; // label + badges
+    repereLines += Math.ceil(reperes.length / 18) + 1;
   });
-  return 12 + 6 + typeCount * 4 + repereLines * 4 + (hasComment ? 8 : 0) + 4;
+  // Header + info icons line + count badges + type groups + comment
+  return 12 + 8 + 6 + typeCount * 4 + repereLines * 4 + (hasComment ? 8 : 0) + 4;
 }
 
 function groupByType(els: BeamElement[]): Record<string, BeamElement[]> {
@@ -158,6 +162,37 @@ function groupByType(els: BeamElement[]): Record<string, BeamElement[]> {
     groups[el.productType].push(el);
   });
   return groups;
+}
+
+function drawTruckIcon(pdf: jsPDF, x: number, y: number, size: number, color: string) {
+  const [r, g, b] = hexToRgb(color);
+  pdf.setDrawColor(r, g, b);
+  pdf.setLineWidth(0.4);
+  // Simple truck shape: cab + body
+  const s = size;
+  // Body
+  pdf.rect(x, y + s * 0.2, s * 0.65, s * 0.55, 'S');
+  // Cab
+  pdf.rect(x + s * 0.65, y + s * 0.35, s * 0.3, s * 0.4, 'S');
+  // Wheels
+  pdf.setFillColor(r, g, b);
+  pdf.circle(x + s * 0.2, y + s * 0.8, s * 0.08, 'F');
+  pdf.circle(x + s * 0.8, y + s * 0.8, s * 0.08, 'F');
+}
+
+function drawInfoItem(ctx: PdfContext, x: number, y: number, icon: string, value: string): number {
+  const { pdf } = ctx;
+  // Icon symbol
+  pdf.setFontSize(7);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(100, 116, 139);
+  pdf.text(icon, x, y + 3);
+  const iconW = pdf.getTextWidth(icon) + 1.5;
+  // Value
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(30, 41, 59);
+  pdf.text(value, x + iconW, y + 3);
+  return iconW + pdf.getTextWidth(value) + 6;
 }
 
 function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[]) {
@@ -186,6 +221,10 @@ function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[]) {
   let x = cardX + borderW + 3;
   let y = cardY + 3;
 
+  // Truck icon
+  drawTruckIcon(pdf, x, y - 0.5, 5, '#1e3a5f');
+  x += 7;
+
   // Truck number + time badge
   const numBadge = drawBadge(ctx, x, y, `${truck.number} — ${truck.time}`, '#1e3a5f', '#ffffff', 9);
   x += numBadge.w + 3;
@@ -200,22 +239,19 @@ function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[]) {
     x += fBadge.w + 2;
   });
 
-  // Weight & length on the right
-  pdf.setFontSize(7);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(100, 100, 100);
-  const infoText = `${weight.toFixed(2)}t · ${maxLen.toFixed(2)}m`;
-  const infoW = pdf.getTextWidth(infoText);
-  pdf.text(infoText, cardX + cardW - infoW - 4, y + 3.5);
-
   y += numBadge.h + 3;
 
-  // Info line: product counts
-  pdf.setFontSize(7);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(30, 58, 95);
-  const counts = els.reduce((acc: Record<string, number>, el) => { acc[el.productType] = (acc[el.productType] || 0) + 1; return acc; }, {});
+  // Info line with icons (like the UI: weight, length, product count)
   x = cardX + borderW + 3;
+  x += drawInfoItem(ctx, x, y, '⚖', `${weight.toFixed(2)} t`);
+  x += drawInfoItem(ctx, x, y, '📏', `${maxLen.toFixed(2)} m`);
+  drawInfoItem(ctx, x, y, '📦', `${els.length} produits`);
+
+  y += 6;
+
+  // Info line: product counts badges
+  x = cardX + borderW + 3;
+  const counts = els.reduce((acc: Record<string, number>, el) => { acc[el.productType] = (acc[el.productType] || 0) + 1; return acc; }, {});
   Object.entries(counts).forEach(([type, count]) => {
     const countBadge = drawBadge(ctx, x, y, `${count}× ${type}`, '#e2e8f0', '#334155', 6);
     x += countBadge.w + 2;
@@ -267,10 +303,16 @@ function drawSummary(
   totalSiteWeight: number,
   cumulativeWeight: number
 ) {
-  ensureSpace(ctx, 30);
+  // Compute needed height based on product type count
+  const productTypeCount = Object.keys(weekProductCounts).length;
+  const productSubHeight = productTypeCount * 3.5;
+  const boxH = Math.max(14, 12 + productSubHeight);
+  const totalH = 8 + boxH + 4;
+
+  ensureSpace(ctx, totalH);
   const { pdf, margin, usableWidth } = ctx;
 
-  drawRoundedRect(pdf, margin, ctx.y, usableWidth, 25, 2, '#ffffff', '#e2e8f0');
+  drawRoundedRect(pdf, margin, ctx.y, usableWidth, totalH, 2, '#ffffff', '#e2e8f0');
   pdf.setFontSize(9);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(30, 58, 95);
@@ -278,7 +320,7 @@ function drawSummary(
 
   const colW = (usableWidth - 8) / 5;
   const colY = ctx.y + 8;
-  const labels = ['Camions', 'Produits', 'Tonnage', 'Avancement hebdo', 'Avancement cumulé'];
+  const labels = ['Camions livrés', 'Produits livrés', 'Tonnage semaine', 'Avancement hebdo', 'Avancement cumulé'];
   const values = [
     `${truckCount}`,
     `${totalProducts}`,
@@ -289,7 +331,7 @@ function drawSummary(
 
   labels.forEach((label, i) => {
     const cx = margin + 4 + i * colW;
-    drawRoundedRect(pdf, cx, colY, colW - 2, 14, 1.5, '#f1f5f9');
+    drawRoundedRect(pdf, cx, colY, colW - 2, boxH, 1.5, '#f1f5f9');
     pdf.setFontSize(6);
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(100, 116, 139);
@@ -298,9 +340,21 @@ function drawSummary(
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(30, 41, 59);
     pdf.text(values[i], cx + 2, colY + 10);
+
+    // Sub-details for "Produits livrés"
+    if (i === 1) {
+      let subY = colY + 13;
+      pdf.setFontSize(5.5);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(80, 80, 80);
+      Object.entries(weekProductCounts).forEach(([type, count]) => {
+        pdf.text(`${count}× ${type}`, cx + 2, subY);
+        subY += 3.5;
+      });
+    }
   });
 
-  ctx.y += 28;
+  ctx.y += totalH + 2;
 }
 
 async function loadLogoAsBase64(): Promise<string | null> {
