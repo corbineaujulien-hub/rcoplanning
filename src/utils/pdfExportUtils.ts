@@ -64,10 +64,14 @@ function drawBadge(ctx: PdfContext, x: number, y: number, text: string, bg: stri
 function drawHeader(ctx: PdfContext, projectInfo: ProjectInfo, title: string) {
   const { pdf, margin, usableWidth } = ctx;
   
-  // Logo on top right
+  // Centered logo
   if (ctx.logoData) {
     try {
-      pdf.addImage(ctx.logoData, 'PNG', margin + usableWidth - 35, ctx.y, 35, 12);
+      const logoW = 40;
+      const logoH = 14;
+      const logoX = margin + (usableWidth - logoW) / 2;
+      pdf.addImage(ctx.logoData, 'PNG', logoX, ctx.y, logoW, logoH);
+      ctx.y += logoH + 2;
     } catch { /* ignore logo errors */ }
   }
 
