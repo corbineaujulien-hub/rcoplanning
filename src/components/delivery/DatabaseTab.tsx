@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw, FileText, AlertTriangle, Loader2 } from 'lucide-react';
+import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw, FileText, AlertTriangle, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
