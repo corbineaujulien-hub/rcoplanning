@@ -166,15 +166,16 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;border-bottom:2px solid #1e3a5f;padding-bottom:8px;">
         <div>
           <h1 style="font-size:16px;color:#1e3a5f;margin:0 0 4px 0;">RECTOR – ${weekLabel}</h1>
-          ${projectInfo.siteName ? `<p style="margin:1px 0;font-size:11px;"><strong>Chantier :</strong> ${projectInfo.siteName} ${projectInfo.otpNumber ? `(OTP: ${projectInfo.otpNumber})` : ''}</p>` : ''}
-          ${projectInfo.clientName ? `<p style="margin:1px 0;font-size:11px;"><strong>Client :</strong> ${projectInfo.clientName}</p>` : ''}
+          ${projectInfo.otpNumber ? `<p style="margin:1px 0;font-size:11px;"><strong>N° OTP :</strong> ${projectInfo.otpNumber}</p>` : ''}
+          ${projectInfo.siteName ? `<p style="margin:1px 0;font-size:11px;"><strong>Chantier :</strong> ${projectInfo.siteName}</p>` : ''}
           ${projectInfo.siteAddress ? `<p style="margin:1px 0;font-size:11px;"><strong>Adresse :</strong> ${projectInfo.siteAddress}</p>` : ''}
+          ${projectInfo.clientName ? `<p style="margin:1px 0;font-size:11px;"><strong>Client :</strong> ${projectInfo.clientName}</p>` : ''}
         </div>
         <div style="text-align:right;">
-          <img src="/logo.png" style="height:40px;object-fit:contain;" onerror="this.style.display='none'" />
-          ${projectInfo.conductor ? `<p style="margin:1px 0;font-size:10px;"><strong>Conducteur :</strong> ${projectInfo.conductor}</p>` : ''}
-          ${projectInfo.subcontractor ? `<p style="margin:1px 0;font-size:10px;"><strong>Poseur :</strong> ${projectInfo.subcontractor}</p>` : ''}
-          ${projectInfo.contactName ? `<p style="margin:1px 0;font-size:10px;"><strong>Contact :</strong> ${projectInfo.contactName} ${projectInfo.contactPhone || ''}</p>` : ''}
+          <img src="/logo.png" style="height:40px;object-fit:contain;margin-bottom:4px;" onerror="this.style.display='none'" />
+          ${projectInfo.conductor ? `<p style="margin:1px 0;font-size:11px;"><strong>Conducteur :</strong> ${projectInfo.conductor}</p>` : ''}
+          ${projectInfo.subcontractor ? `<p style="margin:1px 0;font-size:11px;"><strong>Poseur :</strong> ${projectInfo.subcontractor}</p>` : ''}
+          ${projectInfo.contactName ? `<p style="margin:1px 0;font-size:11px;"><strong>Contact :</strong> ${projectInfo.contactName}${projectInfo.contactPhone ? ` — ${projectInfo.contactPhone}` : ''}</p>` : ''}
         </div>
       </div>
       ${trucksHtml}
