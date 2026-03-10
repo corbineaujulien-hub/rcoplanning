@@ -62,3 +62,19 @@ export function isNonStandard(elements: BeamElement[]): boolean {
 export function isMultiSite(elements: BeamElement[]): boolean {
   return getTruckFactories(elements).length > 1;
 }
+
+const FACTORY_COLORS: Record<string, string> = {
+  'BRIVE': '#2563eb',
+  'COULOUNIEIX': '#059669',
+  'PERIGUEUX': '#d97706',
+  'LIMOGES': '#7c3aed',
+  'BORDEAUX': '#dc2626',
+  'TOULOUSE': '#0891b2',
+  'AGEN': '#c026d3',
+  'MONTAUBAN': '#ea580c',
+};
+
+export function getFactoryColor(factory: string): string {
+  const key = factory.toUpperCase().trim();
+  return FACTORY_COLORS[key] || '#6b7280';
+}
