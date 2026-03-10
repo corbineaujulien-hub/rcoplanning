@@ -315,9 +315,13 @@ export default function DatabaseTab() {
         return true;
       });
 
-      const elementReperes = new Set(filteredEls.map(el => el.repere.toLowerCase()));
-      const found = detectedReperes.filter(r => elementReperes.has(r.toLowerCase()));
-      const notFound = detectedReperes.filter(r => !elementReperes.has(r.toLowerCase()));
+      // Substring matching: a DB repère (e.g. "A003") matches if contained in a detected repère (e.g. "DBF-A003")
+      const found = detectedReperes.filter(r =>
+        filteredEls.some(el => r.toLowerCase().includes(el.repere.toLowerCase()) || el.repere.toLowerCase().includes(r.toLowerCase()))
+      );
+      const notFound = detectedReperes.filter(r =>
+        !filteredEls.some(el => r.toLowerCase().includes(el.repere.toLowerCase()) || el.repere.toLowerCase().includes(r.toLowerCase()))
+      );
 
       setPdfResult({ found, notFound, allDetected: detectedReperes });
 
