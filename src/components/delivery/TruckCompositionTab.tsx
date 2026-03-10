@@ -41,6 +41,8 @@ export default function TruckCompositionTab() {
   const [draggedTruckIds, setDraggedTruckIds] = useState<string[]>([]);
   const [selectedTruckIds, setSelectedTruckIds] = useState<Set<string>>(new Set());
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+  const [selectionMode, setSelectionMode] = useState<'list' | 'plans'>('list');
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
   const zones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))], [elements]);
   const factoryList = useMemo(() => [...new Set(elements.map(e => e.factory).filter(Boolean))], [elements]);
