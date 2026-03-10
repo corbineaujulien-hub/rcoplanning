@@ -4,13 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { DeliveryProvider } from '@/context/DeliveryContext';
 import DeliveryApp from '@/components/delivery/DeliveryApp';
 import { toast } from 'sonner';
-import type { AccessRole } from '@/types/delivery';
 
 export default function Project() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const [projectId, setProjectId] = useState<string | null>(null);
-  const [role, setRole] = useState<AccessRole>('viewer');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,9 +24,8 @@ export default function Project() {
         navigate('/');
         return;
       }
-      const result = data as { project_id: string; role: AccessRole; site_name: string };
+      const result = data as { project_id: string; site_name: string };
       setProjectId(result.project_id);
-      setRole(result.role);
       setLoading(false);
     };
 
@@ -44,7 +41,7 @@ export default function Project() {
   }
 
   return (
-    <DeliveryProvider projectId={projectId!} role={role} token={token!}>
+    <DeliveryProvider projectId={projectId!} token={token!}>
       <DeliveryApp />
     </DeliveryProvider>
   );
