@@ -4,7 +4,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import GeneralInfoTab from '@/components/delivery/GeneralInfoTab';
 import DatabaseTab from '@/components/delivery/DatabaseTab';
 import TruckCompositionTab from '@/components/delivery/TruckCompositionTab';
-import GeneralPlanningTab from '@/components/delivery/GeneralPlanningTab';
 import WeeklyPlanningTab from '@/components/delivery/WeeklyPlanningTab';
 import { Truck as TruckIcon, ClipboardList, Database, CalendarDays, Calendar } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
