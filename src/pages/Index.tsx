@@ -125,25 +125,25 @@ function DeliveryApp() {
           const factories = getTruckFactories(els);
           const borderColor = cat === 'standard' ? '#22c55e' : cat === 'cat1' ? '#eab308' : cat === 'cat2' ? '#f97316' : '#ef4444';
 
-          allHtml += `<div style="border:1px solid #b0b8c4;border-left:4px solid ${borderColor};background:white;border-radius:6px;padding:12px 16px;margin:6px 0;box-shadow:0 1px 3px rgba(0,0,0,.1);">`;
-          allHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <div style="display:inline-flex;align-items:center;gap:4px;background:#1e3a5f;color:white;padding:6px 14px;border-radius:4px;font-size:13px;font-weight:700;line-height:1;">🚛 ${truck.number} — ${truck.time}</div>
-              <span style="background:${borderColor};color:white;padding:6px 14px;border-radius:4px;font-size:11px;display:inline-flex;align-items:center;line-height:1;font-weight:600;">${catInfo.label}</span>
-              ${factories.map(f => `<span style="background:${getFactoryColor(f)};color:white;padding:6px 14px;border-radius:4px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;line-height:1;">${f}</span>`).join('')}
+          allHtml += `<div style="border:1px solid #b0b8c4;border-left:5px solid ${borderColor};background:white;border-radius:6px;padding:14px 18px;margin:8px 0;box-shadow:0 1px 3px rgba(0,0,0,.1);">`;
+          allHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <div style="background:#1e3a5f;color:white;padding:8px 16px;border-radius:5px;font-size:14px;font-weight:700;line-height:1.4;">🚛 ${truck.number} — ${truck.time}</div>
+              <span style="background:${borderColor};color:white;padding:7px 14px;border-radius:5px;font-size:12px;font-weight:600;line-height:1.4;">${catInfo.label}</span>
+              ${factories.map(f => `<span style="background:${getFactoryColor(f)};color:white;padding:7px 14px;border-radius:5px;font-size:12px;font-weight:700;line-height:1.4;">${f}</span>`).join('')}
             </div>
-            <span style="font-size:11px;color:#666;">⚖️ ${weight.toFixed(2)}t · 📏 ${maxLen.toFixed(2)}m</span>
+            <span style="font-size:12px;color:#555;white-space:nowrap;">⚖️ ${weight.toFixed(2)}t · 📏 ${maxLen.toFixed(2)}m</span>
           </div>`;
-          allHtml += `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px;">`;
+          allHtml += `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">`;
           Object.entries(typeGroups).forEach(([type, reperes]) => {
-            allHtml += `<span style="font-size:11px;font-weight:600;color:#1e3a5f;display:inline-flex;align-items:center;line-height:1;">${reperes.length}× ${type} :</span>`;
+            allHtml += `<span style="font-size:12px;font-weight:600;color:#1e3a5f;line-height:1.4;">${reperes.length}× ${type} :</span>`;
             reperes.forEach(r => {
-              allHtml += `<span style="background:#dbeafe;color:#1e3a5f;padding:5px 10px;border-radius:4px;font-size:11px;font-family:monospace;font-weight:500;display:inline-flex;align-items:center;line-height:1;">${r}</span>`;
+              allHtml += `<span style="background:#dbeafe;color:#1e3a5f;padding:6px 10px;border-radius:4px;font-size:12px;font-family:monospace;font-weight:500;line-height:1.4;">${r}</span>`;
             });
           });
           allHtml += `</div>`;
           if (truck.comment?.trim()) {
-            allHtml += `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:4px;padding:3px 6px;margin-top:3px;font-size:10px;">💬 ${truck.comment}</div>`;
+            allHtml += `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:4px;padding:6px 10px;margin-top:6px;font-size:11px;line-height:1.4;">💬 ${truck.comment}</div>`;
           }
           allHtml += `</div>`;
         });
