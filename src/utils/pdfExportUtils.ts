@@ -145,14 +145,14 @@ function getCatBorderColor(cat: TransportCategory): string {
 }
 
 function estimateTruckHeight(els: BeamElement[], hasComment: boolean): number {
-  // Header line + info line + type groups
   const grouped = groupByType(els);
   const typeCount = Object.keys(grouped).length;
   let repereLines = 0;
   Object.values(grouped).forEach(reperes => {
-    repereLines += Math.ceil(reperes.length / 18) + 1; // label + badges
+    repereLines += Math.ceil(reperes.length / 18) + 1;
   });
-  return 12 + 6 + typeCount * 4 + repereLines * 4 + (hasComment ? 8 : 0) + 4;
+  // Header + info icons line + count badges + type groups + comment
+  return 12 + 8 + 6 + typeCount * 4 + repereLines * 4 + (hasComment ? 8 : 0) + 4;
 }
 
 function groupByType(els: BeamElement[]): Record<string, BeamElement[]> {
