@@ -61,8 +61,16 @@ function DeliveryApp() {
     XLSX.writeFile(wb, `planning_toutes_semaines.xlsx`);
   };
 
-  const exportAllWeeksPdf = () => {
-    const totalSiteWeight = elements.reduce((s, e) => s + e.weight, 0);
+  const groupElementsByType = (els: BeamElement[]) => {
+    const groups: Record<string, string[]> = {};
+    els.forEach(el => {
+      if (!groups[el.productType]) groups[el.productType] = [];
+      groups[el.productType].push(el.repere);
+    });
+    return groups;
+  };
+
+  const exportAllWeeksPdf = async () => {
     let allHtml = '';
 
     weeklyTabs.forEach((w, idx) => {
@@ -80,14 +88,23 @@ function DeliveryApp() {
       const we = endOfWeek(firstDate, { weekStartsOn: 1 });
       const weekLabel = `Semaine ${w.weekNumber} – du ${format(ws, 'dd/MM', { locale: fr })} au ${format(we, 'dd/MM/yyyy', { locale: fr })}`;
 
-      if (idx > 0) allHtml += '<div style="page-break-before:always;"></div>';
+      if (idx > 0) allHtml += '<div style="page-break-before:always;height:0;"></div>';
 
-      allHtml += `<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;border-bottom:2px solid #1e3a5f;padding-bottom:10px;">
-        <div><h2 style="font-size:18px;color:#1e3a5f;margin:0 0 4px 0;">RECTOR – ${weekLabel}</h2>
-        ${projectInfo.siteName ? `<p style="margin:2px 0;font-size:12px;"><strong>Chantier :</strong> ${projectInfo.siteName} ${projectInfo.otpNumber ? `(OTP: ${projectInfo.otpNumber})` : ''}</p>` : ''}
-        ${projectInfo.clientName ? `<p style="margin:2px 0;font-size:12px;"><strong>Client :</strong> ${projectInfo.clientName}</p>` : ''}
+      // Full header with all project info
+      allHtml += `<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;border-bottom:2px solid #1e3a5f;padding-bottom:8px;">
+        <div>
+          <h2 style="font-size:16px;color:#1e3a5f;margin:0 0 4px 0;">RECTOR – ${weekLabel}</h2>
+          ${projectInfo.otpNumber ? `<p style="margin:1px 0;font-size:11px;"><strong>N° OTP :</strong> ${projectInfo.otpNumber}</p>` : ''}
+          ${projectInfo.siteName ? `<p style="margin:1px 0;font-size:11px;"><strong>Chantier :</strong> ${projectInfo.siteName}</p>` : ''}
+          ${projectInfo.siteAddress ? `<p style="margin:1px 0;font-size:11px;"><strong>Adresse :</strong> ${projectInfo.siteAddress}</p>` : ''}
+          ${projectInfo.clientName ? `<p style="margin:1px 0;font-size:11px;"><strong>Client :</strong> ${projectInfo.clientName}</p>` : ''}
         </div>
-        <img src="/logo.png" style="height:40px;object-fit:contain;" onerror="this.style.display='none'" />
+        <div style="text-align:right;">
+          <img src="/logo.png" style="height:40px;object-fit:contain;margin-bottom:4px;" onerror="this.style.display='none'" />
+          ${projectInfo.conductor ? `<p style="margin:1px 0;font-size:11px;"><strong>Conducteur :</strong> ${projectInfo.conductor}</p>` : ''}
+          ${projectInfo.subcontractor ? `<p style="margin:1px 0;font-size:11px;"><strong>Poseur :</strong> ${projectInfo.subcontractor}</p>` : ''}
+          ${projectInfo.contactName ? `<p style="margin:1px 0;font-size:11px;"><strong>Contact :</strong> ${projectInfo.contactName}${projectInfo.contactPhone ? ` — ${projectInfo.contactPhone}` : ''}</p>` : ''}
+        </div>
       </div>`;
 
       const grouped = new Map<string, typeof weekTrucks>();
@@ -97,38 +114,88 @@ function DeliveryApp() {
       });
 
       Array.from(grouped.entries()).forEach(([date, dayTrucks]) => {
-        allHtml += `<div style="background:#1e3a5f;color:white;padding:6px 14px;border-radius:5px;font-weight:600;font-size:12px;margin-top:12px;text-transform:capitalize;">${format(parseISO(date), 'EEEE dd MMMM yyyy', { locale: fr })} — ${dayTrucks.length} camion${dayTrucks.length > 1 ? 's' : ''}</div>`;
+        allHtml += `<div style="background:#1e3a5f;color:white;padding:4px 10px;border-radius:4px;font-weight:600;font-size:11px;margin-top:8px;text-transform:capitalize;">${format(parseISO(date), 'EEEE dd MMMM yyyy', { locale: fr })} — ${dayTrucks.length} camion${dayTrucks.length > 1 ? 's' : ''}</div>`;
         dayTrucks.forEach(truck => {
           const els = getTruckElements(truck.id);
           const cat = getTransportCategory(els);
           const catInfo = TRANSPORT_CATEGORIES[cat];
           const weight = getTruckWeight(els);
           const maxLen = getTruckMaxLength(els);
-          const factories = getTruckFactories(els);
-          const counts = getProductCountsByType(els);
+          const typeGroups = groupElementsByType(els);
           const borderColor = cat === 'standard' ? '#22c55e' : cat === 'cat1' ? '#eab308' : cat === 'cat2' ? '#f97316' : '#ef4444';
 
-          allHtml += `<div style="border-left:4px solid ${borderColor};background:white;border-radius:6px;padding:10px;margin:6px 0;box-shadow:0 1px 2px rgba(0,0,0,.08);">`;
-          allHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><strong style="font-size:14px;">${truck.number}</strong><span style="background:${borderColor};color:white;padding:2px 6px;border-radius:3px;font-size:10px;">${catInfo.label}</span><span style="color:#666;font-size:12px;">${truck.time}</span></div>`;
-          allHtml += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:11px;margin-bottom:6px;"><span>🏭 ${factories.join(', ') || '—'}</span><span>⚖️ ${weight.toFixed(2)}t</span><span>📏 ${maxLen.toFixed(2)}m</span><span>📦 ${els.length} produits</span></div>`;
-          allHtml += `<div style="display:flex;flex-wrap:wrap;gap:3px;">${els.map(el => `<span style="background:#dbeafe;color:#1e3a5f;padding:1px 5px;border-radius:3px;font-size:9px;font-family:monospace;">${el.repere}</span>`).join('')}</div>`;
+          allHtml += `<div style="border:1px solid #d1d5db;border-left:3px solid ${borderColor};background:white;border-radius:4px;padding:4px 8px;margin:4px 0;box-shadow:0 1px 2px rgba(0,0,0,.08);">`;
+          // Time + number left, category badge, weight/length right
+          allHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <strong style="font-size:12px;">${truck.time}</strong>
+              <strong style="font-size:12px;">${truck.number}</strong>
+              <span style="background:${borderColor};color:white;padding:1px 6px;border-radius:3px;font-size:9px;">${catInfo.label}</span>
+            </div>
+            <span style="font-size:10px;color:#666;">⚖️ ${weight.toFixed(2)}t · 📏 ${maxLen.toFixed(2)}m</span>
+          </div>`;
+          // Repères grouped by type
+          allHtml += `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;">`;
+          Object.entries(typeGroups).forEach(([type, reperes]) => {
+            allHtml += `<span style="font-size:11px;font-weight:600;color:#1e3a5f;">${reperes.length}× ${type} :</span>`;
+            reperes.forEach(r => {
+              allHtml += `<span style="background:#dbeafe;color:#1e3a5f;padding:1px 5px;border-radius:3px;font-size:11px;font-family:monospace;font-weight:500;">${r}</span>`;
+            });
+          });
+          allHtml += `</div>`;
           if (truck.comment?.trim()) {
-            allHtml += `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:4px;padding:6px;margin-top:6px;font-size:11px;">💬 ${truck.comment}</div>`;
+            allHtml += `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:4px;padding:3px 6px;margin-top:3px;font-size:10px;">💬 ${truck.comment}</div>`;
           }
           allHtml += `</div>`;
         });
       });
     });
 
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Planning toutes semaines</title>
-      <style>@page{size:A3 landscape;margin:10mm;}body{font-family:Inter,system-ui,sans-serif;color:#1e293b;margin:0;padding:20px;font-size:12px;}</style>
-    </head><body>${allHtml}</body></html>`;
+    // Render to PDF via html2canvas + jsPDF
+    const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.innerHTML = `<div id="pdf-all-content" style="width:1580px;font-family:Inter,system-ui,sans-serif;color:#1e293b;padding:16px;">${allHtml}</div>`;
+    document.body.appendChild(container);
 
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(html);
-      printWindow.document.close();
-      printWindow.onload = () => { printWindow.print(); };
+    try {
+      const canvas = await html2canvas(container.querySelector('#pdf-all-content')!, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' });
+      const pdfWidth = 420;
+      const pdfHeight = 297;
+      const margin = 8;
+      const usableWidth = pdfWidth - margin * 2;
+      const usableHeight = pdfHeight - margin * 2;
+      const contentHeight = (canvas.height / canvas.width) * usableWidth;
+      const imgData = canvas.toDataURL('image/png');
+
+      if (contentHeight <= usableHeight) {
+        pdf.addImage(imgData, 'PNG', margin, margin, usableWidth, contentHeight);
+      } else {
+        const totalPages = Math.ceil(contentHeight / usableHeight);
+        for (let page = 0; page < totalPages; page++) {
+          if (page > 0) pdf.addPage();
+          const sourceY = (page * usableHeight / contentHeight) * canvas.height;
+          const sourceH = Math.min((usableHeight / contentHeight) * canvas.height, canvas.height - sourceY);
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = canvas.width;
+          sliceCanvas.height = sourceH;
+          const ctx = sliceCanvas.getContext('2d')!;
+          ctx.drawImage(canvas, 0, sourceY, canvas.width, sourceH, 0, 0, canvas.width, sourceH);
+          const sliceHeight = (sourceH / canvas.width) * usableWidth;
+          pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', margin, margin, usableWidth, sliceHeight);
+        }
+      }
+
+      pdf.save(`planning_toutes_semaines.pdf`);
+    } finally {
+      document.body.removeChild(container);
     }
   };
 
