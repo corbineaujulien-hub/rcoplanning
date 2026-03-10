@@ -198,11 +198,7 @@ export default function TruckCompositionTab() {
   const handleDrop = (dateStr: string) => {
     const ids = Array.from(selectedIds).filter(id => !isElementAssigned(id));
     if (ids.length === 0) return;
-    const dayTrucks = hasMultipleTeams
-      ? getTrucksForDate(dateStr).filter(t => t.teamId === activeTeamId)
-      : getTrucksForDate(dateStr);
-    setPendingElementIds(ids);
-    setNewTruckDate(dateStr);
+    const dayTrucks = getTeamTrucksForDate(dateStr);
     if (dayTrucks.length === 0) {
       setShowNewTruck(true);
     } else {
