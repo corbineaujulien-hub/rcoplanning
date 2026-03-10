@@ -74,6 +74,13 @@ export default function TruckCompositionTab() {
     return trucks.find(t => t.elementIds.includes(elementId));
   };
 
+  // Helper: get trucks for a date, filtered by team if multi-team
+  const getTeamTrucksForDate = useCallback((dateStr: string) => {
+    const dayTrucks = getTrucksForDate(dateStr);
+    if (!hasMultipleTeams || !activeTeamId) return dayTrucks;
+    return dayTrucks.filter(t => t.teamId === activeTeamId);
+  }, [getTrucksForDate, hasMultipleTeams, activeTeamId]);
+
   // State for drag highlight on day view trucks
   const [dragOverTruckId, setDragOverTruckId] = useState<string | null>(null);
   const [dragOverNewZone, setDragOverNewZone] = useState(false);
