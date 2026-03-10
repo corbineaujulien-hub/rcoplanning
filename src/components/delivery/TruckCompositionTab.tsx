@@ -308,80 +308,200 @@ export default function TruckCompositionTab() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex gap-4 h-[calc(100vh-16rem)]">
-        {/* Left panel - element list */}
+        {/* Left panel - element list or plans */}
         <Card className="w-80 flex-shrink-0 flex flex-col">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-1">
-              <Filter className="h-4 w-4 text-accent" /> Repères disponibles
-            </CardTitle>
-            <div className="space-y-2 mt-2">
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input placeholder="Rechercher un repère…" value={filterRepere} onChange={e => setFilterRepere(e.target.value)} className="h-8 text-xs pl-7" />
-              </div>
-              <Select value={filterZone} onValueChange={setFilterZone}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Zone" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">Toutes les zones</SelectItem>
-                  {zones.map(z => <SelectItem key={z} value={z}>{z}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">Tous les types</SelectItem>
-                  {productTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={filterFactory} onValueChange={setFilterFactory}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Usine" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">Toutes les usines</SelectItem>
-                  {factoryList.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={filterStatus} onValueChange={v => setFilterStatus(v as any)}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous</SelectItem>
-                  <SelectItem value="unloaded">Non chargé</SelectItem>
-                  <SelectItem value="loaded">Chargé</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => { setFilterRepere(''); setFilterZone(''); setFilterType(''); setFilterFactory(''); setFilterStatus('all'); }}>
-                <X className="h-3 w-3 mr-1" /> Réinitialiser filtres
+            {/* Toggle between list and plans */}
+            <div className="flex gap-1 mb-2">
+              <Button variant={selectionMode === 'list' ? 'default' : 'outline'} size="sm" className="flex-1 text-xs" onClick={() => setSelectionMode('list')}>
+                <List className="h-3.5 w-3.5 mr-1" /> Liste
+              </Button>
+              <Button variant={selectionMode === 'plans' ? 'default' : 'outline'} size="sm" className="flex-1 text-xs" onClick={() => setSelectionMode('plans')} disabled={plans.length === 0}>
+                <FileText className="h-3.5 w-3.5 mr-1" /> Plans ({plans.length})
               </Button>
             </div>
+
+            {selectionMode === 'list' && (
+              <>
+                <CardTitle className="text-sm flex items-center gap-1">
+                  <Filter className="h-4 w-4 text-accent" /> Repères disponibles
+                </CardTitle>
+                <div className="space-y-2 mt-2">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input placeholder="Rechercher un repère…" value={filterRepere} onChange={e => setFilterRepere(e.target.value)} className="h-8 text-xs pl-7" />
+                  </div>
+                  <Select value={filterZone} onValueChange={setFilterZone}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Zone" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Toutes les zones</SelectItem>
+                      {zones.map(z => <SelectItem key={z} value={z}>{z}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select value={filterType} onValueChange={setFilterType}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Tous les types</SelectItem>
+                      {productTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select value={filterFactory} onValueChange={setFilterFactory}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Usine" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Toutes les usines</SelectItem>
+                      {factoryList.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select value={filterStatus} onValueChange={v => setFilterStatus(v as any)}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous</SelectItem>
+                      <SelectItem value="unloaded">Non chargé</SelectItem>
+                      <SelectItem value="loaded">Chargé</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => { setFilterRepere(''); setFilterZone(''); setFilterType(''); setFilterFactory(''); setFilterStatus('all'); }}>
+                    <X className="h-3 w-3 mr-1" /> Réinitialiser filtres
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {selectionMode === 'plans' && (
+              <CardTitle className="text-sm flex items-center gap-1">
+                <FileText className="h-4 w-4 text-accent" /> Sélection par plan
+              </CardTitle>
+            )}
           </CardHeader>
           <CardContent className="flex-1 overflow-auto p-2">
-            <div className="flex items-center gap-2 mb-2 px-1">
-              <Checkbox checked={selectedIds.size > 0 && selectedIds.size === filteredElements.filter(e => !isElementAssigned(e.id)).length} onCheckedChange={selectAll} />
-              <span className="text-xs text-muted-foreground">{selectedIds.size} sélectionné(s)</span>
-            </div>
-            <div className="space-y-1">
-              {filteredElements.map(el => {
-                const assigned = isElementAssigned(el.id);
-                return (
-                  <div
-                    key={el.id}
-                    draggable={!assigned}
-                    onDragStart={e => onDragStart(e, el.id)}
-                    className={`flex items-center gap-2 p-2 rounded-md text-xs border transition-colors cursor-grab active:cursor-grabbing ${assigned ? 'bg-muted/50 opacity-60' : 'bg-card hover:bg-secondary/50'} ${selectedIds.has(el.id) ? 'border-accent ring-1 ring-accent/30' : 'border-transparent'}`}
-                  >
-                    {!assigned && <Checkbox checked={selectedIds.has(el.id)} onCheckedChange={() => toggleSelect(el.id)} />}
-                    {assigned && <Badge variant="outline" className="text-[10px] px-1">Chargé</Badge>}
-                    <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <span className="font-mono font-medium">{el.repere}</span>
-                      <span className="text-muted-foreground ml-1">{el.productType}</span>
-                      <div className="text-muted-foreground">{el.length}m · {el.weight}t · {el.zone}</div>
+            {selectionMode === 'list' ? (
+              <>
+                <div className="flex items-center gap-2 mb-2 px-1">
+                  <Checkbox checked={selectedIds.size > 0 && selectedIds.size === filteredElements.filter(e => !isElementAssigned(e.id)).length} onCheckedChange={selectAll} />
+                  <span className="text-xs text-muted-foreground">{selectedIds.size} sélectionné(s)</span>
+                </div>
+                <div className="space-y-1">
+                  {filteredElements.map(el => {
+                    const assigned = isElementAssigned(el.id);
+                    return (
+                      <div
+                        key={el.id}
+                        draggable={!assigned}
+                        onDragStart={e => onDragStart(e, el.id)}
+                        className={`flex items-center gap-2 p-2 rounded-md text-xs border transition-colors cursor-grab active:cursor-grabbing ${assigned ? 'bg-muted/50 opacity-60' : 'bg-card hover:bg-secondary/50'} ${selectedIds.has(el.id) ? 'border-accent ring-1 ring-accent/30' : 'border-transparent'}`}
+                      >
+                        {!assigned && <Checkbox checked={selectedIds.has(el.id)} onCheckedChange={() => toggleSelect(el.id)} />}
+                        {assigned && <Badge variant="outline" className="text-[10px] px-1">Chargé</Badge>}
+                        <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <span className="font-mono font-medium">{el.repere}</span>
+                          <span className="text-muted-foreground ml-1">{el.productType}</span>
+                          <div className="text-muted-foreground">{el.length}m · {el.weight}t · {el.zone}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              /* Plans mode */
+              <div className="space-y-2">
+                {!selectedPlanId ? (
+                  /* Plan list */
+                  plans.map(plan => (
+                    <div
+                      key={plan.id}
+                      onClick={() => setSelectedPlanId(plan.id)}
+                      className="p-2 rounded-md border bg-card hover:bg-secondary/50 cursor-pointer transition-colors"
+                    >
+                      <div className="font-medium text-xs truncate">{plan.name}</div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">
+                        {plan.detectedReperes.length} repère(s) · {plan.zones.join(', ')}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  ))
+                ) : (
+                  /* Selected plan: show repères */
+                  (() => {
+                    const plan = plans.find(p => p.id === selectedPlanId);
+                    if (!plan) return null;
+                    // Match detected repères to elements
+                    const matchedElements = plan.detectedReperes
+                      .map(rep => elements.find(el => el.repere.toLowerCase() === rep.toLowerCase()))
+                      .filter(Boolean) as BeamElement[];
+                    return (
+                      <>
+                        <Button variant="ghost" size="sm" className="w-full text-xs mb-2" onClick={() => setSelectedPlanId(null)}>
+                          ← Retour aux plans
+                        </Button>
+                        <div className="text-xs font-medium mb-1 truncate">{plan.name}</div>
+                        <div className="flex items-center gap-2 mb-2 px-1">
+                          <Checkbox
+                            checked={matchedElements.filter(e => !isElementAssigned(e.id)).length > 0 && matchedElements.filter(e => !isElementAssigned(e.id)).every(e => selectedIds.has(e.id))}
+                            onCheckedChange={() => {
+                              const unassigned = matchedElements.filter(e => !isElementAssigned(e.id));
+                              const allSelected = unassigned.every(e => selectedIds.has(e.id));
+                              if (allSelected) {
+                                setSelectedIds(prev => {
+                                  const next = new Set(prev);
+                                  unassigned.forEach(e => next.delete(e.id));
+                                  return next;
+                                });
+                              } else {
+                                setSelectedIds(prev => {
+                                  const next = new Set(prev);
+                                  unassigned.forEach(e => next.add(e.id));
+                                  return next;
+                                });
+                              }
+                            }}
+                          />
+                          <span className="text-xs text-muted-foreground">{selectedIds.size} sélectionné(s)</span>
+                        </div>
+                        {/* PDF viewer */}
+                        {plan.pdfDataUrl && (
+                          <iframe src={plan.pdfDataUrl} className="w-full h-48 rounded border mb-2" title={plan.name} />
+                        )}
+                        <div className="space-y-1">
+                          {plan.detectedReperes.map(rep => {
+                            const el = elements.find(e => e.repere.toLowerCase() === rep.toLowerCase());
+                            if (!el) {
+                              return (
+                                <div key={rep} className="flex items-center gap-2 p-2 rounded-md text-xs border border-destructive/30 bg-destructive/5 opacity-60">
+                                  <span className="font-mono">{rep}</span>
+                                  <span className="text-destructive text-[10px]">Non trouvé</span>
+                                </div>
+                              );
+                            }
+                            const assigned = isElementAssigned(el.id);
+                            return (
+                              <div
+                                key={el.id}
+                                draggable={!assigned}
+                                onDragStart={e => onDragStart(e, el.id)}
+                                className={`flex items-center gap-2 p-2 rounded-md text-xs border transition-colors cursor-grab active:cursor-grabbing ${assigned ? 'bg-muted/50 opacity-60' : 'bg-card hover:bg-secondary/50'} ${selectedIds.has(el.id) ? 'border-accent ring-1 ring-accent/30' : 'border-transparent'}`}
+                              >
+                                {!assigned && <Checkbox checked={selectedIds.has(el.id)} onCheckedChange={() => toggleSelect(el.id)} />}
+                                {assigned && <Badge variant="outline" className="text-[10px] px-1">Chargé</Badge>}
+                                <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <span className="font-mono font-medium">{el.repere}</span>
+                                  <span className="text-muted-foreground ml-1">{el.productType}</span>
+                                  <div className="text-muted-foreground">{el.length}m · {el.weight}t · {el.zone}</div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    );
+                  })()
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
+
 
         {/* Right panel - calendar */}
         <div className="flex-1 flex flex-col min-w-0">
