@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
-import { BeamElement, PRODUCT_TYPES } from '@/types/delivery';
+import { BeamElement, Plan, PRODUCT_TYPES } from '@/types/delivery';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,8 +12,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw, FileText, AlertTriangle, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import { supabase } from '@/integrations/supabase/client';
 
 function findColumn(row: Record<string, unknown>, aliases: string[]): unknown {
   for (const alias of aliases) {
