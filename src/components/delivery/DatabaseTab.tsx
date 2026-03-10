@@ -301,7 +301,7 @@ export default function DatabaseTab() {
       );
 
       const { data, error } = await supabase.functions.invoke('extract-reperes', {
-        body: { pdfBase64: base64, zones: pdfZones, productTypes: pdfProductTypes },
+        body: { pdfBase64: base64, zones: pdfZones, productTypes: pdfProductTypes, searchArea: searchArea || undefined },
       });
 
       if (error) throw new Error(error.message || 'Erreur extraction');
