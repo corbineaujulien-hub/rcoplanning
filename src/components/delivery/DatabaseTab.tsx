@@ -130,6 +130,7 @@ export default function DatabaseTab() {
   // PDF import state (simplified — no AI detection)
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfPlanName, setPdfPlanName] = useState('');
   const [pdfZones, setPdfZones] = useState<string[]>([]);
   const [pdfProductTypes, setPdfProductTypes] = useState<string[]>([]);
   const [pdfImportMode, setPdfImportMode] = useState<'new' | 'replace'>('new');
@@ -268,6 +269,7 @@ export default function DatabaseTab() {
     const file = e.target.files?.[0];
     if (file) {
       setPdfFile(file);
+      setPdfPlanName(file.name.replace(/\.pdf$/i, ''));
       const url = URL.createObjectURL(file);
       setPdfPreviewUrl(url);
     }
@@ -294,7 +296,7 @@ export default function DatabaseTab() {
       const pdfDataUrl = `data:application/pdf;base64,${base64}`;
       const plan: Plan = {
         id: crypto.randomUUID(),
-        name: pdfFile.name,
+        name: pdfPlanName.trim() || pdfFile.name,
         zones: pdfZones,
         productTypes: pdfProductTypes,
         detectedReperes: [], // No AI detection — repères are determined dynamically from DB
@@ -325,6 +327,7 @@ export default function DatabaseTab() {
   const resetPdfDialog = () => {
     if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
     setPdfFile(null);
+    setPdfPlanName('');
     setPdfPreviewUrl(null);
     setPdfZones([]);
     setPdfProductTypes([]);
@@ -758,6 +761,14 @@ export default function DatabaseTab() {
               </div>
             </div>
 
+            {/* Plan name */}
+            {pdfFile && (
+              <div>
+                <Label className="text-xs">Nom du plan</Label>
+                <Input value={pdfPlanName} onChange={e => setPdfPlanName(e.target.value)} className="h-8 text-sm mt-1" placeholder="Nom du plan" />
+              </div>
+            )}
+
             {/* File input */}
             <div>
               <Label className="text-xs">Fichier PDF</Label>
@@ -826,7 +837,7 @@ export default function DatabaseTab() {
 
       {/* Delete Plans Dialog */}
       <Dialog open={deletePlansDialogOpen} onOpenChange={setDeletePlansDialogOpen}>
-        <DialogContent className="w-fit">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Supprimer des plans</DialogTitle>
             <DialogDescription>
@@ -841,7 +852,7 @@ export default function DatabaseTab() {
               <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
               <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">ou sélectionner</span></div>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 max-h-[50vh] overflow-y-auto">
               {plans.map(plan => (
                 <label key={plan.id} className="flex items-center gap-2 p-2 rounded-md border cursor-pointer hover:bg-secondary/50 transition-colors">
                   <Checkbox

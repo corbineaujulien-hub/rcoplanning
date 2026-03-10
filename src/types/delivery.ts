@@ -7,6 +7,7 @@ export interface ProjectInfo {
   subcontractor: string;
   contactName: string;
   contactPhone: string;
+  showSaturdays?: boolean;
 }
 
 export interface BeamElement {
@@ -83,4 +84,5 @@ export const DEFAULT_PROJECT_INFO: ProjectInfo = {
   subcontractor: '',
   contactName: '',
   contactPhone: '',
+  showSaturdays: false,
 };

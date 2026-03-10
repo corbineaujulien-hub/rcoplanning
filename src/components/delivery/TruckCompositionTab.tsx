@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
 import { BeamElement, Truck, TRANSPORT_CATEGORIES, TransportCategory, Plan } from '@/types/delivery';
 import { getTransportCategory, getTruckWeight, getCategoryColorClass, isNonStandard, isMultiSite, getTruckMaxLength, getTruckFactories, getProductCountsByType } from '@/utils/transportUtils';
+import { isHoliday } from '@/utils/frenchHolidays';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,8 +12,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ChevronLeft, ChevronRight, GripVertical, Truck as TruckIcon, Filter, X, Trash2, MessageSquare, Search, Weight, Ruler, Factory, Package, FileText, List } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, isSameMonth, isSameDay, isToday } from 'date-fns';
+import { Label } from '@/components/ui/label';
+import { ChevronLeft, ChevronRight, GripVertical, Truck as TruckIcon, Filter, X, Trash2, MessageSquare, Search, Weight, Ruler, Factory, Package, FileText, List, ArrowRightLeft } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, isSameMonth, isSameDay, isToday, getDay, addHours, parse } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import NewTruckModal from './NewTruckModal';
 import TruckDetailModal from './TruckDetailModal';
@@ -21,7 +23,7 @@ import { TransportAlertModal, MultiSiteAlertModal } from './AlertModal';
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 6);
 
 export default function TruckCompositionTab() {
-  const { elements, trucks, getTrucksForDate, getTruckElements, addTruck, addElementsToTruck, removeElementFromTruck, deleteTruck, deleteAllTrucks, updateTruck, isElementAssigned, plans } = useDelivery();
+  const { elements, trucks, getTrucksForDate, getTruckElements, addTruck, addElementsToTruck, removeElementFromTruck, deleteTruck, deleteAllTrucks, updateTruck, isElementAssigned, plans, projectInfo } = useDelivery();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
   const [filterRepere, setFilterRepere] = useState('');
@@ -44,6 +46,18 @@ export default function TruckCompositionTab() {
   const [selectionMode, setSelectionMode] = useState<'list' | 'plans'>('list');
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
+  // Plan filter states
+  const [planFilterRepere, setPlanFilterRepere] = useState('');
+  const [planFilterFactory, setPlanFilterFactory] = useState('');
+
+  // Shift dialog states
+  const [showShiftDialog, setShowShiftDialog] = useState(false);
+  const [shiftSelectedTrucks, setShiftSelectedTrucks] = useState<Set<string>>(new Set());
+  const [shiftType, setShiftType] = useState<'weeks' | 'days' | 'hours'>('days');
+  const [shiftValue, setShiftValue] = useState('');
+
+  const showSaturdays = projectInfo.showSaturdays || false;
+
   const zones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))], [elements]);
   const factoryList = useMemo(() => [...new Set(elements.map(e => e.factory).filter(Boolean))], [elements]);
   const productTypes = useMemo(() => [...new Set(elements.map(e => e.productType).filter(Boolean))].sort(), [elements]);
@@ -60,7 +74,6 @@ export default function TruckCompositionTab() {
     });
   }, [elements, filterRepere, filterZone, filterType, filterFactory, filterStatus, isElementAssigned]);
 
-  // Get elements matching a plan's zones and product types (dynamic matching)
   const getPlanElements = (plan: Plan): BeamElement[] => {
     return elements.filter(el => {
       if (plan.zones.length > 0 && !plan.zones.includes(el.zone)) return false;
@@ -69,7 +82,6 @@ export default function TruckCompositionTab() {
     });
   };
 
-  // Group elements by product type
   const groupByType = (els: BeamElement[]): Record<string, BeamElement[]> => {
     const groups: Record<string, BeamElement[]> = {};
     els.forEach(el => {
@@ -106,6 +118,16 @@ export default function TruckCompositionTab() {
     });
   };
 
+  // Filter weekend days based on settings
+  const filterWeekendDays = (days: Date[]): Date[] => {
+    return days.filter(day => {
+      const dow = getDay(day);
+      if (dow === 0) return false; // Always hide Sunday
+      if (dow === 6 && !showSaturdays) return false; // Hide Saturday unless enabled
+      return true;
+    });
+  };
+
   const calendarDays = useMemo(() => {
     if (viewMode === 'month') {
       const start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 });
@@ -125,6 +147,18 @@ export default function TruckCompositionTab() {
     const end = endOfWeek(currentDate, { weekStartsOn: 1 });
     return eachDayOfInterval({ start, end });
   }, [currentDate]);
+
+  // Filtered days for month/week views (no weekends)
+  const filteredCalendarDays = useMemo(() => filterWeekendDays(calendarDays), [calendarDays, showSaturdays]);
+  const filteredWeekDays = useMemo(() => filterWeekendDays(weekDays), [weekDays, showSaturdays]);
+
+  const dayNames = useMemo(() => {
+    const all = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+    if (showSaturdays) return all.slice(0, 6); // Mon-Sat
+    return all.slice(0, 5); // Mon-Fri
+  }, [showSaturdays]);
+
+  const gridCols = showSaturdays ? 6 : 5;
 
   const navigate = (dir: number) => {
     setCurrentDate(prev => {
@@ -268,6 +302,41 @@ export default function TruckCompositionTab() {
     (e.currentTarget as HTMLElement).classList.remove('drag-over');
   };
 
+  // Shift trucks logic
+  const handleShiftConfirm = () => {
+    const val = parseInt(shiftValue, 10);
+    if (isNaN(val) || val === 0 || shiftSelectedTrucks.size === 0) return;
+
+    shiftSelectedTrucks.forEach(truckId => {
+      const truck = trucks.find(t => t.id === truckId);
+      if (!truck) return;
+
+      const baseDate = parse(truck.date, 'yyyy-MM-dd', new Date());
+      let newDate: Date;
+
+      if (shiftType === 'weeks') {
+        newDate = addWeeks(baseDate, val);
+        updateTruck(truckId, { date: format(newDate, 'yyyy-MM-dd') });
+      } else if (shiftType === 'days') {
+        newDate = addDays(baseDate, val);
+        updateTruck(truckId, { date: format(newDate, 'yyyy-MM-dd') });
+      } else {
+        // Hours: parse time and shift
+        const [h, m] = truck.time.split(':').map(Number);
+        const dateTime = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), h, m);
+        const shifted = addHours(dateTime, val);
+        updateTruck(truckId, {
+          date: format(shifted, 'yyyy-MM-dd'),
+          time: format(shifted, 'HH:mm'),
+        });
+      }
+    });
+
+    setShowShiftDialog(false);
+    setShiftSelectedTrucks(new Set());
+    setShiftValue('');
+  };
+
   const recapData = useMemo(() => {
     const allFactories = new Set<string>();
     const data: Record<string, Record<TransportCategory | 'total', number>> = {};
@@ -287,8 +356,6 @@ export default function TruckCompositionTab() {
 
     return { factories: [...allFactories].sort(), data };
   }, [trucks, getTruckElements]);
-
-  const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
   const renderTruckBadge = (truck: Truck, showTime: boolean = false) => {
     const els = getTruckElements(truck.id);
@@ -445,13 +512,24 @@ export default function TruckCompositionTab() {
                   (() => {
                     const plan = plans.find(p => p.id === selectedPlanId);
                     if (!plan) return null;
-                    const matchedElements = getPlanElements(plan);
+                    let matchedElements = getPlanElements(plan);
+
+                    // Apply plan-level filters
+                    if (planFilterRepere) {
+                      matchedElements = matchedElements.filter(el => el.repere.toLowerCase().includes(planFilterRepere.toLowerCase()));
+                    }
+                    if (planFilterFactory && planFilterFactory !== '__all__') {
+                      matchedElements = matchedElements.filter(el => el.factory === planFilterFactory);
+                    }
+
                     const unassignedMatched = matchedElements.filter(e => !isElementAssigned(e.id));
                     const grouped = groupByType(matchedElements);
+                    const planFactories = [...new Set(getPlanElements(plan).map(e => e.factory).filter(Boolean))];
+
                     return (
                       <>
                         <div className="flex items-center gap-2 mb-2">
-                          <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedPlanId(null)}>
+                          <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setSelectedPlanId(null); setPlanFilterRepere(''); setPlanFilterFactory(''); }}>
                             ← Retour
                           </Button>
                           <span className="text-xs font-medium truncate flex-1">{plan.name}</span>
@@ -459,6 +537,27 @@ export default function TruckCompositionTab() {
                         {plan.pdfDataUrl && (
                           <iframe src={plan.pdfDataUrl} className="w-full h-[50vh] rounded border mb-2" title={plan.name} />
                         )}
+
+                        {/* Filters for plan repères */}
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <div className="relative flex-1 min-w-[120px]">
+                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                            <Input placeholder="Rechercher repère…" value={planFilterRepere} onChange={e => setPlanFilterRepere(e.target.value)} className="h-7 text-xs pl-7" />
+                          </div>
+                          <Select value={planFilterFactory} onValueChange={setPlanFilterFactory}>
+                            <SelectTrigger className="h-7 text-xs w-[140px]"><SelectValue placeholder="Usine" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__all__">Toutes usines</SelectItem>
+                              {planFactories.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          {(planFilterRepere || (planFilterFactory && planFilterFactory !== '__all__')) && (
+                            <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => { setPlanFilterRepere(''); setPlanFilterFactory(''); }}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+
                         <div className="flex items-center gap-2 mb-2 px-1">
                           <Checkbox
                             checked={unassignedMatched.length > 0 && unassignedMatched.every(e => selectedIds.has(e.id))}
@@ -532,22 +631,28 @@ export default function TruckCompositionTab() {
               <Button variant={viewMode === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('week')}>Semaine</Button>
               <Button variant={viewMode === 'day' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('day')}>Jour</Button>
               {trucks.length > 0 && (
-                <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteAll(true)}>
-                  <Trash2 className="h-4 w-4 mr-1" /> Supprimer tout
-                </Button>
+                <>
+                  <Button variant="outline" size="sm" onClick={() => { setShiftSelectedTrucks(new Set()); setShiftValue(''); setShowShiftDialog(true); }}>
+                    <ArrowRightLeft className="h-4 w-4 mr-1" /> Décaler
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteAll(true)}>
+                    <Trash2 className="h-4 w-4 mr-1" /> Supprimer tout
+                  </Button>
+                </>
               )}
             </div>
           </div>
 
           {viewMode === 'month' ? (
-            <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden flex-1">
+            <div className={`grid gap-px bg-border rounded-lg overflow-hidden flex-1`} style={{ gridTemplateColumns: `repeat(${gridCols}, 1fr)` }}>
               {dayNames.map(d => (
                 <div key={d} className="bg-primary text-primary-foreground text-center text-xs font-medium py-2">{d}</div>
               ))}
-              {calendarDays.map(day => {
+              {filteredCalendarDays.map(day => {
                 const dateStr = format(day, 'yyyy-MM-dd');
                 const dayTrucks = getTrucksForDate(dateStr);
                 const inMonth = isSameMonth(day, currentDate);
+                const holiday = isHoliday(dateStr);
                 return (
                   <div
                     key={dateStr}
@@ -556,10 +661,11 @@ export default function TruckCompositionTab() {
                     onDragEnter={onDragEnter}
                     onDragLeave={onDragLeave}
                     onClick={() => selectedIds.size > 0 && handleDrop(dateStr)}
-                    className={`bg-card p-1 min-h-[80px] ${!inMonth ? 'opacity-40' : ''} ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''} transition-colors cursor-pointer hover:bg-secondary/30`}
+                    className={`bg-card p-1 min-h-[80px] ${!inMonth ? 'opacity-40' : ''} ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''} ${holiday ? 'bg-muted/60' : ''} transition-colors cursor-pointer hover:bg-secondary/30`}
                   >
-                    <div className={`text-xs font-medium mb-1 ${isToday(day) ? 'text-accent' : 'text-muted-foreground'}`}>
+                    <div className={`text-xs font-medium mb-1 ${isToday(day) ? 'text-accent' : holiday ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
                       {format(day, 'd')}
+                      {holiday && <span className="ml-1 text-[9px] italic">férié</span>}
                     </div>
                     <div className="space-y-1">
                       {dayTrucks.map(truck => renderTruckBadge(truck, true))}
@@ -570,20 +676,26 @@ export default function TruckCompositionTab() {
             </div>
           ) : viewMode === 'week' ? (
             <div className="flex-1 overflow-auto border rounded-lg">
-              <div className="grid grid-cols-[60px_repeat(7,1fr)] gap-px bg-border min-w-[700px]">
+              <div className="gap-px bg-border min-w-[700px]" style={{ display: 'grid', gridTemplateColumns: `60px repeat(${gridCols}, 1fr)` }}>
                 <div className="bg-muted p-1 text-center text-xs font-medium">Heure</div>
-                {weekDays.map(day => (
-                  <div key={format(day, 'yyyy-MM-dd')} className={`bg-primary text-primary-foreground text-center text-xs font-medium py-2 ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''}`}>
-                    {format(day, 'EEE dd/MM', { locale: fr })}
-                  </div>
-                ))}
+                {filteredWeekDays.map(day => {
+                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const holiday = isHoliday(dateStr);
+                  return (
+                    <div key={dateStr} className={`bg-primary text-primary-foreground text-center text-xs font-medium py-2 ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''} ${holiday ? 'opacity-70' : ''}`}>
+                      {format(day, 'EEE dd/MM', { locale: fr })}
+                      {holiday && <span className="block text-[9px] italic opacity-80">férié</span>}
+                    </div>
+                  );
+                })}
                 {HOURS.map(hour => (
                   <React.Fragment key={`row-${hour}`}>
                     <div className="bg-muted p-1 text-center text-xs text-muted-foreground border-t border-border">
                       {String(hour).padStart(2, '0')}:00
                     </div>
-                    {weekDays.map(day => {
+                    {filteredWeekDays.map(day => {
                       const dateStr = format(day, 'yyyy-MM-dd');
+                      const holiday = isHoliday(dateStr);
                       const hourTrucks = getTrucksForDate(dateStr).filter(t => {
                         const h = parseInt(t.time.split(':')[0], 10);
                         return h === hour;
@@ -596,7 +708,7 @@ export default function TruckCompositionTab() {
                           onDragEnter={onDragEnter}
                           onDragLeave={onDragLeave}
                           onClick={() => selectedIds.size > 0 && handleDrop(dateStr)}
-                          className="bg-card p-0.5 min-h-[40px] border-t border-border transition-colors hover:bg-secondary/30"
+                          className={`bg-card p-0.5 min-h-[40px] border-t border-border transition-colors hover:bg-secondary/30 ${holiday ? 'bg-muted/40' : ''}`}
                         >
                           {hourTrucks.map(truck => renderTruckBadge(truck))}
                         </div>
@@ -791,6 +903,75 @@ export default function TruckCompositionTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Shift Dialog */}
+      <Dialog open={showShiftDialog} onOpenChange={setShowShiftDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Décaler des camions</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Sélectionner les camions</Label>
+              <Button variant="ghost" size="sm" className="text-xs" onClick={() => {
+                if (shiftSelectedTrucks.size === trucks.length) {
+                  setShiftSelectedTrucks(new Set());
+                } else {
+                  setShiftSelectedTrucks(new Set(trucks.map(t => t.id)));
+                }
+              }}>
+                {shiftSelectedTrucks.size === trucks.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+              </Button>
+            </div>
+            <div className="space-y-1 max-h-[40vh] overflow-y-auto">
+              {trucks.map(truck => {
+                const els = getTruckElements(truck.id);
+                const cat = getTransportCategory(els);
+                return (
+                  <label key={truck.id} className="flex items-center gap-2 p-2 rounded-md border cursor-pointer hover:bg-secondary/50 transition-colors">
+                    <Checkbox
+                      checked={shiftSelectedTrucks.has(truck.id)}
+                      onCheckedChange={() => {
+                        setShiftSelectedTrucks(prev => {
+                          const next = new Set(prev);
+                          next.has(truck.id) ? next.delete(truck.id) : next.add(truck.id);
+                          return next;
+                        });
+                      }}
+                    />
+                    <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${els.length === 0 ? 'bg-foreground' : getCategoryColorClass(cat)}`} />
+                    <span className="text-sm font-medium">{truck.number}</span>
+                    <span className="text-xs text-muted-foreground">{truck.date} · {truck.time}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Type de décalage</Label>
+                <Select value={shiftType} onValueChange={v => setShiftType(v as any)}>
+                  <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weeks">Semaines</SelectItem>
+                    <SelectItem value="days">Jours</SelectItem>
+                    <SelectItem value="hours">Heures</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Valeur (+ ou -)</Label>
+                <Input type="number" value={shiftValue} onChange={e => setShiftValue(e.target.value)} className="h-8 text-sm mt-1" placeholder="Ex: 1 ou -2" />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowShiftDialog(false)}>Annuler</Button>
+            <Button onClick={handleShiftConfirm} disabled={shiftSelectedTrucks.size === 0 || !shiftValue || parseInt(shiftValue) === 0}>
+              Décaler ({shiftSelectedTrucks.size} camion{shiftSelectedTrucks.size > 1 ? 's' : ''})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

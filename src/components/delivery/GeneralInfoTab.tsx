@@ -4,12 +4,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, User, Phone, MapPin, FileText, HardHat } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Building2, User, Phone, MapPin, FileText, HardHat, Calendar } from 'lucide-react';
 
 export default function GeneralInfoTab() {
   const { projectInfo, setProjectInfo } = useDelivery();
 
-  const update = (field: string, value: string) => {
+  const update = (field: string, value: string | boolean) => {
     setProjectInfo({ ...projectInfo, [field]: value });
   };
 
@@ -84,6 +85,17 @@ export default function GeneralInfoTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Discreet Saturday toggle */}
+      <div className="flex items-center justify-end gap-3 px-2">
+        <Calendar className="h-4 w-4 text-muted-foreground" />
+        <Label htmlFor="show-sat" className="text-sm text-muted-foreground cursor-pointer">Afficher les samedis dans le calendrier</Label>
+        <Switch
+          id="show-sat"
+          checked={projectInfo.showSaturdays || false}
+          onCheckedChange={v => update('showSaturdays', v)}
+        />
+      </div>
     </div>
   );
 }
