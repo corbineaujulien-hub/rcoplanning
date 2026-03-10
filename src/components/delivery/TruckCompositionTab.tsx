@@ -23,7 +23,8 @@ const HOURS = Array.from({ length: 15 }, (_, i) => i + 6); // 6h to 20h
 export default function TruckCompositionTab() {
   const { elements, trucks, getTrucksForDate, getTruckElements, addTruck, addElementsToTruck, removeElementFromTruck, deleteTruck, deleteAllTrucks, updateTruck, isElementAssigned } = useDelivery();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
+  const [filterRepere, setFilterRepere] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filterZone, setFilterZone] = useState('');
   const [filterType, setFilterType] = useState('');
