@@ -357,13 +357,100 @@ export default function DatabaseTab() {
   };
 
   const resetPdfDialog = () => {
+    if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
     setPdfFile(null);
+    setPdfPreviewUrl(null);
     setPdfZones([]);
     setPdfProductTypes([]);
     setPdfImportMode('new');
     setPdfReplaceId('');
     setPdfResult(null);
     setPdfLoading(false);
+    setSearchArea(null);
+    setIsDrawing(false);
+    setDrawStart(null);
+  };
+
+  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    setDrawStart({ x, y });
+    setIsDrawing(true);
+    setSearchArea(null);
+  };
+
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !drawStart) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    // Draw preview rectangle
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const sx = drawStart.x * canvas.width;
+    const sy = drawStart.y * canvas.height;
+    const sw = (x - drawStart.x) * canvas.width;
+    const sh = (y - drawStart.y) * canvas.height;
+    ctx.strokeStyle = 'hsl(var(--primary))';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 3]);
+    ctx.strokeRect(sx, sy, sw, sh);
+    ctx.fillStyle = 'hsla(var(--primary), 0.1)';
+    ctx.fillRect(sx, sy, sw, sh);
+  };
+
+  const handleCanvasMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !drawStart) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const endX = (e.clientX - rect.left) / rect.width;
+    const endY = (e.clientY - rect.top) / rect.height;
+    const x = Math.min(drawStart.x, endX);
+    const y = Math.min(drawStart.y, endY);
+    const width = Math.abs(endX - drawStart.x);
+    const height = Math.abs(endY - drawStart.y);
+    if (width > 0.02 && height > 0.02) {
+      setSearchArea({ x, y, width, height });
+    }
+    setIsDrawing(false);
+    setDrawStart(null);
+  };
+
+  const clearSearchArea = () => {
+    setSearchArea(null);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx?.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  };
+
+  // Redraw search area on canvas when searchArea changes
+  const redrawSearchArea = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (searchArea) {
+      const sx = searchArea.x * canvas.width;
+      const sy = searchArea.y * canvas.height;
+      const sw = searchArea.width * canvas.width;
+      const sh = searchArea.height * canvas.height;
+      ctx.strokeStyle = 'hsl(var(--primary))';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 3]);
+      ctx.strokeRect(sx, sy, sw, sh);
+      ctx.fillStyle = 'hsla(var(--primary), 0.1)';
+      ctx.fillRect(sx, sy, sw, sh);
+    }
   };
 
   // Filtering
