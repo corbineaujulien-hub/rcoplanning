@@ -264,6 +264,93 @@ export default function DatabaseTab() {
     setNewLength(''); setNewWeight(''); setNewFactory('');
   };
 
+  const handlePdfFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setPdfFile(file);
+    e.target.value = '';
+  };
+
+  const togglePdfZone = (zone: string) => {
+    setPdfZones(prev => prev.includes(zone) ? prev.filter(z => z !== zone) : [...prev, zone]);
+  };
+
+  const togglePdfProductType = (type: string) => {
+    setPdfProductTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
+  };
+
+  const handlePdfImport = async () => {
+    if (!pdfFile) return;
+    setPdfLoading(true);
+    setPdfResult(null);
+
+    try {
+      const arrayBuffer = await pdfFile.arrayBuffer();
+      const base64 = btoa(
+        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+      );
+
+      const { data, error } = await supabase.functions.invoke('extract-reperes', {
+        body: { pdfBase64: base64, zones: pdfZones, productTypes: pdfProductTypes },
+      });
+
+      if (error) throw new Error(error.message || 'Erreur extraction');
+
+      const detectedReperes: string[] = data?.reperes || [];
+
+      // Cross-reference with elements filtered by selected zones and product types
+      const filteredEls = elements.filter(el => {
+        if (pdfZones.length > 0 && !pdfZones.includes(el.zone)) return false;
+        if (pdfProductTypes.length > 0 && !pdfProductTypes.includes(el.productType)) return false;
+        return true;
+      });
+
+      const elementReperes = new Set(filteredEls.map(el => el.repere.toLowerCase()));
+      const found = detectedReperes.filter(r => elementReperes.has(r.toLowerCase()));
+      const notFound = detectedReperes.filter(r => !elementReperes.has(r.toLowerCase()));
+
+      setPdfResult({ found, notFound, allDetected: detectedReperes });
+
+      // Store the plan
+      const pdfDataUrl = `data:application/pdf;base64,${base64}`;
+      const plan: Plan = {
+        id: crypto.randomUUID(),
+        name: pdfFile.name,
+        zones: pdfZones,
+        productTypes: pdfProductTypes,
+        detectedReperes: detectedReperes,
+        pdfDataUrl,
+      };
+
+      if (pdfImportMode === 'replace' && pdfReplaceId) {
+        updatePlan(pdfReplaceId, {
+          name: plan.name,
+          zones: plan.zones,
+          productTypes: plan.productTypes,
+          detectedReperes: plan.detectedReperes,
+          pdfDataUrl: plan.pdfDataUrl,
+        });
+        toast.success('Plan remplacé avec succès');
+      } else {
+        addPlan(plan);
+        toast.success('Plan importé avec succès');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors de l\'import du plan');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const resetPdfDialog = () => {
+    setPdfFile(null);
+    setPdfZones([]);
+    setPdfProductTypes([]);
+    setPdfImportMode('new');
+    setPdfReplaceId('');
+    setPdfResult(null);
+    setPdfLoading(false);
+  };
+
   // Filtering
   const filteredElements = useMemo(() => {
     return elements.filter(el => {
