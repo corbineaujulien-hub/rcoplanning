@@ -14,16 +14,226 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      beam_elements: {
+        Row: {
+          created_at: string | null
+          factory: string | null
+          id: string
+          length: number | null
+          product_type: string | null
+          project_id: string
+          repere: string
+          section: string | null
+          weight: number | null
+          zone: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          factory?: string | null
+          id?: string
+          length?: number | null
+          product_type?: string | null
+          project_id: string
+          repere?: string
+          section?: string | null
+          weight?: number | null
+          zone?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          factory?: string | null
+          id?: string
+          length?: number | null
+          product_type?: string | null
+          project_id?: string
+          repere?: string
+          section?: string | null
+          weight?: number | null
+          zone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beam_elements_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plans: {
+        Row: {
+          created_at: string | null
+          detected_reperes: Json | null
+          id: string
+          name: string
+          pdf_data_url: string | null
+          product_types: Json | null
+          project_id: string
+          zones: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          detected_reperes?: Json | null
+          id?: string
+          name?: string
+          pdf_data_url?: string | null
+          product_types?: Json | null
+          project_id: string
+          zones?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          detected_reperes?: Json | null
+          id?: string
+          name?: string
+          pdf_data_url?: string | null
+          product_types?: Json | null
+          project_id?: string
+          zones?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plans_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_access_links: {
+        Row: {
+          created_at: string | null
+          id: string
+          label: string | null
+          project_id: string
+          role: Database["public"]["Enums"]["access_role"]
+          token: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          label?: string | null
+          project_id: string
+          role?: Database["public"]["Enums"]["access_role"]
+          token?: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          label?: string | null
+          project_id?: string
+          role?: Database["public"]["Enums"]["access_role"]
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_access_links_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          client_name: string | null
+          conductor: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string | null
+          id: string
+          otp_number: string | null
+          show_saturdays: boolean | null
+          site_address: string | null
+          site_name: string | null
+          subcontractor: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          client_name?: string | null
+          conductor?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          id?: string
+          otp_number?: string | null
+          show_saturdays?: boolean | null
+          site_address?: string | null
+          site_name?: string | null
+          subcontractor?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          client_name?: string | null
+          conductor?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          id?: string
+          otp_number?: string | null
+          show_saturdays?: boolean | null
+          site_address?: string | null
+          site_name?: string | null
+          subcontractor?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      trucks: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          date: string
+          element_ids: Json | null
+          id: string
+          number: string
+          project_id: string
+          time: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          date?: string
+          element_ids?: Json | null
+          id?: string
+          number?: string
+          project_id: string
+          time?: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          date?: string
+          element_ids?: Json | null
+          id?: string
+          number?: string
+          project_id?: string
+          time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trucks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_project: { Args: never; Returns: Json }
+      delete_project: { Args: { p_token: string }; Returns: boolean }
+      validate_token: { Args: { p_token: string }; Returns: Json }
     }
     Enums: {
-      [_ in never]: never
+      access_role: "admin" | "editor" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +360,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      access_role: ["admin", "editor", "viewer"],
+    },
   },
 } as const
