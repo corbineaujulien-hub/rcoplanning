@@ -152,7 +152,7 @@ function estimateTruckHeight(els: BeamElement[], hasComment: boolean): number {
     repereLines += Math.ceil(reperes.length / 18) + 1;
   });
   // Header + info icons line + count badges + type groups + comment
-  return 12 + 8 + 6 + typeCount * 4 + repereLines * 4 + (hasComment ? 8 : 0) + 4;
+  return 12 + 6 + typeCount * 4 + repereLines * 4 + (hasComment ? 8 : 0) + 4;
 }
 
 function groupByType(els: BeamElement[]): Record<string, BeamElement[]> {
@@ -164,35 +164,16 @@ function groupByType(els: BeamElement[]): Record<string, BeamElement[]> {
   return groups;
 }
 
-function drawTruckIcon(pdf: jsPDF, x: number, y: number, size: number, color: string) {
-  const [r, g, b] = hexToRgb(color);
-  pdf.setDrawColor(r, g, b);
-  pdf.setLineWidth(0.4);
-  // Simple truck shape: cab + body
-  const s = size;
-  // Body
-  pdf.rect(x, y + s * 0.2, s * 0.65, s * 0.55, 'S');
-  // Cab
-  pdf.rect(x + s * 0.65, y + s * 0.35, s * 0.3, s * 0.4, 'S');
-  // Wheels
-  pdf.setFillColor(r, g, b);
-  pdf.circle(x + s * 0.2, y + s * 0.8, s * 0.08, 'F');
-  pdf.circle(x + s * 0.8, y + s * 0.8, s * 0.08, 'F');
-}
-
-function drawInfoItem(ctx: PdfContext, x: number, y: number, icon: string, value: string): number {
-  const { pdf } = ctx;
-  // Icon symbol
-  pdf.setFontSize(7);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(100, 116, 139);
-  pdf.text(icon, x, y + 3);
-  const iconW = pdf.getTextWidth(icon) + 1.5;
-  // Value
+function drawInfoItem(pdf: jsPDF, x: number, y: number, label: string, value: string, fontSize: number = 8): number {
+  pdf.setFontSize(fontSize);
   pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(100, 116, 139);
+  pdf.text(label, x, y);
+  const labelW = pdf.getTextWidth(label);
+  pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(30, 41, 59);
-  pdf.text(value, x + iconW, y + 3);
-  return iconW + pdf.getTextWidth(value) + 6;
+  pdf.text(value, x + labelW + 1, y);
+  return labelW + 1 + pdf.getTextWidth(value) + 5;
 }
 
 function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[]) {
@@ -221,10 +202,6 @@ function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[]) {
   let x = cardX + borderW + 3;
   let y = cardY + 3;
 
-  // Truck icon
-  drawTruckIcon(pdf, x, y - 0.5, 5, '#1e3a5f');
-  x += 7;
-
   // Truck number + time badge
   const numBadge = drawBadge(ctx, x, y, `${truck.number} — ${truck.time}`, '#1e3a5f', '#ffffff', 9);
   x += numBadge.w + 3;
@@ -239,15 +216,14 @@ function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[]) {
     x += fBadge.w + 2;
   });
 
+  // Info items on the same line, right after factory badges
+  x += 4;
+  const infoY = y + numBadge.h * 0.55;
+  x += drawInfoItem(pdf, x, infoY, 'Poids :', `${weight.toFixed(2)} t`, 8);
+  x += drawInfoItem(pdf, x, infoY, 'Long. max :', `${maxLen.toFixed(2)} m`, 8);
+  drawInfoItem(pdf, x, infoY, 'Produits :', `${els.length}`, 8);
+
   y += numBadge.h + 3;
-
-  // Info line with icons (like the UI: weight, length, product count)
-  x = cardX + borderW + 3;
-  x += drawInfoItem(ctx, x, y, '⚖', `${weight.toFixed(2)} t`);
-  x += drawInfoItem(ctx, x, y, '📏', `${maxLen.toFixed(2)} m`);
-  drawInfoItem(ctx, x, y, '📦', `${els.length} produits`);
-
-  y += 6;
 
   // Info line: product counts badges
   x = cardX + borderW + 3;
