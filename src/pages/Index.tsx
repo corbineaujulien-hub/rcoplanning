@@ -9,7 +9,7 @@ import WeeklyPlanningTab from '@/components/delivery/WeeklyPlanningTab';
 import { Truck as TruckIcon, ClipboardList, Database, Calendar, FileSpreadsheet } from 'lucide-react';
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getProductCountsByType } from '@/utils/transportUtils';
+import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getProductCountsByType, getFactoryColor } from '@/utils/transportUtils';
 import { TRANSPORT_CATEGORIES, BeamElement } from '@/types/delivery';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -122,24 +122,24 @@ function DeliveryApp() {
           const weight = getTruckWeight(els);
           const maxLen = getTruckMaxLength(els);
           const typeGroups = groupElementsByType(els);
+          const factories = getTruckFactories(els);
           const borderColor = cat === 'standard' ? '#22c55e' : cat === 'cat1' ? '#eab308' : cat === 'cat2' ? '#f97316' : '#ef4444';
 
-          allHtml += `<div style="border:1px solid #d1d5db;border-left:3px solid ${borderColor};background:white;border-radius:4px;padding:4px 8px;margin:4px 0;box-shadow:0 1px 2px rgba(0,0,0,.08);">`;
-          // Time + number left, category badge, weight/length right
-          allHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-            <div style="display:flex;align-items:center;gap:6px;">
+          allHtml += `<div style="border:1px solid #b0b8c4;border-left:4px solid ${borderColor};background:white;border-radius:4px;padding:6px 10px;margin:5px 0;box-shadow:0 1px 3px rgba(0,0,0,.1);">`;
+          allHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <strong style="font-size:12px;">${truck.time}</strong>
               <strong style="font-size:12px;">${truck.number}</strong>
-              <span style="background:${borderColor};color:white;padding:1px 6px;border-radius:3px;font-size:9px;">${catInfo.label}</span>
+              <span style="background:${borderColor};color:white;padding:3px 8px;border-radius:3px;font-size:10px;display:inline-flex;align-items:center;line-height:1.2;font-weight:600;">${catInfo.label}</span>
+              ${factories.map(f => `<span style="background:${getFactoryColor(f)};color:white;padding:3px 8px;border-radius:3px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;line-height:1.2;">${f}</span>`).join('')}
             </div>
             <span style="font-size:10px;color:#666;">⚖️ ${weight.toFixed(2)}t · 📏 ${maxLen.toFixed(2)}m</span>
           </div>`;
-          // Repères grouped by type
-          allHtml += `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;">`;
+          allHtml += `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">`;
           Object.entries(typeGroups).forEach(([type, reperes]) => {
-            allHtml += `<span style="font-size:11px;font-weight:600;color:#1e3a5f;">${reperes.length}× ${type} :</span>`;
+            allHtml += `<span style="font-size:11px;font-weight:600;color:#1e3a5f;display:inline-flex;align-items:center;line-height:1.2;">${reperes.length}× ${type} :</span>`;
             reperes.forEach(r => {
-              allHtml += `<span style="background:#dbeafe;color:#1e3a5f;padding:1px 5px;border-radius:3px;font-size:11px;font-family:monospace;font-weight:500;">${r}</span>`;
+              allHtml += `<span style="background:#dbeafe;color:#1e3a5f;padding:3px 6px;border-radius:3px;font-size:11px;font-family:monospace;font-weight:500;display:inline-flex;align-items:center;line-height:1.2;">${r}</span>`;
             });
           });
           allHtml += `</div>`;
