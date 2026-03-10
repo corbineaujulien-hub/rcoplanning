@@ -125,15 +125,14 @@ function DeliveryApp() {
           const factories = getTruckFactories(els);
           const borderColor = cat === 'standard' ? '#22c55e' : cat === 'cat1' ? '#eab308' : cat === 'cat2' ? '#f97316' : '#ef4444';
 
-          allHtml += `<div style="border:1px solid #b0b8c4;border-left:4px solid ${borderColor};background:white;border-radius:4px;padding:6px 10px;margin:5px 0;box-shadow:0 1px 3px rgba(0,0,0,.1);">`;
-          allHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-              <strong style="font-size:12px;">${truck.time}</strong>
-              <strong style="font-size:12px;">${truck.number}</strong>
-              <span style="background:${borderColor};color:white;padding:3px 8px;border-radius:3px;font-size:10px;display:inline-flex;align-items:center;line-height:1.2;font-weight:600;">${catInfo.label}</span>
-              ${factories.map(f => `<span style="background:${getFactoryColor(f)};color:white;padding:3px 8px;border-radius:3px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;line-height:1.2;">${f}</span>`).join('')}
+          allHtml += `<div style="border:1px solid #b0b8c4;border-left:4px solid ${borderColor};background:white;border-radius:4px;padding:10px 14px;margin:5px 0;box-shadow:0 1px 3px rgba(0,0,0,.1);">`;
+          allHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <div style="display:inline-flex;align-items:center;gap:4px;background:#1e3a5f;color:white;padding:5px 12px;border-radius:4px;font-size:13px;font-weight:700;line-height:1;">🚛 ${truck.number} — ${truck.time}</div>
+              <span style="background:${borderColor};color:white;padding:5px 12px;border-radius:3px;font-size:11px;display:inline-flex;align-items:center;line-height:1;font-weight:600;">${catInfo.label}</span>
+              ${factories.map(f => `<span style="background:${getFactoryColor(f)};color:white;padding:5px 12px;border-radius:3px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;line-height:1;">${f}</span>`).join('')}
             </div>
-            <span style="font-size:10px;color:#666;">⚖️ ${weight.toFixed(2)}t · 📏 ${maxLen.toFixed(2)}m</span>
+            <span style="font-size:11px;color:#666;">⚖️ ${weight.toFixed(2)}t · 📏 ${maxLen.toFixed(2)}m</span>
           </div>`;
           allHtml += `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">`;
           Object.entries(typeGroups).forEach(([type, reperes]) => {
