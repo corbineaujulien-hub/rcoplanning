@@ -152,7 +152,7 @@ function estimateTruckHeight(els: BeamElement[], hasComment: boolean): number {
     repereLines += Math.ceil(reperes.length / 18) + 1;
   });
   // Header + info icons line + count badges + type groups + comment
-  return 12 + 8 + 6 + typeCount * 4 + repereLines * 4 + (hasComment ? 8 : 0) + 4;
+  return 12 + 6 + typeCount * 4 + repereLines * 4 + (hasComment ? 8 : 0) + 4;
 }
 
 function groupByType(els: BeamElement[]): Record<string, BeamElement[]> {
