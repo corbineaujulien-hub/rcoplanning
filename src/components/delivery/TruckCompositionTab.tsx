@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
-import { BeamElement, Truck, TRANSPORT_CATEGORIES, TransportCategory } from '@/types/delivery';
+import { BeamElement, Truck, TRANSPORT_CATEGORIES, TransportCategory, Plan } from '@/types/delivery';
 import { getTransportCategory, getTruckWeight, getCategoryColorClass, isNonStandard, isMultiSite, getTruckMaxLength, getTruckFactories, getProductCountsByType } from '@/utils/transportUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
