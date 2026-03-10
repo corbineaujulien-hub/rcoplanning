@@ -147,7 +147,7 @@ export default function GeneralInfoTab() {
                       }}
                     />
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={confirmEdit}>
-                      <Check className="h-4 w-4 text-green-600" />
+                      <Check className="h-4 w-4 text-accent" />
                     </Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={cancelEdit}>
                       <X className="h-4 w-4" />
