@@ -4,7 +4,6 @@ import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactor
 import { TRANSPORT_CATEGORIES } from '@/types/delivery';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Truck as TruckIcon, Weight, Ruler, Factory, Package, FileSpreadsheet, Calendar, MessageSquare } from 'lucide-react';
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -89,6 +88,85 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
     XLSX.writeFile(wb, `planning_S${weekNumber}.xlsx`);
   };
 
+  const exportPdf = () => {
+    const weekLabel = weekStart && weekEnd
+      ? `Semaine ${weekNumber} – du ${format(weekStart, 'dd/MM', { locale: fr })} au ${format(weekEnd, 'dd/MM/yyyy', { locale: fr })}`
+      : `Semaine ${weekNumber}`;
+
+    // Group trucks by day
+    const grouped = new Map<string, typeof weekTrucks>();
+    weekTrucks.forEach(t => {
+      if (!grouped.has(t.date)) grouped.set(t.date, []);
+      grouped.get(t.date)!.push(t);
+    });
+
+    let trucksHtml = '';
+    Array.from(grouped.entries()).forEach(([date, dayTrucks]) => {
+      trucksHtml += `<div style="background:#1e3a5f;color:white;padding:8px 16px;border-radius:6px;font-weight:600;font-size:13px;margin-top:16px;text-transform:capitalize;">${format(parseISO(date), 'EEEE dd MMMM yyyy', { locale: fr })} — ${dayTrucks.length} camion${dayTrucks.length > 1 ? 's' : ''}</div>`;
+      dayTrucks.forEach(truck => {
+        const els = getTruckElements(truck.id);
+        const cat = getTransportCategory(els);
+        const catInfo = TRANSPORT_CATEGORIES[cat];
+        const weight = getTruckWeight(els);
+        const maxLen = getTruckMaxLength(els);
+        const factories = getTruckFactories(els);
+        const counts = getProductCountsByType(els);
+        const borderColor = cat === 'standard' ? '#22c55e' : cat === 'cat1' ? '#eab308' : cat === 'cat2' ? '#f97316' : '#ef4444';
+
+        trucksHtml += `<div style="border-left:4px solid ${borderColor};background:white;border-radius:8px;padding:12px;margin:8px 0;box-shadow:0 1px 3px rgba(0,0,0,.1);">`;
+        trucksHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:8px;"><strong style="font-size:15px;">${truck.number}</strong><span style="background:${borderColor};color:white;padding:2px 8px;border-radius:4px;font-size:11px;">${catInfo.label}</span></div><span style="color:#666;font-size:13px;">${truck.time}</span></div>`;
+        trucksHtml += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:12px;margin-bottom:8px;"><span>🏭 ${factories.join(', ') || '—'}</span><span>⚖️ ${weight.toFixed(2)} t</span><span>📏 ${maxLen.toFixed(2)} m</span><span>📦 ${els.length} produits</span></div>`;
+        trucksHtml += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${Object.entries(counts).map(([type, count]) => `<span style="background:#e2e8f0;padding:2px 8px;border-radius:4px;font-size:11px;">${count}× ${type}</span>`).join('')}</div>`;
+        trucksHtml += `<div style="display:flex;flex-wrap:wrap;gap:3px;">${els.map(el => `<span style="background:#dbeafe;color:#1e3a5f;padding:2px 6px;border-radius:4px;font-size:10px;font-family:monospace;">${el.repere}</span>`).join('')}</div>`;
+        if (truck.comment?.trim()) {
+          trucksHtml += `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:6px;padding:8px;margin-top:8px;font-size:12px;">💬 ${truck.comment}</div>`;
+        }
+        trucksHtml += `</div>`;
+      });
+    });
+
+    const recapHtml = `
+      <div style="margin-top:20px;border:1px solid #e2e8f0;border-radius:8px;padding:16px;background:white;">
+        <h3 style="font-weight:600;margin-bottom:12px;">Récapitulatif semaine ${weekNumber}</h3>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;font-size:13px;">
+          <div style="background:#f1f5f9;border-radius:8px;padding:12px;"><div style="color:#64748b;">Camions</div><div style="font-size:20px;font-weight:700;">${weekTrucks.length}</div></div>
+          <div style="background:#f1f5f9;border-radius:8px;padding:12px;"><div style="color:#64748b;">Produits</div><div style="font-size:20px;font-weight:700;">${totalProducts}</div>${Object.entries(weekProductCounts).map(([type, count]) => `<div style="font-size:11px;">${count}× ${type}</div>`).join('')}</div>
+          <div style="background:#f1f5f9;border-radius:8px;padding:12px;"><div style="color:#64748b;">Tonnage</div><div style="font-size:20px;font-weight:700;">${weekWeight.toFixed(2)} t</div></div>
+          <div style="background:#f1f5f9;border-radius:8px;padding:12px;"><div style="color:#64748b;">Avancement hebdo</div><div style="font-size:20px;font-weight:700;">${totalSiteWeight > 0 ? ((weekWeight / totalSiteWeight) * 100).toFixed(1) : 0} %</div></div>
+          <div style="background:#f1f5f9;border-radius:8px;padding:12px;"><div style="color:#64748b;">Avancement cumulé</div><div style="font-size:20px;font-weight:700;">${totalSiteWeight > 0 ? ((cumulativeWeight / totalSiteWeight) * 100).toFixed(1) : 0} %</div></div>
+        </div>
+      </div>`;
+
+    const logoHtml = `<img src="/logo.png" style="height:50px;object-fit:contain;" onerror="this.style.display='none'" />`;
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Planning ${weekLabel}</title>
+      <style>@page{size:A3 landscape;margin:12mm;}body{font-family:Inter,system-ui,sans-serif;color:#1e293b;margin:0;padding:0;}</style>
+    </head><body style="padding:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;border-bottom:2px solid #1e3a5f;padding-bottom:12px;">
+        <div>
+          <h1 style="font-size:20px;color:#1e3a5f;margin:0 0 4px 0;">RECTOR – ${weekLabel}</h1>
+          ${projectInfo.siteName ? `<p style="margin:2px 0;font-size:13px;"><strong>Chantier :</strong> ${projectInfo.siteName} ${projectInfo.otpNumber ? `(OTP: ${projectInfo.otpNumber})` : ''}</p>` : ''}
+          ${projectInfo.clientName ? `<p style="margin:2px 0;font-size:13px;"><strong>Client :</strong> ${projectInfo.clientName}</p>` : ''}
+          ${projectInfo.siteAddress ? `<p style="margin:2px 0;font-size:13px;"><strong>Adresse :</strong> ${projectInfo.siteAddress}</p>` : ''}
+        </div>
+        <div style="text-align:right;">
+          ${logoHtml}
+          ${projectInfo.conductor ? `<p style="margin:2px 0;font-size:12px;"><strong>Conducteur :</strong> ${projectInfo.conductor}</p>` : ''}
+          ${projectInfo.subcontractor ? `<p style="margin:2px 0;font-size:12px;"><strong>Poseur :</strong> ${projectInfo.subcontractor}</p>` : ''}
+        </div>
+      </div>
+      ${trucksHtml}
+      ${recapHtml}
+    </body></html>`;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.onload = () => { printWindow.print(); };
+    }
+  };
+
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
       {/* Header */}
@@ -103,7 +181,7 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
               <Button variant="outline" size="sm" onClick={exportExcel}>
                 <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
               </Button>
-              <Button variant="outline" size="sm" onClick={() => window.print()}>
+              <Button variant="outline" size="sm" onClick={exportPdf}>
                 <Calendar className="h-4 w-4 mr-1" /> PDF
               </Button>
             </div>
@@ -177,7 +255,7 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
                       </div>
 
                       {truck.comment?.trim() && (
-                        <div className="flex items-start gap-1.5 text-sm text-muted-foreground bg-muted rounded-md p-2">
+                        <div className="flex items-start gap-1.5 text-sm bg-amber-50 text-amber-800 border border-amber-200 rounded-md p-2">
                           <MessageSquare className="h-4 w-4 flex-shrink-0 mt-0.5" />
                           <span>{truck.comment}</span>
                         </div>
@@ -204,7 +282,11 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
         <Card>
           <CardContent className="pt-4">
             <h3 className="font-semibold mb-3">Récapitulatif semaine {weekNumber}</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+              <div className="bg-muted rounded-lg p-3">
+                <p className="text-muted-foreground">Camions livrés</p>
+                <p className="text-xl font-bold">{weekTrucks.length}</p>
+              </div>
               <div className="bg-muted rounded-lg p-3">
                 <p className="text-muted-foreground">Produits livrés</p>
                 <p className="text-xl font-bold">{totalProducts}</p>

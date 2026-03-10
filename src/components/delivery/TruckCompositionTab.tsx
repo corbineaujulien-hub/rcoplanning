@@ -776,7 +776,7 @@ export default function TruckCompositionTab() {
                           ))}
                         </div>
                         {truck.comment?.trim() && (
-                          <div className="flex items-start gap-1.5 text-sm text-muted-foreground bg-muted rounded-md p-2">
+                          <div className="flex items-start gap-1.5 text-sm bg-amber-50 text-amber-800 border border-amber-200 rounded-md p-2">
                             <MessageSquare className="h-4 w-4 flex-shrink-0 mt-0.5" />
                             <span>{truck.comment}</span>
                           </div>
