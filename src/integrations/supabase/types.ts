@@ -230,6 +230,7 @@ export type Database = {
     Functions: {
       create_project: { Args: never; Returns: Json }
       delete_project: { Args: { p_token: string }; Returns: boolean }
+      delete_project_by_id: { Args: { p_project_id: string }; Returns: boolean }
       validate_token: { Args: { p_token: string }; Returns: Json }
     }
     Enums: {
