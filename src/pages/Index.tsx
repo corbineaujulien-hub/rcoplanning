@@ -7,10 +7,10 @@ import DatabaseTab from '@/components/delivery/DatabaseTab';
 import TruckCompositionTab from '@/components/delivery/TruckCompositionTab';
 import WeeklyPlanningTab from '@/components/delivery/WeeklyPlanningTab';
 import { Truck as TruckIcon, ClipboardList, Database, Calendar, FileSpreadsheet } from 'lucide-react';
-import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getProductCountsByType, getFactoryColor } from '@/utils/transportUtils';
-import { TRANSPORT_CATEGORIES, BeamElement } from '@/types/delivery';
+import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories } from '@/utils/transportUtils';
+import { TRANSPORT_CATEGORIES } from '@/types/delivery';
 import * as XLSX from 'xlsx';
 import { exportAllWeeksPdf } from '@/utils/pdfExportUtils';
 
