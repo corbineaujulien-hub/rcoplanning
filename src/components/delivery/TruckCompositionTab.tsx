@@ -58,6 +58,14 @@ export default function TruckCompositionTab() {
 
   const showSaturdays = projectInfo.showSaturdays || false;
 
+  const getElementTruck = (elementId: string): Truck | undefined => {
+    return trucks.find(t => t.elementIds.includes(elementId));
+  };
+
+  // State for drag highlight on day view trucks
+  const [dragOverTruckId, setDragOverTruckId] = useState<string | null>(null);
+  const [dragOverNewZone, setDragOverNewZone] = useState(false);
+
   const zones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))], [elements]);
   const factoryList = useMemo(() => [...new Set(elements.map(e => e.factory).filter(Boolean))], [elements]);
   const productTypes = useMemo(() => [...new Set(elements.map(e => e.productType).filter(Boolean))].sort(), [elements]);
