@@ -43,6 +43,7 @@ export default function TruckCompositionTab() {
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
   const [selectionMode, setSelectionMode] = useState<'list' | 'plans'>('list');
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [showRepereList, setShowRepereList] = useState(false);
 
   const zones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))], [elements]);
   const factoryList = useMemo(() => [...new Set(elements.map(e => e.factory).filter(Boolean))], [elements]);
@@ -421,78 +422,69 @@ export default function TruckCompositionTab() {
                     </div>
                   ))
                 ) : (
-                  /* Selected plan: show repères */
+                  /* Selected plan: PDF + compact repère controls */
                   (() => {
                     const plan = plans.find(p => p.id === selectedPlanId);
                     if (!plan) return null;
-                    // Match detected repères to elements
                     const matchedElements = plan.detectedReperes
-                      .map(rep => elements.find(el => rep.toLowerCase().includes(el.repere.toLowerCase()) || el.repere.toLowerCase().includes(rep.toLowerCase())))
+                      .map(rep => elements.find(el => el.repere.toLowerCase() === rep.toLowerCase() || rep.toLowerCase().includes(el.repere.toLowerCase()) || el.repere.toLowerCase().includes(rep.toLowerCase())))
                       .filter(Boolean) as BeamElement[];
+                    const unassignedMatched = matchedElements.filter(e => !isElementAssigned(e.id));
                     return (
                       <>
-                        <Button variant="ghost" size="sm" className="w-full text-xs mb-2" onClick={() => setSelectedPlanId(null)}>
-                          ← Retour aux plans
-                        </Button>
-                        <div className="text-xs font-medium mb-1 truncate">{plan.name}</div>
-                        <div className="flex items-center gap-2 mb-2 px-1">
-                          <Checkbox
-                            checked={matchedElements.filter(e => !isElementAssigned(e.id)).length > 0 && matchedElements.filter(e => !isElementAssigned(e.id)).every(e => selectedIds.has(e.id))}
-                            onCheckedChange={() => {
-                              const unassigned = matchedElements.filter(e => !isElementAssigned(e.id));
-                              const allSelected = unassigned.every(e => selectedIds.has(e.id));
-                              if (allSelected) {
-                                setSelectedIds(prev => {
-                                  const next = new Set(prev);
-                                  unassigned.forEach(e => next.delete(e.id));
-                                  return next;
-                                });
-                              } else {
-                                setSelectedIds(prev => {
-                                  const next = new Set(prev);
-                                  unassigned.forEach(e => next.add(e.id));
-                                  return next;
-                                });
-                              }
-                            }}
-                          />
-                          <span className="text-xs text-muted-foreground">{selectedIds.size} sélectionné(s)</span>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setSelectedPlanId(null); setShowRepereList(false); }}>
+                            ← Retour
+                          </Button>
+                          <span className="text-xs font-medium truncate flex-1">{plan.name}</span>
                         </div>
-                        {/* PDF viewer - large when selected */}
                         {plan.pdfDataUrl && (
                           <iframe src={plan.pdfDataUrl} className="w-full h-[50vh] rounded border mb-2" title={plan.name} />
                         )}
-                        <div className="space-y-1">
-                        {plan.detectedReperes.map(rep => {
-                            const el = elements.find(e => rep.toLowerCase().includes(e.repere.toLowerCase()) || e.repere.toLowerCase().includes(rep.toLowerCase()));
-                            if (!el) {
+                        <div className="flex items-center gap-2 mb-2 px-1 flex-wrap">
+                          <Checkbox
+                            checked={unassignedMatched.length > 0 && unassignedMatched.every(e => selectedIds.has(e.id))}
+                            onCheckedChange={() => {
+                              const allSelected = unassignedMatched.every(e => selectedIds.has(e.id));
+                              if (allSelected) {
+                                setSelectedIds(prev => { const next = new Set(prev); unassignedMatched.forEach(e => next.delete(e.id)); return next; });
+                              } else {
+                                setSelectedIds(prev => { const next = new Set(prev); unassignedMatched.forEach(e => next.add(e.id)); return next; });
+                              }
+                            }}
+                          />
+                          <span className="text-xs text-muted-foreground">{selectedIds.size} sélectionné(s) / {matchedElements.length} repères</span>
+                          <Button variant="outline" size="sm" className="h-6 text-[10px] ml-auto" onClick={() => setShowRepereList(!showRepereList)}>
+                            {showRepereList ? 'Masquer repères' : 'Afficher repères'}
+                          </Button>
+                        </div>
+                        {selectedIds.size > 0 && !showRepereList && (
+                          <div className="flex flex-wrap gap-1 mb-2 px-1">
+                            {matchedElements.filter(e => selectedIds.has(e.id)).map(el => (
+                              <Badge key={el.id} variant="secondary" className="text-[10px] font-mono">{el.repere}</Badge>
+                            ))}
+                          </div>
+                        )}
+                        {showRepereList && (
+                          <div className="space-y-1">
+                            {matchedElements.map(el => {
+                              const assigned = isElementAssigned(el.id);
                               return (
-                                <div key={rep} className="flex items-center gap-2 p-2 rounded-md text-xs border border-destructive/30 bg-destructive/5 opacity-60">
-                                  <span className="font-mono">{rep}</span>
-                                  <span className="text-destructive text-[10px]">Non trouvé</span>
+                                <div key={el.id} draggable={!assigned} onDragStart={e => onDragStart(e, el.id)}
+                                  className={`flex items-center gap-2 p-2 rounded-md text-xs border transition-colors cursor-grab active:cursor-grabbing ${assigned ? 'bg-muted/50 opacity-60' : 'bg-card hover:bg-secondary/50'} ${selectedIds.has(el.id) ? 'border-accent ring-1 ring-accent/30' : 'border-transparent'}`}>
+                                  {!assigned && <Checkbox checked={selectedIds.has(el.id)} onCheckedChange={() => toggleSelect(el.id)} />}
+                                  {assigned && <Badge variant="outline" className="text-[10px] px-1">Chargé</Badge>}
+                                  <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <span className="font-mono font-medium">{el.repere}</span>
+                                    <span className="text-muted-foreground ml-1">{el.productType}</span>
+                                    <div className="text-muted-foreground">{el.length}m · {el.weight}t · {el.zone}</div>
+                                  </div>
                                 </div>
                               );
-                            }
-                            const assigned = isElementAssigned(el.id);
-                            return (
-                              <div
-                                key={el.id}
-                                draggable={!assigned}
-                                onDragStart={e => onDragStart(e, el.id)}
-                                className={`flex items-center gap-2 p-2 rounded-md text-xs border transition-colors cursor-grab active:cursor-grabbing ${assigned ? 'bg-muted/50 opacity-60' : 'bg-card hover:bg-secondary/50'} ${selectedIds.has(el.id) ? 'border-accent ring-1 ring-accent/30' : 'border-transparent'}`}
-                              >
-                                {!assigned && <Checkbox checked={selectedIds.has(el.id)} onCheckedChange={() => toggleSelect(el.id)} />}
-                                {assigned && <Badge variant="outline" className="text-[10px] px-1">Chargé</Badge>}
-                                <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <span className="font-mono font-medium">{el.repere}</span>
-                                  <span className="text-muted-foreground ml-1">{el.productType}</span>
-                                  <div className="text-muted-foreground">{el.length}m · {el.weight}t · {el.zone}</div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
+                            })}
+                          </div>
+                        )}
                       </>
                     );
                   })()
