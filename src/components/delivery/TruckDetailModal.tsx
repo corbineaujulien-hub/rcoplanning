@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useDelivery } from '@/context/DeliveryContext';
 import { Truck, TRANSPORT_CATEGORIES } from '@/types/delivery';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getProductCountsByType, getCategoryColorClass, getFactoryColor } from '@/utils/transportUtils';
-import { Truck as TruckIcon, Weight, Ruler, Factory, Package, Trash2, X, Pencil, MessageSquare } from 'lucide-react';
+import { Truck as TruckIcon, Weight, Ruler, Factory, Package, Trash2, X, Pencil, MessageSquare, Users } from 'lucide-react';
 
 interface TruckDetailModalProps {
   open: boolean;
@@ -17,7 +18,8 @@ interface TruckDetailModalProps {
 }
 
 export default function TruckDetailModal({ open, onClose, truck }: TruckDetailModalProps) {
-  const { getTruckElements, deleteTruck, removeElementFromTruck, updateTruck } = useDelivery();
+  const { getTruckElements, deleteTruck, removeElementFromTruck, updateTruck, teams } = useDelivery();
+  const hasMultipleTeams = teams.length > 1;
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editDate, setEditDate] = useState('');
   const [editTime, setEditTime] = useState('');
