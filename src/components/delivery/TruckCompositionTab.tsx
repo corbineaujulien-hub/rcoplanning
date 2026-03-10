@@ -236,7 +236,7 @@ export default function TruckCompositionTab() {
 
   const handleNewTruckConfirm = (number: string, time: string) => {
     const truckId = crypto.randomUUID();
-    const newTruck: Truck = { id: truckId, number, date: newTruckDate, time, elementIds: [...pendingElementIds] };
+    const newTruck: Truck = { id: truckId, number, date: newTruckDate, time, elementIds: [...pendingElementIds], teamId: hasMultipleTeams ? activeTeamId || undefined : undefined };
     addTruck(newTruck);
     setShowNewTruck(false);
 
