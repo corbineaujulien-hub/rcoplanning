@@ -13,10 +13,11 @@ import { exportWeekPdf } from '@/utils/pdfExportUtils';
 interface WeeklyPlanningTabProps {
   weekNumber: number;
   year: number;
+  teamId?: string;
 }
 
-export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTabProps) {
-  const { projectInfo, trucks, elements, getTruckElements } = useDelivery();
+export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPlanningTabProps) {
+  const { projectInfo, trucks, elements, getTruckElements, teams } = useDelivery();
 
   const weekTrucks = useMemo(() => {
     return trucks
