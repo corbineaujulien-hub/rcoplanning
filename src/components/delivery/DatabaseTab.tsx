@@ -837,7 +837,7 @@ export default function DatabaseTab() {
 
       {/* Delete Plans Dialog */}
       <Dialog open={deletePlansDialogOpen} onOpenChange={setDeletePlansDialogOpen}>
-        <DialogContent className="w-fit">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Supprimer des plans</DialogTitle>
             <DialogDescription>
@@ -852,7 +852,7 @@ export default function DatabaseTab() {
               <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
               <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">ou sélectionner</span></div>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 max-h-[50vh] overflow-y-auto">
               {plans.map(plan => (
                 <label key={plan.id} className="flex items-center gap-2 p-2 rounded-md border cursor-pointer hover:bg-secondary/50 transition-colors">
                   <Checkbox
