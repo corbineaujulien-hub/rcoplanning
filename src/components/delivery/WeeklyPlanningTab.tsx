@@ -134,11 +134,11 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
           <span style="font-size:11px;color:#666;">⚖️ ${weight.toFixed(2)}t · 📏 ${maxLen.toFixed(2)}m</span>
         </div>`;
         // Repères grouped by type
-        trucksHtml += `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">`;
+        trucksHtml += `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px;">`;
         Object.entries(typeGroups).forEach(([type, reperes]) => {
           trucksHtml += `<span style="font-size:11px;font-weight:600;color:#1e3a5f;display:inline-flex;align-items:center;line-height:1;">${reperes.length}× ${type} :</span>`;
           reperes.forEach(r => {
-            trucksHtml += `<span style="background:#dbeafe;color:#1e3a5f;padding:4px 8px;border-radius:3px;font-size:11px;font-family:monospace;font-weight:500;display:inline-flex;align-items:center;line-height:1;">${r}</span>`;
+            trucksHtml += `<span style="background:#dbeafe;color:#1e3a5f;padding:5px 10px;border-radius:4px;font-size:11px;font-family:monospace;font-weight:500;display:inline-flex;align-items:center;line-height:1;">${r}</span>`;
           });
         });
         trucksHtml += `</div>`;
