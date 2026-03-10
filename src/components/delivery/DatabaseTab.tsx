@@ -327,6 +327,7 @@ export default function DatabaseTab() {
   const resetPdfDialog = () => {
     if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
     setPdfFile(null);
+    setPdfPlanName('');
     setPdfPreviewUrl(null);
     setPdfZones([]);
     setPdfProductTypes([]);
