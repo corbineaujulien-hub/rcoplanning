@@ -28,6 +28,14 @@ export interface Truck {
   time: string;
   elementIds: string[];
   comment?: string;
+  teamId?: string;
+}
+
+export interface Team {
+  id: string;
+  projectId: string;
+  name: string;
+  sortOrder: number;
 }
 
 export interface Plan {
