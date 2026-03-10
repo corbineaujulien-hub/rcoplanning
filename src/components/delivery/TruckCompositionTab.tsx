@@ -89,10 +89,12 @@ export default function TruckCompositionTab() {
       const start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 });
       const end = endOfWeek(endOfMonth(currentDate), { weekStartsOn: 1 });
       return eachDayOfInterval({ start, end });
-    } else {
+    } else if (viewMode === 'week') {
       const start = startOfWeek(currentDate, { weekStartsOn: 1 });
       const end = endOfWeek(currentDate, { weekStartsOn: 1 });
       return eachDayOfInterval({ start, end });
+    } else {
+      return [currentDate];
     }
   }, [currentDate, viewMode]);
 
