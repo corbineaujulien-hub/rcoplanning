@@ -272,7 +272,12 @@ export default function DatabaseTab() {
 
   const handlePdfFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setPdfFile(file);
+    if (file) {
+      setPdfFile(file);
+      const url = URL.createObjectURL(file);
+      setPdfPreviewUrl(url);
+      setSearchArea(null);
+    }
     e.target.value = '';
   };
 
