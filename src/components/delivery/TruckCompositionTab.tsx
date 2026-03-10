@@ -18,7 +18,7 @@ import NewTruckModal from './NewTruckModal';
 import TruckDetailModal from './TruckDetailModal';
 import { TransportAlertModal, MultiSiteAlertModal } from './AlertModal';
 
-const HOURS = Array.from({ length: 15 }, (_, i) => i + 6); // 6h to 20h
+const HOURS = Array.from({ length: 15 }, (_, i) => i + 6);
 
 export default function TruckCompositionTab() {
   const { elements, trucks, getTrucksForDate, getTruckElements, addTruck, addElementsToTruck, removeElementFromTruck, deleteTruck, deleteAllTrucks, updateTruck, isElementAssigned, plans } = useDelivery();
@@ -43,7 +43,6 @@ export default function TruckCompositionTab() {
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
   const [selectionMode, setSelectionMode] = useState<'list' | 'plans'>('list');
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-  const [showRepereList, setShowRepereList] = useState(false);
 
   const zones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))], [elements]);
   const factoryList = useMemo(() => [...new Set(elements.map(e => e.factory).filter(Boolean))], [elements]);
@@ -60,6 +59,26 @@ export default function TruckCompositionTab() {
       return true;
     });
   }, [elements, filterRepere, filterZone, filterType, filterFactory, filterStatus, isElementAssigned]);
+
+  // Get elements matching a plan's zones and product types (dynamic matching)
+  const getPlanElements = (plan: Plan): BeamElement[] => {
+    return elements.filter(el => {
+      if (plan.zones.length > 0 && !plan.zones.includes(el.zone)) return false;
+      if (plan.productTypes.length > 0 && !plan.productTypes.includes(el.productType)) return false;
+      return true;
+    });
+  };
+
+  // Group elements by product type
+  const groupByType = (els: BeamElement[]): Record<string, BeamElement[]> => {
+    const groups: Record<string, BeamElement[]> = {};
+    els.forEach(el => {
+      const type = el.productType || 'Autre';
+      if (!groups[type]) groups[type] = [];
+      groups[type].push(el);
+    });
+    return groups;
+  };
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -163,12 +182,10 @@ export default function TruckCompositionTab() {
 
   const handleNewTruckConfirm = (number: string, time: string) => {
     const truckId = crypto.randomUUID();
-    // Include pendingElementIds directly in the new truck to avoid state timing issues
     const newTruck: Truck = { id: truckId, number, date: newTruckDate, time, elementIds: [...pendingElementIds] };
     addTruck(newTruck);
     setShowNewTruck(false);
 
-    // Check alerts with the pending elements (truck not yet in state, so pass elements directly)
     const pendingEls = pendingElementIds.map(id => elements.find(e => e.id === id)!).filter(Boolean);
     if (isNonStandard(pendingEls)) {
       const cat = getTransportCategory(pendingEls);
@@ -231,7 +248,6 @@ export default function TruckCompositionTab() {
       const isMultiple = draggedTruckIds.length > 1;
       draggedTruckIds.forEach(id => {
         const updates: Partial<Truck> = { date: dateStr };
-        // Single truck: allow hour change in week view; multiple: preserve original time
         if (!isMultiple && hour !== undefined) {
           updates.time = `${String(hour).padStart(2, '0')}:00`;
         }
@@ -409,31 +425,33 @@ export default function TruckCompositionTab() {
               <div className="space-y-2">
                 {!selectedPlanId ? (
                   /* Plan list */
-                  plans.map(plan => (
-                    <div
-                      key={plan.id}
-                      onClick={() => setSelectedPlanId(plan.id)}
-                      className="p-2 rounded-md border bg-card hover:bg-secondary/50 cursor-pointer transition-colors"
-                    >
-                      <div className="font-medium text-xs truncate">{plan.name}</div>
-                      <div className="text-[10px] text-muted-foreground mt-0.5">
-                        {plan.detectedReperes.length} repère(s) · {plan.zones.join(', ')}
+                  plans.map(plan => {
+                    const planEls = getPlanElements(plan);
+                    return (
+                      <div
+                        key={plan.id}
+                        onClick={() => setSelectedPlanId(plan.id)}
+                        className="p-2 rounded-md border bg-card hover:bg-secondary/50 cursor-pointer transition-colors"
+                      >
+                        <div className="font-medium text-xs truncate">{plan.name}</div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">
+                          {planEls.length} repère(s) · {plan.zones.join(', ')}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
-                  /* Selected plan: PDF + compact repère controls */
+                  /* Selected plan: PDF + badges grouped by type */
                   (() => {
                     const plan = plans.find(p => p.id === selectedPlanId);
                     if (!plan) return null;
-                    const matchedElements = plan.detectedReperes
-                      .map(rep => elements.find(el => el.repere.toLowerCase() === rep.toLowerCase() || rep.toLowerCase().includes(el.repere.toLowerCase()) || el.repere.toLowerCase().includes(rep.toLowerCase())))
-                      .filter(Boolean) as BeamElement[];
+                    const matchedElements = getPlanElements(plan);
                     const unassignedMatched = matchedElements.filter(e => !isElementAssigned(e.id));
+                    const grouped = groupByType(matchedElements);
                     return (
                       <>
                         <div className="flex items-center gap-2 mb-2">
-                          <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setSelectedPlanId(null); setShowRepereList(false); }}>
+                          <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedPlanId(null)}>
                             ← Retour
                           </Button>
                           <span className="text-xs font-medium truncate flex-1">{plan.name}</span>
@@ -441,7 +459,7 @@ export default function TruckCompositionTab() {
                         {plan.pdfDataUrl && (
                           <iframe src={plan.pdfDataUrl} className="w-full h-[50vh] rounded border mb-2" title={plan.name} />
                         )}
-                        <div className="flex items-center gap-2 mb-2 px-1 flex-wrap">
+                        <div className="flex items-center gap-2 mb-2 px-1">
                           <Checkbox
                             checked={unassignedMatched.length > 0 && unassignedMatched.every(e => selectedIds.has(e.id))}
                             onCheckedChange={() => {
@@ -454,37 +472,41 @@ export default function TruckCompositionTab() {
                             }}
                           />
                           <span className="text-xs text-muted-foreground">{selectedIds.size} sélectionné(s) / {matchedElements.length} repères</span>
-                          <Button variant="outline" size="sm" className="h-6 text-[10px] ml-auto" onClick={() => setShowRepereList(!showRepereList)}>
-                            {showRepereList ? 'Masquer repères' : 'Afficher repères'}
-                          </Button>
                         </div>
-                        {selectedIds.size > 0 && !showRepereList && (
-                          <div className="flex flex-wrap gap-1 mb-2 px-1">
-                            {matchedElements.filter(e => selectedIds.has(e.id)).map(el => (
-                              <Badge key={el.id} variant="secondary" className="text-[10px] font-mono">{el.repere}</Badge>
-                            ))}
-                          </div>
-                        )}
-                        {showRepereList && (
-                          <div className="space-y-1">
-                            {matchedElements.map(el => {
-                              const assigned = isElementAssigned(el.id);
-                              return (
-                                <div key={el.id} draggable={!assigned} onDragStart={e => onDragStart(e, el.id)}
-                                  className={`flex items-center gap-2 p-2 rounded-md text-xs border transition-colors cursor-grab active:cursor-grabbing ${assigned ? 'bg-muted/50 opacity-60' : 'bg-card hover:bg-secondary/50'} ${selectedIds.has(el.id) ? 'border-accent ring-1 ring-accent/30' : 'border-transparent'}`}>
-                                  {!assigned && <Checkbox checked={selectedIds.has(el.id)} onCheckedChange={() => toggleSelect(el.id)} />}
-                                  {assigned && <Badge variant="outline" className="text-[10px] px-1">Chargé</Badge>}
-                                  <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <span className="font-mono font-medium">{el.repere}</span>
-                                    <span className="text-muted-foreground ml-1">{el.productType}</span>
-                                    <div className="text-muted-foreground">{el.length}m · {el.weight}t · {el.zone}</div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
+                        {/* Badges grouped by product type */}
+                        <div className="space-y-3">
+                          {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([type, els]) => (
+                            <div key={type}>
+                              <div className="text-[11px] font-semibold text-muted-foreground mb-1 px-1">{type} ({els.length})</div>
+                              <div className="flex flex-wrap gap-1">
+                                {els.map(el => {
+                                  const assigned = isElementAssigned(el.id);
+                                  const selected = selectedIds.has(el.id);
+                                  return (
+                                    <div
+                                      key={el.id}
+                                      draggable={!assigned}
+                                      onDragStart={e => onDragStart(e, el.id)}
+                                      onClick={() => !assigned && toggleSelect(el.id)}
+                                      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono cursor-pointer border transition-colors ${
+                                        assigned
+                                          ? 'bg-muted/50 opacity-50 cursor-default border-transparent'
+                                          : selected
+                                            ? 'bg-accent/20 border-accent ring-1 ring-accent/30'
+                                            : 'bg-secondary/50 hover:bg-secondary border-transparent'
+                                      }`}
+                                    >
+                                      <span className="font-semibold">{el.repere}</span>
+                                      <span className="text-muted-foreground font-sans">{el.weight}t</span>
+                                      <span className="text-muted-foreground font-sans">{el.length}m</span>
+                                      {assigned && <span className="text-muted-foreground font-sans italic">Chargé</span>}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </>
                     );
                   })()
@@ -547,17 +569,14 @@ export default function TruckCompositionTab() {
               })}
             </div>
           ) : viewMode === 'week' ? (
-            /* Week view: hourly grid */
             <div className="flex-1 overflow-auto border rounded-lg">
               <div className="grid grid-cols-[60px_repeat(7,1fr)] gap-px bg-border min-w-[700px]">
-                {/* Header row */}
                 <div className="bg-muted p-1 text-center text-xs font-medium">Heure</div>
                 {weekDays.map(day => (
                   <div key={format(day, 'yyyy-MM-dd')} className={`bg-primary text-primary-foreground text-center text-xs font-medium py-2 ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''}`}>
                     {format(day, 'EEE dd/MM', { locale: fr })}
                   </div>
                 ))}
-                {/* Hour rows */}
                 {HOURS.map(hour => (
                   <React.Fragment key={`row-${hour}`}>
                     <div className="bg-muted p-1 text-center text-xs text-muted-foreground border-t border-border">
@@ -588,7 +607,6 @@ export default function TruckCompositionTab() {
               </div>
             </div>
           ) : (
-            /* Day view: detailed truck list */
             <div className="flex-1 overflow-auto space-y-3">
               {(() => {
                 const dateStr = format(currentDate, 'yyyy-MM-dd');
@@ -715,7 +733,7 @@ export default function TruckCompositionTab() {
       <NewTruckModal open={showNewTruck} onClose={() => setShowNewTruck(false)} onConfirm={handleNewTruckConfirm} date={newTruckDate} trucks={trucks} />
 
       <Dialog open={showExistingPicker} onOpenChange={v => !v && setShowExistingPicker(false)}>
-        <DialogContent>
+        <DialogContent className="w-fit">
           <DialogHeader>
             <DialogTitle>Choisir un camion – {newTruckDate}</DialogTitle>
           </DialogHeader>

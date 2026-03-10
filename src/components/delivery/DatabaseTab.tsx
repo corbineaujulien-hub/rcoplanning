@@ -13,11 +13,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw, FileText, AlertTriangle, Loader2, X, PenTool } from 'lucide-react';
+import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw, FileText, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
-import { supabase } from '@/integrations/supabase/client';
 
 function findColumn(row: Record<string, unknown>, aliases: string[]): unknown {
   for (const alias of aliases) {
@@ -129,22 +127,14 @@ export default function DatabaseTab() {
   const [newFactory, setNewFactory] = useState('');
   const [pasteText, setPasteText] = useState('');
 
-  // PDF import state
+  // PDF import state (simplified — no AI detection)
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfZones, setPdfZones] = useState<string[]>([]);
   const [pdfProductTypes, setPdfProductTypes] = useState<string[]>([]);
   const [pdfImportMode, setPdfImportMode] = useState<'new' | 'replace'>('new');
   const [pdfReplaceId, setPdfReplaceId] = useState('');
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [pdfResult, setPdfResult] = useState<{ found: string[]; notFound: string[]; allDetected: string[] } | null>(null);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
-  const [searchArea, setSearchArea] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
-  const [drawMode, setDrawMode] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const pdfContainerRef = useRef<HTMLDivElement>(null);
 
   // Delete plans dialog state
   const [deletePlansDialogOpen, setDeletePlansDialogOpen] = useState(false);
@@ -280,8 +270,6 @@ export default function DatabaseTab() {
       setPdfFile(file);
       const url = URL.createObjectURL(file);
       setPdfPreviewUrl(url);
-      setSearchArea(null);
-      setDrawMode(false);
     }
     e.target.value = '';
   };
@@ -296,8 +284,6 @@ export default function DatabaseTab() {
 
   const handlePdfImport = async () => {
     if (!pdfFile) return;
-    setPdfLoading(true);
-    setPdfResult(null);
 
     try {
       const arrayBuffer = await pdfFile.arrayBuffer();
@@ -305,39 +291,13 @@ export default function DatabaseTab() {
         new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
       );
 
-      const { data, error } = await supabase.functions.invoke('extract-reperes', {
-        body: { pdfBase64: base64, zones: pdfZones, productTypes: pdfProductTypes, searchArea: searchArea || undefined },
-      });
-
-      if (error) throw new Error(error.message || 'Erreur extraction');
-
-      const detectedReperes: string[] = data?.reperes || [];
-
-      // Cross-reference with elements filtered by selected zones and product types
-      const filteredEls = elements.filter(el => {
-        if (pdfZones.length > 0 && !pdfZones.includes(el.zone)) return false;
-        if (pdfProductTypes.length > 0 && !pdfProductTypes.includes(el.productType)) return false;
-        return true;
-      });
-
-      // Matching: found = DB repères that match detected ones (return DB repère names)
-      const foundDbReperes = filteredEls
-        .filter(el => detectedReperes.some(r => r.toLowerCase().includes(el.repere.toLowerCase()) || el.repere.toLowerCase().includes(r.toLowerCase())))
-        .map(el => el.repere);
-      // notFound = detected repères that don't match any DB element
-      const notFoundPdfReperes = detectedReperes
-        .filter(r => !filteredEls.some(el => r.toLowerCase().includes(el.repere.toLowerCase()) || el.repere.toLowerCase().includes(r.toLowerCase())));
-
-      setPdfResult({ found: foundDbReperes, notFound: notFoundPdfReperes, allDetected: detectedReperes });
-
-      // Store the plan with DB repère names as detectedReperes
       const pdfDataUrl = `data:application/pdf;base64,${base64}`;
       const plan: Plan = {
         id: crypto.randomUUID(),
         name: pdfFile.name,
         zones: pdfZones,
         productTypes: pdfProductTypes,
-        detectedReperes: foundDbReperes,
+        detectedReperes: [], // No AI detection — repères are determined dynamically from DB
         pdfDataUrl,
       };
 
@@ -354,10 +314,11 @@ export default function DatabaseTab() {
         addPlan(plan);
         toast.success('Plan importé avec succès');
       }
+
+      resetPdfDialog();
+      setPdfDialogOpen(false);
     } catch (err: any) {
       toast.error(err.message || 'Erreur lors de l\'import du plan');
-    } finally {
-      setPdfLoading(false);
     }
   };
 
@@ -369,95 +330,6 @@ export default function DatabaseTab() {
     setPdfProductTypes([]);
     setPdfImportMode('new');
     setPdfReplaceId('');
-    setPdfResult(null);
-    setPdfLoading(false);
-    setSearchArea(null);
-    setIsDrawing(false);
-    setDrawStart(null);
-    setDrawMode(false);
-  };
-
-  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!drawMode) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    setDrawStart({ x, y });
-    setIsDrawing(true);
-    setSearchArea(null);
-  };
-
-  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !drawStart) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const sx = drawStart.x * canvas.width;
-    const sy = drawStart.y * canvas.height;
-    const sw = (x - drawStart.x) * canvas.width;
-    const sh = (y - drawStart.y) * canvas.height;
-    ctx.strokeStyle = 'hsl(var(--primary))';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([6, 3]);
-    ctx.strokeRect(sx, sy, sw, sh);
-    ctx.fillStyle = 'hsla(var(--primary), 0.1)';
-    ctx.fillRect(sx, sy, sw, sh);
-  };
-
-  const handleCanvasMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !drawStart) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const endX = (e.clientX - rect.left) / rect.width;
-    const endY = (e.clientY - rect.top) / rect.height;
-    const x = Math.min(drawStart.x, endX);
-    const y = Math.min(drawStart.y, endY);
-    const width = Math.abs(endX - drawStart.x);
-    const height = Math.abs(endY - drawStart.y);
-    if (width > 0.02 && height > 0.02) {
-      setSearchArea({ x, y, width, height });
-    }
-    setIsDrawing(false);
-    setDrawStart(null);
-    setDrawMode(false); // Auto-disable draw mode after drawing
-  };
-
-  const clearSearchArea = () => {
-    setSearchArea(null);
-    setDrawMode(false);
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      ctx?.clearRect(0, 0, canvas.width, canvas.height);
-    }
-  };
-
-  const redrawSearchArea = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (searchArea) {
-      const sx = searchArea.x * canvas.width;
-      const sy = searchArea.y * canvas.height;
-      const sw = searchArea.width * canvas.width;
-      const sh = searchArea.height * canvas.height;
-      ctx.strokeStyle = 'hsl(var(--primary))';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 3]);
-      ctx.strokeRect(sx, sy, sw, sh);
-      ctx.fillStyle = 'hsla(var(--primary), 0.1)';
-      ctx.fillRect(sx, sy, sw, sh);
-    }
   };
 
   // Delete plans helpers
@@ -504,6 +376,15 @@ export default function DatabaseTab() {
 
   const totalLength = filteredElements.reduce((s, el) => s + el.length, 0);
   const totalWeight = filteredElements.reduce((s, el) => s + el.weight, 0);
+
+  // Count matched elements for a plan (dynamic matching by zones/productTypes)
+  const getPlanElementCount = (plan: Plan) => {
+    return elements.filter(el => {
+      if (plan.zones.length > 0 && !plan.zones.includes(el.zone)) return false;
+      if (plan.productTypes.length > 0 && !plan.productTypes.includes(el.productType)) return false;
+      return true;
+    }).length;
+  };
 
   return (
     <div className="space-y-4">
@@ -556,7 +437,6 @@ export default function DatabaseTab() {
           </div>
         </CardHeader>
         <CardContent>
-          {/* Summary bar */}
           <div className="flex items-center gap-4 mb-3 px-2 py-2 rounded-md bg-muted/40 text-sm font-medium">
             <span>{filteredElements.length}{filteredElements.length !== elements.length ? ` / ${elements.length}` : ''} éléments</span>
             <span className="text-muted-foreground">•</span>
@@ -664,7 +544,7 @@ export default function DatabaseTab() {
                       ))}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      {plan.detectedReperes.length} repère(s) détecté(s)
+                      {getPlanElementCount(plan)} élément(s) correspondant(s)
                     </div>
                   </div>
                   <Button variant="ghost" size="icon" onClick={() => deletePlan(plan.id)} className="h-8 w-8 text-destructive hover:text-destructive">
@@ -678,7 +558,7 @@ export default function DatabaseTab() {
       )}
 
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-fit">
           <DialogHeader>
             <DialogTitle>Importer un fichier Excel</DialogTitle>
             <DialogDescription>
@@ -706,7 +586,7 @@ export default function DatabaseTab() {
 
       {/* Add Manual Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={(open) => { setAddDialogOpen(open); if (!open) resetForm(); }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="w-fit">
           <DialogHeader>
             <DialogTitle>Ajouter des éléments</DialogTitle>
             <DialogDescription>
@@ -778,7 +658,7 @@ export default function DatabaseTab() {
 
       {/* Duplicate Comparison Dialog */}
       <Dialog open={duplicateDialogOpen} onOpenChange={(open) => { if (!open) { setDuplicateDialogOpen(false); setDuplicates([]); setPendingNew([]); } }}>
-        <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-auto">
+        <DialogContent className="w-fit max-w-[95vw]">
           <DialogHeader>
             <DialogTitle>Repères en doublon détectés</DialogTitle>
             <DialogDescription>
@@ -840,11 +720,11 @@ export default function DatabaseTab() {
 
       {/* PDF Import Dialog */}
       <Dialog open={pdfDialogOpen} onOpenChange={(open) => { if (!open) resetPdfDialog(); setPdfDialogOpen(open); }}>
-        <DialogContent className="sm:max-w-4xl w-fit max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-fit max-w-[95vw]">
           <DialogHeader>
             <DialogTitle>Importer un plan PDF</DialogTitle>
             <DialogDescription>
-              Sélectionnez les zones et types de produits, puis choisissez un fichier PDF pour lancer la détection des repères.
+              Sélectionnez les zones et types de produits, puis choisissez un fichier PDF.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -889,49 +769,10 @@ export default function DatabaseTab() {
               </div>
             </div>
 
-            {/* PDF preview with drawable canvas */}
+            {/* PDF preview */}
             {pdfPreviewUrl && (
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <Label className="text-xs">Zone de recherche sur le plan</Label>
-                  <Button
-                    variant={drawMode ? 'default' : 'outline'}
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={() => setDrawMode(!drawMode)}
-                  >
-                    <PenTool className="h-3 w-3 mr-1" />
-                    {drawMode ? 'Dessin actif — cliquez-glissez' : 'Dessiner zone'}
-                  </Button>
-                  {searchArea && (
-                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clearSearchArea}>
-                      <X className="h-3 w-3 mr-1" /> Réinitialiser
-                    </Button>
-                  )}
-                </div>
-                <div ref={pdfContainerRef} className="relative mt-1 border rounded-md overflow-hidden" style={{ height: '400px' }}>
-                  <iframe src={pdfPreviewUrl} className="w-full h-full" title="Aperçu PDF" />
-                  <canvas
-                    ref={canvasRef}
-                    width={800}
-                    height={600}
-                    className={`absolute inset-0 w-full h-full ${drawMode ? 'cursor-crosshair' : 'pointer-events-none'}`}
-                    style={{ zIndex: 10 }}
-                    onMouseDown={handleCanvasMouseDown}
-                    onMouseMove={handleCanvasMouseMove}
-                    onMouseUp={handleCanvasMouseUp}
-                    onMouseLeave={() => { if (isDrawing) { setIsDrawing(false); setDrawStart(null); } }}
-                  />
-                </div>
-                <div className="flex items-center gap-2 mt-1">
-                  {searchArea ? (
-                    <Badge variant="secondary" className="text-[10px]">
-                      Zone définie : {Math.round(searchArea.x * 100)}%, {Math.round(searchArea.y * 100)}% → {Math.round((searchArea.x + searchArea.width) * 100)}%, {Math.round((searchArea.y + searchArea.height) * 100)}%
-                    </Badge>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">Aucune zone définie — recherche sur tout le document</span>
-                  )}
-                </div>
+              <div className="border rounded-md overflow-hidden" style={{ height: '400px' }}>
+                <iframe src={pdfPreviewUrl} className="w-full h-full" title="Aperçu PDF" />
               </div>
             )}
 
@@ -968,67 +809,24 @@ export default function DatabaseTab() {
                 </Select>
               )}
             </div>
-
-            {/* Results */}
-            {pdfResult && (
-              <div className="space-y-2">
-                <Alert>
-                  <AlertTitle className="text-sm">Résultat de la détection</AlertTitle>
-                  <AlertDescription className="text-xs">
-                    {pdfResult.allDetected.length} repère(s) détecté(s) sur le plan — {pdfResult.found.length} trouvé(s) dans la base — {pdfResult.notFound.length} non trouvé(s)
-                  </AlertDescription>
-                </Alert>
-                {pdfResult.found.length > 0 && (
-                  <div>
-                    <span className="text-xs font-medium text-primary">Repères trouvés dans la base :</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {pdfResult.found.map(r => (
-                        <Badge key={r} variant="secondary" className="text-[10px] font-mono">{r}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {pdfResult.notFound.length > 0 && (
-                  <div>
-                    <Alert variant="destructive">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertTitle className="text-sm">Repères non trouvés dans la base</AlertTitle>
-                      <AlertDescription>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {pdfResult.notFound.map(r => (
-                            <Badge key={r} variant="outline" className="text-[10px] font-mono border-destructive text-destructive">{r}</Badge>
-                          ))}
-                        </div>
-                      </AlertDescription>
-                    </Alert>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { resetPdfDialog(); setPdfDialogOpen(false); }}>
-              {pdfResult ? 'Fermer' : 'Annuler'}
+              Annuler
             </Button>
-            {!pdfResult && (
-              <Button
-                onClick={handlePdfImport}
-                disabled={!pdfFile || pdfLoading || (pdfImportMode === 'replace' && !pdfReplaceId)}
-              >
-                {pdfLoading ? (
-                  <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Analyse en cours…</>
-                ) : (
-                  <><FileText className="h-4 w-4 mr-1" /> Analyser et importer</>
-                )}
-              </Button>
-            )}
+            <Button
+              onClick={handlePdfImport}
+              disabled={!pdfFile || (pdfImportMode === 'replace' && !pdfReplaceId)}
+            >
+              <FileText className="h-4 w-4 mr-1" /> Importer le plan
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Plans Dialog */}
       <Dialog open={deletePlansDialogOpen} onOpenChange={setDeletePlansDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-fit">
           <DialogHeader>
             <DialogTitle>Supprimer des plans</DialogTitle>
             <DialogDescription>
@@ -1043,7 +841,7 @@ export default function DatabaseTab() {
               <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
               <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">ou sélectionner</span></div>
             </div>
-            <div className="space-y-1 max-h-[300px] overflow-auto">
+            <div className="space-y-1">
               {plans.map(plan => (
                 <label key={plan.id} className="flex items-center gap-2 p-2 rounded-md border cursor-pointer hover:bg-secondary/50 transition-colors">
                   <Checkbox
@@ -1053,7 +851,7 @@ export default function DatabaseTab() {
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{plan.name}</div>
                     <div className="text-[10px] text-muted-foreground">
-                      {plan.zones.join(', ')} · {plan.detectedReperes.length} repère(s)
+                      {plan.zones.join(', ')} · {plan.productTypes.join(', ')}
                     </div>
                   </div>
                 </label>
