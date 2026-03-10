@@ -10,8 +10,10 @@ import { Truck as TruckIcon, ClipboardList, Database, Calendar, FileSpreadsheet 
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getProductCountsByType } from '@/utils/transportUtils';
-import { TRANSPORT_CATEGORIES } from '@/types/delivery';
+import { TRANSPORT_CATEGORIES, BeamElement } from '@/types/delivery';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 function DeliveryApp() {
   const { trucks, projectInfo, elements, getTruckElements } = useDelivery();
