@@ -23,7 +23,19 @@ import { TransportAlertModal, MultiSiteAlertModal } from './AlertModal';
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 6);
 
 export default function TruckCompositionTab() {
-  const { elements, trucks, getTrucksForDate, getTruckElements, addTruck, addElementsToTruck, removeElementFromTruck, deleteTruck, deleteAllTrucks, updateTruck, isElementAssigned, plans, projectInfo } = useDelivery();
+  const { elements, trucks, getTrucksForDate, getTruckElements, addTruck, addElementsToTruck, removeElementFromTruck, deleteTruck, deleteAllTrucks, updateTruck, isElementAssigned, plans, projectInfo, teams } = useDelivery();
+  const hasMultipleTeams = teams.length > 1;
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+
+  // Initialize selected team
+  const activeTeamId = selectedTeamId || (teams.length > 0 ? teams[0].id : null);
+
+  // Filter trucks by selected team when multiple teams exist
+  const filteredTrucks = useMemo(() => {
+    if (!hasMultipleTeams) return trucks;
+    if (!activeTeamId) return trucks;
+    return trucks.filter(t => t.teamId === activeTeamId);
+  }, [trucks, hasMultipleTeams, activeTeamId]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
   const [filterRepere, setFilterRepere] = useState('');
