@@ -84,4 +84,5 @@ export const DEFAULT_PROJECT_INFO: ProjectInfo = {
   subcontractor: '',
   contactName: '',
   contactPhone: '',
+  showSaturdays: false,
 };
