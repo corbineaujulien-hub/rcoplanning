@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { ProjectInfo, BeamElement, Truck, Plan, DEFAULT_PROJECT_INFO, AccessRole } from '@/types/delivery';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { ProjectInfo, BeamElement, Truck, Plan, DEFAULT_PROJECT_INFO } from '@/types/delivery';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -8,7 +8,6 @@ interface DeliveryContextType {
   elements: BeamElement[];
   trucks: Truck[];
   plans: Plan[];
-  role: AccessRole;
   projectId: string;
   loading: boolean;
   setProjectInfo: (info: ProjectInfo) => void;
@@ -37,88 +36,52 @@ const DeliveryContext = createContext<DeliveryContextType | null>(null);
 interface DeliveryProviderProps {
   children: React.ReactNode;
   projectId: string;
-  role: AccessRole;
   token: string;
 }
 
-export function DeliveryProvider({ children, projectId, role, token }: DeliveryProviderProps) {
+export function DeliveryProvider({ children, projectId, token }: DeliveryProviderProps) {
   const [projectInfo, setProjectInfoState] = useState<ProjectInfo>(DEFAULT_PROJECT_INFO);
   const [elements, setElementsState] = useState<BeamElement[]>([]);
   const [trucks, setTrucksState] = useState<Truck[]>([]);
   const [plans, setPlansState] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
-  const isReadOnly = role === 'viewer';
 
   // Load initial data
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Load project info
-        const { data: proj } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('id', projectId)
-          .single();
+        const { data: proj } = await supabase.from('projects').select('*').eq('id', projectId).single();
         if (proj) {
           setProjectInfoState({
-            otpNumber: proj.otp_number || '',
-            siteName: proj.site_name || '',
-            clientName: proj.client_name || '',
-            siteAddress: proj.site_address || '',
-            conductor: proj.conductor || '',
-            subcontractor: proj.subcontractor || '',
-            contactName: proj.contact_name || '',
-            contactPhone: proj.contact_phone || '',
+            otpNumber: proj.otp_number || '', siteName: proj.site_name || '',
+            clientName: proj.client_name || '', siteAddress: proj.site_address || '',
+            conductor: proj.conductor || '', subcontractor: proj.subcontractor || '',
+            contactName: proj.contact_name || '', contactPhone: proj.contact_phone || '',
             showSaturdays: proj.show_saturdays || false,
           });
         }
 
-        // Load elements
-        const { data: elems } = await supabase
-          .from('beam_elements')
-          .select('*')
-          .eq('project_id', projectId);
+        const { data: elems } = await supabase.from('beam_elements').select('*').eq('project_id', projectId);
         if (elems) {
           setElementsState(elems.map(e => ({
-            id: e.id,
-            repere: e.repere || '',
-            zone: e.zone || '',
-            productType: e.product_type || '',
-            section: e.section || '',
-            length: Number(e.length) || 0,
-            weight: Number(e.weight) || 0,
-            factory: e.factory || '',
+            id: e.id, repere: e.repere || '', zone: e.zone || '', productType: e.product_type || '',
+            section: e.section || '', length: Number(e.length) || 0, weight: Number(e.weight) || 0, factory: e.factory || '',
           })));
         }
 
-        // Load trucks
-        const { data: trks } = await supabase
-          .from('trucks')
-          .select('*')
-          .eq('project_id', projectId);
+        const { data: trks } = await supabase.from('trucks').select('*').eq('project_id', projectId);
         if (trks) {
           setTrucksState(trks.map(t => ({
-            id: t.id,
-            number: t.number || '',
-            date: t.date || '',
-            time: t.time || '',
-            elementIds: (t.element_ids as string[]) || [],
-            comment: t.comment || '',
+            id: t.id, number: t.number || '', date: t.date || '', time: t.time || '',
+            elementIds: (t.element_ids as string[]) || [], comment: t.comment || '',
           })));
         }
 
-        // Load plans
-        const { data: pls } = await supabase
-          .from('plans')
-          .select('*')
-          .eq('project_id', projectId);
+        const { data: pls } = await supabase.from('plans').select('*').eq('project_id', projectId);
         if (pls) {
           setPlansState(pls.map(p => ({
-            id: p.id,
-            name: p.name || '',
-            zones: (p.zones as string[]) || [],
-            productTypes: (p.product_types as string[]) || [],
-            detectedReperes: (p.detected_reperes as string[]) || [],
+            id: p.id, name: p.name || '', zones: (p.zones as string[]) || [],
+            productTypes: (p.product_types as string[]) || [], detectedReperes: (p.detected_reperes as string[]) || [],
             pdfDataUrl: p.pdf_data_url || '',
           })));
         }
@@ -128,7 +91,6 @@ export function DeliveryProvider({ children, projectId, role, token }: DeliveryP
         setLoading(false);
       }
     };
-
     loadData();
   }, [projectId]);
 
@@ -199,9 +161,7 @@ export function DeliveryProvider({ children, projectId, role, token }: DeliveryP
   }, [projectId]);
 
   // --- Mutations ---
-
   const setProjectInfo = useCallback(async (info: ProjectInfo) => {
-    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
     setProjectInfoState(info);
     await supabase.from('projects').update({
       otp_number: info.otpNumber, site_name: info.siteName,
@@ -210,12 +170,10 @@ export function DeliveryProvider({ children, projectId, role, token }: DeliveryP
       contact_name: info.contactName, contact_phone: info.contactPhone,
       show_saturdays: info.showSaturdays, updated_at: new Date().toISOString(),
     }).eq('id', projectId);
-  }, [projectId, isReadOnly]);
+  }, [projectId]);
 
   const setElements = useCallback(async (newElements: BeamElement[]) => {
-    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
     setElementsState(newElements);
-    // Delete all existing, then insert new
     await supabase.from('beam_elements').delete().eq('project_id', projectId);
     if (newElements.length > 0) {
       await supabase.from('beam_elements').insert(
@@ -226,10 +184,9 @@ export function DeliveryProvider({ children, projectId, role, token }: DeliveryP
         }))
       );
     }
-  }, [projectId, isReadOnly]);
+  }, [projectId]);
 
   const addElements = useCallback(async (newElements: BeamElement[]) => {
-    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
     setElementsState(prev => [...prev, ...newElements]);
     await supabase.from('beam_elements').insert(
       newElements.map(e => ({
@@ -238,10 +195,9 @@ export function DeliveryProvider({ children, projectId, role, token }: DeliveryP
         weight: e.weight, factory: e.factory,
       }))
     );
-  }, [projectId, isReadOnly]);
+  }, [projectId]);
 
   const updateElement = useCallback(async (id: string, updates: Partial<BeamElement>) => {
-    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
     setElementsState(prev => prev.map(el => el.id === id ? { ...el, ...updates } : el));
     const dbUpdates: any = {};
     if (updates.repere !== undefined) dbUpdates.repere = updates.repere;
@@ -252,14 +208,12 @@ export function DeliveryProvider({ children, projectId, role, token }: DeliveryP
     if (updates.weight !== undefined) dbUpdates.weight = updates.weight;
     if (updates.factory !== undefined) dbUpdates.factory = updates.factory;
     await supabase.from('beam_elements').update(dbUpdates).eq('id', id);
-  }, [isReadOnly]);
+  }, []);
 
   const deleteElement = useCallback(async (id: string) => {
-    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
     setElementsState(prev => prev.filter(el => el.id !== id));
     setTrucksState(prev => {
       const updated = prev.map(t => ({ ...t, elementIds: t.elementIds.filter(eid => eid !== id) }));
-      // Also update trucks in DB that had this element
       updated.forEach(t => {
         if (prev.find(pt => pt.id === t.id)?.elementIds.includes(id)) {
           supabase.from('trucks').update({ element_ids: t.elementIds }).eq('id', t.id);
@@ -268,20 +222,18 @@ export function DeliveryProvider({ children, projectId, role, token }: DeliveryP
       return updated;
     });
     await supabase.from('beam_elements').delete().eq('id', id);
-  }, [isReadOnly]);
+  }, []);
 
   const addTruck = useCallback(async (truck: Truck) => {
-    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
     setTrucksState(prev => [...prev, truck]);
     await supabase.from('trucks').insert({
       id: truck.id, project_id: projectId, number: truck.number,
       date: truck.date, time: truck.time, element_ids: truck.elementIds,
       comment: truck.comment || '',
     });
-  }, [projectId, isReadOnly]);
+  }, [projectId]);
 
   const updateTruck = useCallback(async (id: string, updates: Partial<Truck>) => {
-    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
     setTrucksState(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
     const dbUpdates: any = {};
     if (updates.number !== undefined) dbUpdates.number = updates.number;
@@ -290,22 +242,19 @@ export function DeliveryProvider({ children, projectId, role, token }: DeliveryP
     if (updates.elementIds !== undefined) dbUpdates.element_ids = updates.elementIds;
     if (updates.comment !== undefined) dbUpdates.comment = updates.comment;
     await supabase.from('trucks').update(dbUpdates).eq('id', id);
-  }, [isReadOnly]);
+  }, []);
 
   const deleteTruck = useCallback(async (id: string) => {
-    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
     setTrucksState(prev => prev.filter(t => t.id !== id));
     await supabase.from('trucks').delete().eq('id', id);
-  }, [isReadOnly]);
+  }, []);
 
   const deleteAllTrucks = useCallback(async () => {
-    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
     setTrucksState([]);
     await supabase.from('trucks').delete().eq('project_id', projectId);
-  }, [projectId, isReadOnly]);
+  }, [projectId]);
 
   const addElementsToTruck = useCallback(async (truckId: string, elementIds: string[]) => {
-    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
     setTrucksState(prev => {
       const updated = prev.map(t =>
         t.id === truckId ? { ...t, elementIds: [...new Set([...t.elementIds, ...elementIds])] } : t
@@ -314,10 +263,9 @@ export function DeliveryProvider({ children, projectId, role, token }: DeliveryP
       if (truck) supabase.from('trucks').update({ element_ids: truck.elementIds }).eq('id', truckId);
       return updated;
     });
-  }, [isReadOnly]);
+  }, []);
 
   const removeElementFromTruck = useCallback(async (truckId: string, elementId: string) => {
-    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
     setTrucksState(prev => {
       const updated = prev.map(t =>
         t.id === truckId ? { ...t, elementIds: t.elementIds.filter(eid => eid !== elementId) } : t
@@ -326,43 +274,31 @@ export function DeliveryProvider({ children, projectId, role, token }: DeliveryP
       if (truck) supabase.from('trucks').update({ element_ids: truck.elementIds }).eq('id', truckId);
       return updated;
     });
-  }, [isReadOnly]);
+  }, []);
 
-  const getElementById = useCallback((id: string) => {
-    return elements.find(el => el.id === id);
-  }, [elements]);
-
+  const getElementById = useCallback((id: string) => elements.find(el => el.id === id), [elements]);
   const getTruckElements = useCallback((truckId: string) => {
     const truck = trucks.find(t => t.id === truckId);
     if (!truck) return [];
     return truck.elementIds.map(id => elements.find(el => el.id === id)).filter(Boolean) as BeamElement[];
   }, [trucks, elements]);
-
   const getUnassignedElements = useCallback(() => {
     const assignedIds = new Set(trucks.flatMap(t => t.elementIds));
     return elements.filter(el => !assignedIds.has(el.id));
   }, [trucks, elements]);
-
-  const isElementAssigned = useCallback((elementId: string) => {
-    return trucks.some(t => t.elementIds.includes(elementId));
-  }, [trucks]);
-
-  const getTrucksForDate = useCallback((date: string) => {
-    return trucks.filter(t => t.date === date).sort((a, b) => a.time.localeCompare(b.time));
-  }, [trucks]);
+  const isElementAssigned = useCallback((elementId: string) => trucks.some(t => t.elementIds.includes(elementId)), [trucks]);
+  const getTrucksForDate = useCallback((date: string) => trucks.filter(t => t.date === date).sort((a, b) => a.time.localeCompare(b.time)), [trucks]);
 
   const addPlan = useCallback(async (plan: Plan) => {
-    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
     setPlansState(prev => [...prev, plan]);
     await supabase.from('plans').insert({
       id: plan.id, project_id: projectId, name: plan.name,
       zones: plan.zones, product_types: plan.productTypes,
       detected_reperes: plan.detectedReperes, pdf_data_url: plan.pdfDataUrl,
     });
-  }, [projectId, isReadOnly]);
+  }, [projectId]);
 
   const updatePlan = useCallback(async (id: string, updates: Partial<Plan>) => {
-    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
     setPlansState(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
     const dbUpdates: any = {};
     if (updates.name !== undefined) dbUpdates.name = updates.name;
@@ -371,17 +307,16 @@ export function DeliveryProvider({ children, projectId, role, token }: DeliveryP
     if (updates.detectedReperes !== undefined) dbUpdates.detected_reperes = updates.detectedReperes;
     if (updates.pdfDataUrl !== undefined) dbUpdates.pdf_data_url = updates.pdfDataUrl;
     await supabase.from('plans').update(dbUpdates).eq('id', id);
-  }, [isReadOnly]);
+  }, []);
 
   const deletePlan = useCallback(async (id: string) => {
-    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
     setPlansState(prev => prev.filter(p => p.id !== id));
     await supabase.from('plans').delete().eq('id', id);
-  }, [isReadOnly]);
+  }, []);
 
   return (
     <DeliveryContext.Provider value={{
-      projectInfo, elements, trucks, plans, role, projectId, loading,
+      projectInfo, elements, trucks, plans, projectId, loading,
       setProjectInfo, setElements, addElements, updateElement, deleteElement,
       addTruck, updateTruck, deleteTruck, deleteAllTrucks, addElementsToTruck, removeElementFromTruck,
       getElementById, getTruckElements, getUnassignedElements, isElementAssigned, getTrucksForDate,

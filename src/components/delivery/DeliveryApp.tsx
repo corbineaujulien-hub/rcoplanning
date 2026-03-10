@@ -7,24 +7,16 @@ import GeneralInfoTab from '@/components/delivery/GeneralInfoTab';
 import DatabaseTab from '@/components/delivery/DatabaseTab';
 import TruckCompositionTab from '@/components/delivery/TruckCompositionTab';
 import WeeklyPlanningTab from '@/components/delivery/WeeklyPlanningTab';
-import { Truck as TruckIcon, ClipboardList, Database, Calendar, FileSpreadsheet, Home, Shield, Pencil, Eye } from 'lucide-react';
+import { Truck as TruckIcon, ClipboardList, Database, Calendar, FileSpreadsheet, Home } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories } from '@/utils/transportUtils';
 import { TRANSPORT_CATEGORIES } from '@/types/delivery';
 import * as XLSX from 'xlsx';
 import { exportAllWeeksPdf } from '@/utils/pdfExportUtils';
-import { Badge } from '@/components/ui/badge';
-
-const ROLE_CONFIG = {
-  admin: { label: 'Admin', icon: Shield, variant: 'destructive' as const },
-  editor: { label: 'Éditeur', icon: Pencil, variant: 'default' as const },
-  viewer: { label: 'Lecteur', icon: Eye, variant: 'secondary' as const },
-};
 
 export default function DeliveryApp() {
-  const { trucks, projectInfo, elements, getTruckElements, role } = useDelivery();
+  const { trucks, projectInfo, elements, getTruckElements } = useDelivery();
   const navigate = useNavigate();
-  const roleConfig = ROLE_CONFIG[role];
 
   const weeklyTabs = useMemo(() => {
     const weeks = new Map<string, { weekNumber: number; year: number }>();
@@ -85,10 +77,6 @@ export default function DeliveryApp() {
             <h1 className="text-lg font-bold tracking-tight">RECTOR – Planification des livraisons</h1>
             {projectInfo.siteName && <p className="text-xs text-primary-foreground/70">{projectInfo.siteName} {projectInfo.otpNumber && `(${projectInfo.otpNumber})`}</p>}
           </div>
-          <Badge variant={roleConfig.variant} className="flex items-center gap-1">
-            <roleConfig.icon className="h-3 w-3" />
-            {roleConfig.label}
-          </Badge>
           <Button variant="ghost" size="sm" className="text-primary-foreground/70 hover:text-primary-foreground" onClick={() => navigate('/')}>
             <Home className="h-4 w-4" />
           </Button>
