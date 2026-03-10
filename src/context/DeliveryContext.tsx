@@ -39,7 +39,11 @@ export function DeliveryProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<DeliveryState>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : defaultState;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return { ...defaultState, ...parsed, plans: parsed.plans || [] };
+      }
+      return defaultState;
     } catch {
       return defaultState;
     }
