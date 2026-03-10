@@ -346,7 +346,7 @@ export default function TruckCompositionTab() {
                   <SelectItem value="loaded">Chargé</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => { setFilterZone(''); setFilterType(''); setFilterFactory(''); setFilterStatus('all'); }}>
+              <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => { setFilterRepere(''); setFilterZone(''); setFilterType(''); setFilterFactory(''); setFilterStatus('all'); }}>
                 <X className="h-3 w-3 mr-1" /> Réinitialiser filtres
               </Button>
             </div>
