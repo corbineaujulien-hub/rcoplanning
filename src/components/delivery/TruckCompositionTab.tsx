@@ -199,6 +199,8 @@ export default function TruckCompositionTab() {
     const ids = Array.from(selectedIds).filter(id => !isElementAssigned(id));
     if (ids.length === 0) return;
     const dayTrucks = getTeamTrucksForDate(dateStr);
+    setPendingElementIds(ids);
+    setNewTruckDate(dateStr);
     if (dayTrucks.length === 0) {
       setShowNewTruck(true);
     } else {
