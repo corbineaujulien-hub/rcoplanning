@@ -411,10 +411,6 @@ export default function TruckCompositionTab() {
                   <Filter className="h-4 w-4 text-accent" /> Repères disponibles
                 </CardTitle>
                 <div className="space-y-2 mt-2">
-                  <div className="relative">
-                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input placeholder="Rechercher un repère…" value={filterRepere} onChange={e => setFilterRepere(e.target.value)} className="h-8 text-xs pl-7" />
-                  </div>
                   <Select value={filterZone} onValueChange={setFilterZone}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Zone" /></SelectTrigger>
                     <SelectContent>
