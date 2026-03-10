@@ -123,7 +123,7 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
         const typeGroups = groupElementsByType(els);
         const borderColor = cat === 'standard' ? '#22c55e' : cat === 'cat1' ? '#eab308' : cat === 'cat2' ? '#f97316' : '#ef4444';
 
-        trucksHtml += `<div style="border-left:3px solid ${borderColor};background:white;border-radius:4px;padding:4px 8px;margin:4px 0;box-shadow:0 1px 2px rgba(0,0,0,.08);">`;
+        trucksHtml += `<div style="border-left:3px solid ${borderColor};border:1px solid #d1d5db;border-left:3px solid ${borderColor};background:white;border-radius:4px;padding:4px 8px;margin:4px 0;box-shadow:0 1px 2px rgba(0,0,0,.08);">`;
         // Header: time + number left, category right
         trucksHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
           <div style="display:flex;align-items:center;gap:6px;">
