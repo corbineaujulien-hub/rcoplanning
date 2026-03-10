@@ -227,7 +227,7 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
                 <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
               </Button>
               <Button variant="outline" size="sm" onClick={exportPdf}>
-                <Calendar className="h-4 w-4 mr-1" /> PDF
+                <Download className="h-4 w-4 mr-1" /> PDF
               </Button>
             </div>
           </CardTitle>
