@@ -363,7 +363,7 @@ export default function TruckCompositionTab() {
     const allFactories = new Set<string>();
     const data: Record<string, Record<TransportCategory | 'total', number>> = {};
 
-    trucks.forEach(truck => {
+    filteredTrucks.forEach(truck => {
       const els = getTruckElements(truck.id);
       const cat = getTransportCategory(els);
       const facs = getTruckFactories(els);
