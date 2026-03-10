@@ -106,8 +106,9 @@ function ColumnFilter({ column, values, filters, setFilters }: {
 }
 
 export default function DatabaseTab() {
-  const { elements, setElements, addElements, updateElement, deleteElement } = useDelivery();
+  const { elements, setElements, addElements, updateElement, deleteElement, plans, addPlan, updatePlan, deletePlan } = useDelivery();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
   const [importMode, setImportMode] = useState<'overwrite' | 'update' | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -127,6 +128,19 @@ export default function DatabaseTab() {
   const [newWeight, setNewWeight] = useState('');
   const [newFactory, setNewFactory] = useState('');
   const [pasteText, setPasteText] = useState('');
+
+  // PDF import state
+  const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfZones, setPdfZones] = useState<string[]>([]);
+  const [pdfProductTypes, setPdfProductTypes] = useState<string[]>([]);
+  const [pdfImportMode, setPdfImportMode] = useState<'new' | 'replace'>('new');
+  const [pdfReplaceId, setPdfReplaceId] = useState('');
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfResult, setPdfResult] = useState<{ found: string[]; notFound: string[]; allDetected: string[] } | null>(null);
+
+  const availableZones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))].sort(), [elements]);
+  const availableProductTypes = useMemo(() => [...new Set(elements.map(e => e.productType).filter(Boolean))].sort(), [elements]);
 
   const parseExcel = (data: Uint8Array): BeamElement[] => {
     const workbook = XLSX.read(data, { type: 'array' });
