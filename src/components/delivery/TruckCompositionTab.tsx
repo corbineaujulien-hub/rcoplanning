@@ -387,13 +387,14 @@ export default function TruckCompositionTab() {
             <div className="flex items-center gap-2">
               <Button variant="outline" size="icon" onClick={() => navigate(-1)}><ChevronLeft className="h-4 w-4" /></Button>
               <h2 className="text-lg font-semibold capitalize min-w-[200px] text-center">
-                {viewMode === 'month' ? format(currentDate, 'MMMM yyyy', { locale: fr }) : `Semaine ${format(currentDate, 'II')} – ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'dd/MM', { locale: fr })} au ${format(endOfWeek(currentDate, { weekStartsOn: 1 }), 'dd/MM/yyyy', { locale: fr })}`}
+                {viewMode === 'month' ? format(currentDate, 'MMMM yyyy', { locale: fr }) : viewMode === 'week' ? `Semaine ${format(currentDate, 'II')} – ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'dd/MM', { locale: fr })} au ${format(endOfWeek(currentDate, { weekStartsOn: 1 }), 'dd/MM/yyyy', { locale: fr })}` : format(currentDate, 'EEEE dd MMMM yyyy', { locale: fr })}
               </h2>
               <Button variant="outline" size="icon" onClick={() => navigate(1)}><ChevronRight className="h-4 w-4" /></Button>
             </div>
             <div className="flex gap-1">
               <Button variant={viewMode === 'month' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('month')}>Mois</Button>
               <Button variant={viewMode === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('week')}>Semaine</Button>
+              <Button variant={viewMode === 'day' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('day')}>Jour</Button>
               {trucks.length > 0 && (
                 <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteAll(true)}>
                   <Trash2 className="h-4 w-4 mr-1" /> Supprimer tout
