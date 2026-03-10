@@ -13,7 +13,7 @@ import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactor
 import { TRANSPORT_CATEGORIES, BeamElement } from '@/types/delivery';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { renderSectionsToPdf, badge, badgeLarge, badgeSmall } from '@/utils/pdfExportUtils';
 
 function DeliveryApp() {
   const { trucks, projectInfo, elements, getTruckElements } = useDelivery();
