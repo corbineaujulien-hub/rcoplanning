@@ -68,6 +68,11 @@ export default function TruckCompositionTab() {
   const [shiftType, setShiftType] = useState<'weeks' | 'days' | 'hours'>('days');
   const [shiftValue, setShiftValue] = useState('');
 
+  // Bulk reassignment dialog
+  const [showBulkReassign, setShowBulkReassign] = useState(false);
+  const [bulkSelectedTrucks, setBulkSelectedTrucks] = useState<Set<string>>(new Set());
+  const [bulkTargetTeam, setBulkTargetTeam] = useState<string>('');
+
   const showSaturdays = projectInfo.showSaturdays || false;
 
   const getElementTruck = (elementId: string): Truck | undefined => {
