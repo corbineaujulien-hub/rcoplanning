@@ -138,9 +138,9 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
         // Repères grouped by type
         trucksHtml += `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">`;
         Object.entries(typeGroups).forEach(([type, reperes]) => {
-          trucksHtml += `<span style="font-size:11px;font-weight:600;color:#1e3a5f;display:inline-flex;align-items:center;line-height:1.2;">${reperes.length}× ${type} :</span>`;
+          trucksHtml += `<span style="font-size:11px;font-weight:600;color:#1e3a5f;display:inline-flex;align-items:center;line-height:1;">${reperes.length}× ${type} :</span>`;
           reperes.forEach(r => {
-            trucksHtml += `<span style="background:#dbeafe;color:#1e3a5f;padding:3px 6px;border-radius:3px;font-size:11px;font-family:monospace;font-weight:500;display:inline-flex;align-items:center;line-height:1.2;">${r}</span>`;
+            trucksHtml += `<span style="background:#dbeafe;color:#1e3a5f;padding:4px 8px;border-radius:3px;font-size:11px;font-family:monospace;font-weight:500;display:inline-flex;align-items:center;line-height:1;">${r}</span>`;
           });
         });
         trucksHtml += `</div>`;
