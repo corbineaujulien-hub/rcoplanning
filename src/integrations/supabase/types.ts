@@ -182,6 +182,38 @@ export type Database = {
         }
         Relationships: []
       }
+      teams: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          project_id: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          project_id: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          project_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teams_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trucks: {
         Row: {
           comment: string | null
@@ -191,6 +223,7 @@ export type Database = {
           id: string
           number: string
           project_id: string
+          team_id: string | null
           time: string
         }
         Insert: {
@@ -201,6 +234,7 @@ export type Database = {
           id?: string
           number?: string
           project_id: string
+          team_id?: string | null
           time?: string
         }
         Update: {
@@ -211,6 +245,7 @@ export type Database = {
           id?: string
           number?: string
           project_id?: string
+          team_id?: string | null
           time?: string
         }
         Relationships: [
@@ -219,6 +254,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trucks_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]
