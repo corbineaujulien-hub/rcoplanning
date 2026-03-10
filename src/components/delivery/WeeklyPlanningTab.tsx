@@ -124,12 +124,12 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
         const factories = getTruckFactories(els);
         const borderColor = cat === 'standard' ? '#22c55e' : cat === 'cat1' ? '#eab308' : cat === 'cat2' ? '#f97316' : '#ef4444';
 
-        trucksHtml += `<div style="border:1px solid #b0b8c4;border-left:4px solid ${borderColor};background:white;border-radius:4px;padding:10px 14px;margin:5px 0;box-shadow:0 1px 3px rgba(0,0,0,.1);">`;
-        trucksHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        trucksHtml += `<div style="border:1px solid #b0b8c4;border-left:4px solid ${borderColor};background:white;border-radius:6px;padding:12px 16px;margin:6px 0;box-shadow:0 1px 3px rgba(0,0,0,.1);">`;
+        trucksHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <div style="display:inline-flex;align-items:center;gap:4px;background:#1e3a5f;color:white;padding:5px 12px;border-radius:4px;font-size:13px;font-weight:700;line-height:1;">🚛 ${truck.number} — ${truck.time}</div>
-            <span style="background:${borderColor};color:white;padding:5px 12px;border-radius:3px;font-size:11px;display:inline-flex;align-items:center;line-height:1;font-weight:600;">${catInfo.label}</span>
-            ${factories.map(f => `<span style="background:${getFactoryColor(f)};color:white;padding:5px 12px;border-radius:3px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;line-height:1;">${f}</span>`).join('')}
+            <div style="display:inline-flex;align-items:center;gap:4px;background:#1e3a5f;color:white;padding:6px 14px;border-radius:4px;font-size:13px;font-weight:700;line-height:1;">🚛 ${truck.number} — ${truck.time}</div>
+            <span style="background:${borderColor};color:white;padding:6px 14px;border-radius:4px;font-size:11px;display:inline-flex;align-items:center;line-height:1;font-weight:600;">${catInfo.label}</span>
+            ${factories.map(f => `<span style="background:${getFactoryColor(f)};color:white;padding:6px 14px;border-radius:4px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;line-height:1;">${f}</span>`).join('')}
           </div>
           <span style="font-size:11px;color:#666;">⚖️ ${weight.toFixed(2)}t · 📏 ${maxLen.toFixed(2)}m</span>
         </div>`;
