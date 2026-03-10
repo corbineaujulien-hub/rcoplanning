@@ -123,7 +123,7 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
         const typeGroups = groupElementsByType(els);
         const borderColor = cat === 'standard' ? '#22c55e' : cat === 'cat1' ? '#eab308' : cat === 'cat2' ? '#f97316' : '#ef4444';
 
-        trucksHtml += `<div style="border-left:3px solid ${borderColor};background:white;border-radius:4px;padding:4px 8px;margin:4px 0;box-shadow:0 1px 2px rgba(0,0,0,.08);">`;
+        trucksHtml += `<div style="border-left:3px solid ${borderColor};border:1px solid #d1d5db;border-left:3px solid ${borderColor};background:white;border-radius:4px;padding:4px 8px;margin:4px 0;box-shadow:0 1px 2px rgba(0,0,0,.08);">`;
         // Header: time + number left, category right
         trucksHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
           <div style="display:flex;align-items:center;gap:6px;">
@@ -166,15 +166,16 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;border-bottom:2px solid #1e3a5f;padding-bottom:8px;">
         <div>
           <h1 style="font-size:16px;color:#1e3a5f;margin:0 0 4px 0;">RECTOR – ${weekLabel}</h1>
-          ${projectInfo.siteName ? `<p style="margin:1px 0;font-size:11px;"><strong>Chantier :</strong> ${projectInfo.siteName} ${projectInfo.otpNumber ? `(OTP: ${projectInfo.otpNumber})` : ''}</p>` : ''}
-          ${projectInfo.clientName ? `<p style="margin:1px 0;font-size:11px;"><strong>Client :</strong> ${projectInfo.clientName}</p>` : ''}
+          ${projectInfo.otpNumber ? `<p style="margin:1px 0;font-size:11px;"><strong>N° OTP :</strong> ${projectInfo.otpNumber}</p>` : ''}
+          ${projectInfo.siteName ? `<p style="margin:1px 0;font-size:11px;"><strong>Chantier :</strong> ${projectInfo.siteName}</p>` : ''}
           ${projectInfo.siteAddress ? `<p style="margin:1px 0;font-size:11px;"><strong>Adresse :</strong> ${projectInfo.siteAddress}</p>` : ''}
+          ${projectInfo.clientName ? `<p style="margin:1px 0;font-size:11px;"><strong>Client :</strong> ${projectInfo.clientName}</p>` : ''}
         </div>
         <div style="text-align:right;">
-          <img src="/logo.png" style="height:40px;object-fit:contain;" onerror="this.style.display='none'" />
-          ${projectInfo.conductor ? `<p style="margin:1px 0;font-size:10px;"><strong>Conducteur :</strong> ${projectInfo.conductor}</p>` : ''}
-          ${projectInfo.subcontractor ? `<p style="margin:1px 0;font-size:10px;"><strong>Poseur :</strong> ${projectInfo.subcontractor}</p>` : ''}
-          ${projectInfo.contactName ? `<p style="margin:1px 0;font-size:10px;"><strong>Contact :</strong> ${projectInfo.contactName} ${projectInfo.contactPhone || ''}</p>` : ''}
+          <img src="/logo.png" style="height:40px;object-fit:contain;margin-bottom:4px;" onerror="this.style.display='none'" />
+          ${projectInfo.conductor ? `<p style="margin:1px 0;font-size:11px;"><strong>Conducteur :</strong> ${projectInfo.conductor}</p>` : ''}
+          ${projectInfo.subcontractor ? `<p style="margin:1px 0;font-size:11px;"><strong>Poseur :</strong> ${projectInfo.subcontractor}</p>` : ''}
+          ${projectInfo.contactName ? `<p style="margin:1px 0;font-size:11px;"><strong>Contact :</strong> ${projectInfo.contactName}${projectInfo.contactPhone ? ` — ${projectInfo.contactPhone}` : ''}</p>` : ''}
         </div>
       </div>
       ${trucksHtml}
@@ -201,11 +202,31 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
       const pdfWidth = 420;
       const pdfHeight = 297;
       const margin = 8;
-      const contentWidth = pdfWidth - margin * 2;
-      const contentHeight = (canvas.height / canvas.width) * contentWidth;
-      const finalHeight = Math.min(contentHeight, pdfHeight - margin * 2);
+      const usableWidth = pdfWidth - margin * 2;
+      const usableHeight = pdfHeight - margin * 2;
+      const contentHeight = (canvas.height / canvas.width) * usableWidth;
 
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin, contentWidth, finalHeight);
+      const imgData = canvas.toDataURL('image/png');
+
+      if (contentHeight <= usableHeight) {
+        pdf.addImage(imgData, 'PNG', margin, margin, usableWidth, contentHeight);
+      } else {
+        // Multi-page: slice canvas into page-sized chunks
+        const totalPages = Math.ceil(contentHeight / usableHeight);
+        for (let page = 0; page < totalPages; page++) {
+          if (page > 0) pdf.addPage();
+          const sourceY = (page * usableHeight / contentHeight) * canvas.height;
+          const sourceH = Math.min((usableHeight / contentHeight) * canvas.height, canvas.height - sourceY);
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = canvas.width;
+          sliceCanvas.height = sourceH;
+          const ctx = sliceCanvas.getContext('2d')!;
+          ctx.drawImage(canvas, 0, sourceY, canvas.width, sourceH, 0, 0, canvas.width, sourceH);
+          const sliceHeight = (sourceH / canvas.width) * usableWidth;
+          pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', margin, margin, usableWidth, sliceHeight);
+        }
+      }
+
       pdf.save(`planning_S${weekNumber}_${year}.pdf`);
     } finally {
       document.body.removeChild(container);
