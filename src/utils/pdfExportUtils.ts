@@ -164,6 +164,37 @@ function groupByType(els: BeamElement[]): Record<string, BeamElement[]> {
   return groups;
 }
 
+function drawTruckIcon(pdf: jsPDF, x: number, y: number, size: number, color: string) {
+  const [r, g, b] = hexToRgb(color);
+  pdf.setDrawColor(r, g, b);
+  pdf.setLineWidth(0.4);
+  // Simple truck shape: cab + body
+  const s = size;
+  // Body
+  pdf.rect(x, y + s * 0.2, s * 0.65, s * 0.55, 'S');
+  // Cab
+  pdf.rect(x + s * 0.65, y + s * 0.35, s * 0.3, s * 0.4, 'S');
+  // Wheels
+  pdf.setFillColor(r, g, b);
+  pdf.circle(x + s * 0.2, y + s * 0.8, s * 0.08, 'F');
+  pdf.circle(x + s * 0.8, y + s * 0.8, s * 0.08, 'F');
+}
+
+function drawInfoItem(ctx: PdfContext, x: number, y: number, icon: string, value: string): number {
+  const { pdf } = ctx;
+  // Icon symbol
+  pdf.setFontSize(7);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(100, 116, 139);
+  pdf.text(icon, x, y + 3);
+  const iconW = pdf.getTextWidth(icon) + 1.5;
+  // Value
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(30, 41, 59);
+  pdf.text(value, x + iconW, y + 3);
+  return iconW + pdf.getTextWidth(value) + 6;
+}
+
 function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[]) {
   const { pdf, margin, usableWidth } = ctx;
   const cat = getTransportCategory(els);
@@ -190,6 +221,10 @@ function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[]) {
   let x = cardX + borderW + 3;
   let y = cardY + 3;
 
+  // Truck icon
+  drawTruckIcon(pdf, x, y - 0.5, 5, '#1e3a5f');
+  x += 7;
+
   // Truck number + time badge
   const numBadge = drawBadge(ctx, x, y, `${truck.number} — ${truck.time}`, '#1e3a5f', '#ffffff', 9);
   x += numBadge.w + 3;
@@ -204,22 +239,19 @@ function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[]) {
     x += fBadge.w + 2;
   });
 
-  // Weight & length on the right
-  pdf.setFontSize(7);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(100, 100, 100);
-  const infoText = `${weight.toFixed(2)}t · ${maxLen.toFixed(2)}m`;
-  const infoW = pdf.getTextWidth(infoText);
-  pdf.text(infoText, cardX + cardW - infoW - 4, y + 3.5);
-
   y += numBadge.h + 3;
 
-  // Info line: product counts
-  pdf.setFontSize(7);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(30, 58, 95);
-  const counts = els.reduce((acc: Record<string, number>, el) => { acc[el.productType] = (acc[el.productType] || 0) + 1; return acc; }, {});
+  // Info line with icons (like the UI: weight, length, product count)
   x = cardX + borderW + 3;
+  x += drawInfoItem(ctx, x, y, '⚖', `${weight.toFixed(2)} t`);
+  x += drawInfoItem(ctx, x, y, '📏', `${maxLen.toFixed(2)} m`);
+  drawInfoItem(ctx, x, y, '📦', `${els.length} produits`);
+
+  y += 6;
+
+  // Info line: product counts badges
+  x = cardX + borderW + 3;
+  const counts = els.reduce((acc: Record<string, number>, el) => { acc[el.productType] = (acc[el.productType] || 0) + 1; return acc; }, {});
   Object.entries(counts).forEach(([type, count]) => {
     const countBadge = drawBadge(ctx, x, y, `${count}× ${type}`, '#e2e8f0', '#334155', 6);
     x += countBadge.w + 2;
