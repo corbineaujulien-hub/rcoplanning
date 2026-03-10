@@ -12,9 +12,11 @@ interface NewTruckModalProps {
   onConfirm: (number: string, time: string) => void;
   date: string;
   trucks?: Truck[];
+  /** Only trucks from the same team, used for time conflict detection */
+  teamTrucks?: Truck[];
 }
 
-export default function NewTruckModal({ open, onClose, onConfirm, date, trucks = [] }: NewTruckModalProps) {
+export default function NewTruckModal({ open, onClose, onConfirm, date, trucks = [], teamTrucks }: NewTruckModalProps) {
   const [number, setNumber] = useState('');
   const [time, setTime] = useState('08:00');
   const [showTimeConflict, setShowTimeConflict] = useState(false);
@@ -26,8 +28,9 @@ export default function NewTruckModal({ open, onClose, onConfirm, date, trucks =
 
   const handleConfirm = () => {
     if (!number.trim() || isDuplicate) return;
-    // Check for time conflict
-    const hasConflict = trucks.some(t => t.date === date && t.time === time);
+    // Check for time conflict within same team only
+    const conflictPool = teamTrucks ?? trucks;
+    const hasConflict = conflictPool.some(t => t.date === date && t.time === time);
     if (hasConflict && !showTimeConflict) {
       setShowTimeConflict(true);
       return;

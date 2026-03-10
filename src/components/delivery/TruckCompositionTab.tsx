@@ -962,7 +962,7 @@ export default function TruckCompositionTab() {
       )}
 
       {/* Modals */}
-      <NewTruckModal open={showNewTruck} onClose={() => setShowNewTruck(false)} onConfirm={handleNewTruckConfirm} date={newTruckDate} trucks={trucks} />
+      <NewTruckModal open={showNewTruck} onClose={() => setShowNewTruck(false)} onConfirm={handleNewTruckConfirm} date={newTruckDate} trucks={trucks} teamTrucks={hasMultipleTeams ? filteredTrucks : undefined} />
 
       <Dialog open={showExistingPicker} onOpenChange={v => !v && setShowExistingPicker(false)}>
         <DialogContent className="w-fit">
