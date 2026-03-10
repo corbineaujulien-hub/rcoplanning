@@ -130,6 +130,27 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
               </div>
             </div>
 
+            {/* Team assignment */}
+            {hasMultipleTeams && (
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Équipe :</span>
+                <Select
+                  value={truck.teamId || teams[0]?.id || ''}
+                  onValueChange={v => updateTruck(truck.id, { teamId: v })}
+                >
+                  <SelectTrigger className="h-8 w-40 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teams.map(t => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Catégorie :</span>
               <span className={`${getCategoryColorClass(category)} px-2 py-1 rounded text-sm font-medium`}>{catInfo.label}</span>
