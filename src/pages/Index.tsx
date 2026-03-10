@@ -105,7 +105,7 @@ function DeliveryApp() {
                 <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={exportAllWeeksExcel}>
                   <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> Tout Excel
                 </Button>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={exportAllWeeksPdf}>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleExportAllWeeksPdf}>
                   <Calendar className="h-3.5 w-3.5 mr-1" /> Tout PDF
                 </Button>
               </div>
