@@ -296,7 +296,7 @@ export default function DatabaseTab() {
       const pdfDataUrl = `data:application/pdf;base64,${base64}`;
       const plan: Plan = {
         id: crypto.randomUUID(),
-        name: pdfFile.name,
+        name: pdfPlanName.trim() || pdfFile.name,
         zones: pdfZones,
         productTypes: pdfProductTypes,
         detectedReperes: [], // No AI detection — repères are determined dynamically from DB
