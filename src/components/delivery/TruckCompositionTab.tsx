@@ -783,7 +783,7 @@ export default function TruckCompositionTab() {
             <div className="flex-1 overflow-auto space-y-3">
               {(() => {
                 const dateStr = format(currentDate, 'yyyy-MM-dd');
-                const dayTrucks = getTrucksForDate(dateStr);
+                const dayTrucks = getTeamTrucksForDate(dateStr);
                 if (dayTrucks.length === 0) {
                   return (
                     <div
