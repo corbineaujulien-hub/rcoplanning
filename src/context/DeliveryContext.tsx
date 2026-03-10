@@ -31,7 +31,7 @@ interface DeliveryContextType extends DeliveryState {
 }
 
 const STORAGE_KEY = 'rector-delivery-planner';
-const defaultState: DeliveryState = { projectInfo: DEFAULT_PROJECT_INFO, elements: [], trucks: [] };
+const defaultState: DeliveryState = { projectInfo: DEFAULT_PROJECT_INFO, elements: [], trucks: [], plans: [] };
 
 const DeliveryContext = createContext<DeliveryContextType | null>(null);
 
