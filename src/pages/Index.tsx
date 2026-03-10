@@ -13,7 +13,7 @@ import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactor
 import { TRANSPORT_CATEGORIES, BeamElement } from '@/types/delivery';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { renderSectionsToPdf, badge, badgeLarge, badgeSmall } from '@/utils/pdfExportUtils';
 
 function DeliveryApp() {
   const { trucks, projectInfo, elements, getTruckElements } = useDelivery();
@@ -71,7 +71,7 @@ function DeliveryApp() {
   };
 
   const exportAllWeeksPdf = async () => {
-    let allHtml = '';
+    let allSectionsHtml = '';
 
     weeklyTabs.forEach((w, idx) => {
       const weekTrucks = trucks
@@ -88,10 +88,8 @@ function DeliveryApp() {
       const we = endOfWeek(firstDate, { weekStartsOn: 1 });
       const weekLabel = `Semaine ${w.weekNumber} – du ${format(ws, 'dd/MM', { locale: fr })} au ${format(we, 'dd/MM/yyyy', { locale: fr })}`;
 
-      if (idx > 0) allHtml += '<div style="page-break-before:always;height:0;"></div>';
-
-      // Full header with all project info
-      allHtml += `<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;border-bottom:2px solid #1e3a5f;padding-bottom:8px;">
+      // Week header section
+      allSectionsHtml += `<div data-pdf-section style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;border-bottom:2px solid #1e3a5f;padding-bottom:8px;${idx > 0 ? 'margin-top:20px;' : ''}">
         <div>
           <h2 style="font-size:16px;color:#1e3a5f;margin:0 0 4px 0;">RECTOR – ${weekLabel}</h2>
           ${projectInfo.otpNumber ? `<p style="margin:1px 0;font-size:11px;"><strong>N° OTP :</strong> ${projectInfo.otpNumber}</p>` : ''}
@@ -114,7 +112,8 @@ function DeliveryApp() {
       });
 
       Array.from(grouped.entries()).forEach(([date, dayTrucks]) => {
-        allHtml += `<div style="background:#1e3a5f;color:white;padding:4px 10px;border-radius:4px;font-weight:600;font-size:11px;margin-top:8px;text-transform:capitalize;">${format(parseISO(date), 'EEEE dd MMMM yyyy', { locale: fr })} — ${dayTrucks.length} camion${dayTrucks.length > 1 ? 's' : ''}</div>`;
+        allSectionsHtml += `<div data-pdf-section style="background:#1e3a5f;color:white;padding:6px 12px;border-radius:4px;font-weight:600;font-size:11px;margin-top:10px;text-transform:capitalize;">${format(parseISO(date), 'EEEE dd MMMM yyyy', { locale: fr })} — ${dayTrucks.length} camion${dayTrucks.length > 1 ? 's' : ''}</div>`;
+
         dayTrucks.forEach(truck => {
           const els = getTruckElements(truck.id);
           const cat = getTransportCategory(els);
@@ -125,73 +124,44 @@ function DeliveryApp() {
           const factories = getTruckFactories(els);
           const borderColor = cat === 'standard' ? '#22c55e' : cat === 'cat1' ? '#eab308' : cat === 'cat2' ? '#f97316' : '#ef4444';
 
-          allHtml += `<div style="border:1px solid #b0b8c4;border-left:5px solid ${borderColor};background:white;border-radius:6px;padding:14px 18px;margin:8px 0;box-shadow:0 1px 3px rgba(0,0,0,.1);">`;
-          allHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          let truckHtml = `<div data-pdf-section style="border:1px solid #b0b8c4;border-left:5px solid ${borderColor};background:white;border-radius:6px;padding:16px 20px;margin:8px 0;box-shadow:0 1px 3px rgba(0,0,0,.1);">`;
+          truckHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-              <div style="background:#1e3a5f;color:white;padding:8px 16px;border-radius:5px;font-size:14px;font-weight:700;line-height:1.4;">🚛 ${truck.number} — ${truck.time}</div>
-              <span style="background:${borderColor};color:white;padding:7px 14px;border-radius:5px;font-size:12px;font-weight:600;line-height:1.4;">${catInfo.label}</span>
-              ${factories.map(f => `<span style="background:${getFactoryColor(f)};color:white;padding:7px 14px;border-radius:5px;font-size:12px;font-weight:700;line-height:1.4;">${f}</span>`).join('')}
+              ${badgeLarge(`🚛 ${truck.number} — ${truck.time}`, '#1e3a5f')}
+              ${badge(catInfo.label, borderColor)}
+              ${factories.map(f => badge(f, getFactoryColor(f), 'white', 'font-weight:700;')).join('')}
             </div>
-            <span style="font-size:12px;color:#555;white-space:nowrap;">⚖️ ${weight.toFixed(2)}t · 📏 ${maxLen.toFixed(2)}m</span>
+            <div style="display:inline-flex;align-items:center;font-size:12px;color:#555;white-space:nowrap;">⚖️ ${weight.toFixed(2)}t · 📏 ${maxLen.toFixed(2)}m</div>
           </div>`;
-          allHtml += `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">`;
+          truckHtml += `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">`;
           Object.entries(typeGroups).forEach(([type, reperes]) => {
-            allHtml += `<span style="font-size:12px;font-weight:600;color:#1e3a5f;line-height:1.4;">${reperes.length}× ${type} :</span>`;
+            truckHtml += `<div style="display:inline-flex;align-items:center;font-size:12px;font-weight:600;color:#1e3a5f;line-height:1;">${reperes.length}× ${type} :</div>`;
             reperes.forEach(r => {
-              allHtml += `<span style="background:#dbeafe;color:#1e3a5f;padding:6px 10px;border-radius:4px;font-size:12px;font-family:monospace;font-weight:500;line-height:1.4;">${r}</span>`;
+              truckHtml += badgeSmall(r, '#dbeafe', '#1e3a5f');
             });
           });
-          allHtml += `</div>`;
+          truckHtml += `</div>`;
           if (truck.comment?.trim()) {
-            allHtml += `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:4px;padding:6px 10px;margin-top:6px;font-size:11px;line-height:1.4;">💬 ${truck.comment}</div>`;
+            truckHtml += `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:4px;padding:8px 12px;margin-top:8px;font-size:11px;line-height:1.4;">💬 ${truck.comment}</div>`;
           }
-          allHtml += `</div>`;
+          truckHtml += `</div>`;
+          allSectionsHtml += truckHtml;
         });
       });
     });
 
-    // Render to PDF via html2canvas + jsPDF
     const container = document.createElement('div');
     container.style.position = 'fixed';
     container.style.left = '-9999px';
     container.style.top = '0';
-    container.innerHTML = `<div id="pdf-all-content" style="width:1580px;font-family:Inter,system-ui,sans-serif;color:#1e293b;padding:16px;">${allHtml}</div>`;
+    container.innerHTML = `<div id="pdf-all-content" style="width:1580px;font-family:Inter,system-ui,sans-serif;color:#1e293b;padding:16px;">${allSectionsHtml}</div>`;
     document.body.appendChild(container);
 
     try {
-      const canvas = await html2canvas(container.querySelector('#pdf-all-content')!, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      });
-
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' });
-      const pdfWidth = 420;
-      const pdfHeight = 297;
-      const margin = 8;
-      const usableWidth = pdfWidth - margin * 2;
-      const usableHeight = pdfHeight - margin * 2;
-      const contentHeight = (canvas.height / canvas.width) * usableWidth;
-      const imgData = canvas.toDataURL('image/png');
-
-      if (contentHeight <= usableHeight) {
-        pdf.addImage(imgData, 'PNG', margin, margin, usableWidth, contentHeight);
-      } else {
-        const totalPages = Math.ceil(contentHeight / usableHeight);
-        for (let page = 0; page < totalPages; page++) {
-          if (page > 0) pdf.addPage();
-          const sourceY = (page * usableHeight / contentHeight) * canvas.height;
-          const sourceH = Math.min((usableHeight / contentHeight) * canvas.height, canvas.height - sourceY);
-          const sliceCanvas = document.createElement('canvas');
-          sliceCanvas.width = canvas.width;
-          sliceCanvas.height = sourceH;
-          const ctx = sliceCanvas.getContext('2d')!;
-          ctx.drawImage(canvas, 0, sourceY, canvas.width, sourceH, 0, 0, canvas.width, sourceH);
-          const sliceHeight = (sourceH / canvas.width) * usableWidth;
-          pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', margin, margin, usableWidth, sliceHeight);
-        }
-      }
-
+      await renderSectionsToPdf(container.querySelector('#pdf-all-content')!, pdf, {
+        pdfWidth: 420, pdfHeight: 297, margin: 8,
+      });
       pdf.save(`planning_toutes_semaines.pdf`);
     } finally {
       document.body.removeChild(container);
