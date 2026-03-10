@@ -94,10 +94,12 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
 
         // Load teams
         const { data: tms } = await supabase.from('teams').select('*').eq('project_id', projectId).order('sort_order');
+        let firstTeamId: string;
         if (tms && tms.length > 0) {
           setTeamsState(tms.map(t => ({
             id: t.id, projectId: t.project_id, name: t.name, sortOrder: t.sort_order,
           })));
+          firstTeamId = tms[0].id;
         } else {
           // Create default team if none exist
           const defaultTeam: Team = { id: crypto.randomUUID(), projectId, name: 'Équipe 1', sortOrder: 0 };
@@ -105,6 +107,18 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
             id: defaultTeam.id, project_id: projectId, name: defaultTeam.name, sort_order: 0,
           });
           setTeamsState([defaultTeam]);
+          firstTeamId = defaultTeam.id;
+        }
+
+        // Auto-assign unassigned trucks to first team
+        if (trks) {
+          const unassigned = trks.filter(t => !t.team_id);
+          if (unassigned.length > 0) {
+            for (const t of unassigned) {
+              await supabase.from('trucks').update({ team_id: firstTeamId }).eq('id', t.id);
+            }
+            setTrucksState(prev => prev.map(t => t.teamId ? t : { ...t, teamId: firstTeamId }));
+          }
         }
       } catch (err: any) {
         toast.error('Erreur de chargement : ' + err.message);

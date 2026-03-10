@@ -68,6 +68,11 @@ export default function TruckCompositionTab() {
   const [shiftType, setShiftType] = useState<'weeks' | 'days' | 'hours'>('days');
   const [shiftValue, setShiftValue] = useState('');
 
+  // Bulk reassignment dialog
+  const [showBulkReassign, setShowBulkReassign] = useState(false);
+  const [bulkSelectedTrucks, setBulkSelectedTrucks] = useState<Set<string>>(new Set());
+  const [bulkTargetTeam, setBulkTargetTeam] = useState<string>('');
+
   const showSaturdays = projectInfo.showSaturdays || false;
 
   const getElementTruck = (elementId: string): Truck | undefined => {
@@ -691,6 +696,11 @@ export default function TruckCompositionTab() {
               <Button variant={viewMode === 'day' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('day')}>Jour</Button>
               {trucks.length > 0 && (
                 <>
+                  {hasMultipleTeams && (
+                    <Button variant="outline" size="sm" onClick={() => { setBulkSelectedTrucks(new Set()); setBulkTargetTeam(''); setShowBulkReassign(true); }}>
+                      <Users className="h-4 w-4 mr-1" /> Réaffecter
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" onClick={() => { setShiftSelectedTrucks(new Set()); setShiftValue(''); setShowShiftDialog(true); }}>
                     <ArrowRightLeft className="h-4 w-4 mr-1" /> Décaler
                   </Button>
@@ -962,7 +972,7 @@ export default function TruckCompositionTab() {
       )}
 
       {/* Modals */}
-      <NewTruckModal open={showNewTruck} onClose={() => setShowNewTruck(false)} onConfirm={handleNewTruckConfirm} date={newTruckDate} trucks={trucks} />
+      <NewTruckModal open={showNewTruck} onClose={() => setShowNewTruck(false)} onConfirm={handleNewTruckConfirm} date={newTruckDate} trucks={trucks} teamTrucks={hasMultipleTeams ? filteredTrucks : undefined} />
 
       <Dialog open={showExistingPicker} onOpenChange={v => !v && setShowExistingPicker(false)}>
         <DialogContent className="w-fit">
@@ -1088,6 +1098,88 @@ export default function TruckCompositionTab() {
             <Button variant="outline" onClick={() => setShowShiftDialog(false)}>Annuler</Button>
             <Button onClick={handleShiftConfirm} disabled={shiftSelectedTrucks.size === 0 || !shiftValue || parseInt(shiftValue) === 0}>
               Décaler ({shiftSelectedTrucks.size} camion{shiftSelectedTrucks.size > 1 ? 's' : ''})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Reassignment Dialog */}
+      <Dialog open={showBulkReassign} onOpenChange={setShowBulkReassign}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Réaffecter des camions à une équipe</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Sélectionner les camions</Label>
+              <div className="flex gap-1">
+                <Button variant="ghost" size="sm" className="text-xs" onClick={() => {
+                  // Select unassigned trucks (no teamId)
+                  const unassigned = trucks.filter(t => !t.teamId);
+                  setBulkSelectedTrucks(new Set(unassigned.map(t => t.id)));
+                }}>
+                  Non affectés
+                </Button>
+                <Button variant="ghost" size="sm" className="text-xs" onClick={() => {
+                  if (bulkSelectedTrucks.size === trucks.length) {
+                    setBulkSelectedTrucks(new Set());
+                  } else {
+                    setBulkSelectedTrucks(new Set(trucks.map(t => t.id)));
+                  }
+                }}>
+                  {bulkSelectedTrucks.size === trucks.length ? 'Désélectionner' : 'Tout'}
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-1 max-h-[40vh] overflow-y-auto">
+              {trucks.map(truck => {
+                const els = getTruckElements(truck.id);
+                const cat = getTransportCategory(els);
+                const currentTeam = teams.find(t => t.id === truck.teamId);
+                return (
+                  <label key={truck.id} className="flex items-center gap-2 p-2 rounded-md border cursor-pointer hover:bg-secondary/50 transition-colors">
+                    <Checkbox
+                      checked={bulkSelectedTrucks.has(truck.id)}
+                      onCheckedChange={() => {
+                        setBulkSelectedTrucks(prev => {
+                          const next = new Set(prev);
+                          next.has(truck.id) ? next.delete(truck.id) : next.add(truck.id);
+                          return next;
+                        });
+                      }}
+                    />
+                    <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${els.length === 0 ? 'bg-foreground' : getCategoryColorClass(cat)}`} />
+                    <span className="text-sm font-medium">{truck.number}</span>
+                    <span className="text-xs text-muted-foreground">{truck.date} · {truck.time}</span>
+                    <span className="text-xs text-muted-foreground ml-auto">{currentTeam?.name || 'Non affecté'}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <div>
+              <Label className="text-xs">Équipe cible</Label>
+              <Select value={bulkTargetTeam} onValueChange={setBulkTargetTeam}>
+                <SelectTrigger className="h-8 text-sm mt-1"><SelectValue placeholder="Choisir une équipe" /></SelectTrigger>
+                <SelectContent>
+                  {teams.map(t => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBulkReassign(false)}>Annuler</Button>
+            <Button
+              onClick={() => {
+                bulkSelectedTrucks.forEach(truckId => {
+                  updateTruck(truckId, { teamId: bulkTargetTeam });
+                });
+                setShowBulkReassign(false);
+              }}
+              disabled={bulkSelectedTrucks.size === 0 || !bulkTargetTeam}
+            >
+              Réaffecter ({bulkSelectedTrucks.size} camion{bulkSelectedTrucks.size > 1 ? 's' : ''})
             </Button>
           </DialogFooter>
         </DialogContent>
