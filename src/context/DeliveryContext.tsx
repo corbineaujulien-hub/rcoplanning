@@ -1,14 +1,16 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { ProjectInfo, BeamElement, Truck, Plan, DEFAULT_PROJECT_INFO } from '@/types/delivery';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { ProjectInfo, BeamElement, Truck, Plan, DEFAULT_PROJECT_INFO, AccessRole } from '@/types/delivery';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
-interface DeliveryState {
+interface DeliveryContextType {
   projectInfo: ProjectInfo;
   elements: BeamElement[];
   trucks: Truck[];
   plans: Plan[];
-}
-
-interface DeliveryContextType extends DeliveryState {
+  role: AccessRole;
+  projectId: string;
+  loading: boolean;
   setProjectInfo: (info: ProjectInfo) => void;
   setElements: (elements: BeamElement[]) => void;
   addElements: (elements: BeamElement[]) => void;
@@ -30,134 +32,357 @@ interface DeliveryContextType extends DeliveryState {
   deletePlan: (id: string) => void;
 }
 
-const STORAGE_KEY = 'rector-delivery-planner';
-const defaultState: DeliveryState = { projectInfo: DEFAULT_PROJECT_INFO, elements: [], trucks: [], plans: [] };
-
 const DeliveryContext = createContext<DeliveryContextType | null>(null);
 
-export function DeliveryProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<DeliveryState>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return { ...defaultState, ...parsed, plans: parsed.plans || [] };
-      }
-      return defaultState;
-    } catch {
-      return defaultState;
-    }
-  });
+interface DeliveryProviderProps {
+  children: React.ReactNode;
+  projectId: string;
+  role: AccessRole;
+  token: string;
+}
 
+export function DeliveryProvider({ children, projectId, role, token }: DeliveryProviderProps) {
+  const [projectInfo, setProjectInfoState] = useState<ProjectInfo>(DEFAULT_PROJECT_INFO);
+  const [elements, setElementsState] = useState<BeamElement[]>([]);
+  const [trucks, setTrucksState] = useState<Truck[]>([]);
+  const [plans, setPlansState] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const isReadOnly = role === 'viewer';
+
+  // Load initial data
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    const loadData = async () => {
+      try {
+        // Load project info
+        const { data: proj } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', projectId)
+          .single();
+        if (proj) {
+          setProjectInfoState({
+            otpNumber: proj.otp_number || '',
+            siteName: proj.site_name || '',
+            clientName: proj.client_name || '',
+            siteAddress: proj.site_address || '',
+            conductor: proj.conductor || '',
+            subcontractor: proj.subcontractor || '',
+            contactName: proj.contact_name || '',
+            contactPhone: proj.contact_phone || '',
+            showSaturdays: proj.show_saturdays || false,
+          });
+        }
 
-  const setProjectInfo = useCallback((projectInfo: ProjectInfo) => {
-    setState(s => ({ ...s, projectInfo }));
-  }, []);
+        // Load elements
+        const { data: elems } = await supabase
+          .from('beam_elements')
+          .select('*')
+          .eq('project_id', projectId);
+        if (elems) {
+          setElementsState(elems.map(e => ({
+            id: e.id,
+            repere: e.repere || '',
+            zone: e.zone || '',
+            productType: e.product_type || '',
+            section: e.section || '',
+            length: Number(e.length) || 0,
+            weight: Number(e.weight) || 0,
+            factory: e.factory || '',
+          })));
+        }
 
-  const setElements = useCallback((elements: BeamElement[]) => {
-    setState(s => ({ ...s, elements }));
-  }, []);
+        // Load trucks
+        const { data: trks } = await supabase
+          .from('trucks')
+          .select('*')
+          .eq('project_id', projectId);
+        if (trks) {
+          setTrucksState(trks.map(t => ({
+            id: t.id,
+            number: t.number || '',
+            date: t.date || '',
+            time: t.time || '',
+            elementIds: (t.element_ids as string[]) || [],
+            comment: t.comment || '',
+          })));
+        }
 
-  const addElements = useCallback((newElements: BeamElement[]) => {
-    setState(s => ({ ...s, elements: [...s.elements, ...newElements] }));
-  }, []);
+        // Load plans
+        const { data: pls } = await supabase
+          .from('plans')
+          .select('*')
+          .eq('project_id', projectId);
+        if (pls) {
+          setPlansState(pls.map(p => ({
+            id: p.id,
+            name: p.name || '',
+            zones: (p.zones as string[]) || [],
+            productTypes: (p.product_types as string[]) || [],
+            detectedReperes: (p.detected_reperes as string[]) || [],
+            pdfDataUrl: p.pdf_data_url || '',
+          })));
+        }
+      } catch (err: any) {
+        toast.error('Erreur de chargement : ' + err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const updateElement = useCallback((id: string, updates: Partial<BeamElement>) => {
-    setState(s => ({
-      ...s,
-      elements: s.elements.map(el => el.id === id ? { ...el, ...updates } : el),
-    }));
-  }, []);
+    loadData();
+  }, [projectId]);
 
-  const deleteElement = useCallback((id: string) => {
-    setState(s => ({
-      ...s,
-      elements: s.elements.filter(el => el.id !== id),
-      trucks: s.trucks.map(t => ({ ...t, elementIds: t.elementIds.filter(eid => eid !== id) })),
-    }));
-  }, []);
+  // Realtime subscriptions
+  useEffect(() => {
+    const channel = supabase
+      .channel(`project-${projectId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects', filter: `id=eq.${projectId}` }, (payload) => {
+        if (payload.eventType === 'UPDATE') {
+          const p = payload.new as any;
+          setProjectInfoState({
+            otpNumber: p.otp_number || '', siteName: p.site_name || '',
+            clientName: p.client_name || '', siteAddress: p.site_address || '',
+            conductor: p.conductor || '', subcontractor: p.subcontractor || '',
+            contactName: p.contact_name || '', contactPhone: p.contact_phone || '',
+            showSaturdays: p.show_saturdays || false,
+          });
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'beam_elements', filter: `project_id=eq.${projectId}` }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const e = payload.new as any;
+          setElementsState(prev => {
+            if (prev.some(el => el.id === e.id)) return prev;
+            return [...prev, { id: e.id, repere: e.repere || '', zone: e.zone || '', productType: e.product_type || '', section: e.section || '', length: Number(e.length) || 0, weight: Number(e.weight) || 0, factory: e.factory || '' }];
+          });
+        } else if (payload.eventType === 'UPDATE') {
+          const e = payload.new as any;
+          setElementsState(prev => prev.map(el => el.id === e.id ? { id: e.id, repere: e.repere || '', zone: e.zone || '', productType: e.product_type || '', section: e.section || '', length: Number(e.length) || 0, weight: Number(e.weight) || 0, factory: e.factory || '' } : el));
+        } else if (payload.eventType === 'DELETE') {
+          const e = payload.old as any;
+          setElementsState(prev => prev.filter(el => el.id !== e.id));
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trucks', filter: `project_id=eq.${projectId}` }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const t = payload.new as any;
+          setTrucksState(prev => {
+            if (prev.some(tr => tr.id === t.id)) return prev;
+            return [...prev, { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '' }];
+          });
+        } else if (payload.eventType === 'UPDATE') {
+          const t = payload.new as any;
+          setTrucksState(prev => prev.map(tr => tr.id === t.id ? { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '' } : tr));
+        } else if (payload.eventType === 'DELETE') {
+          const t = payload.old as any;
+          setTrucksState(prev => prev.filter(tr => tr.id !== t.id));
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'plans', filter: `project_id=eq.${projectId}` }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const p = payload.new as any;
+          setPlansState(prev => {
+            if (prev.some(pl => pl.id === p.id)) return prev;
+            return [...prev, { id: p.id, name: p.name || '', zones: (p.zones as string[]) || [], productTypes: (p.product_types as string[]) || [], detectedReperes: (p.detected_reperes as string[]) || [], pdfDataUrl: p.pdf_data_url || '' }];
+          });
+        } else if (payload.eventType === 'UPDATE') {
+          const p = payload.new as any;
+          setPlansState(prev => prev.map(pl => pl.id === p.id ? { id: p.id, name: p.name || '', zones: (p.zones as string[]) || [], productTypes: (p.product_types as string[]) || [], detectedReperes: (p.detected_reperes as string[]) || [], pdfDataUrl: p.pdf_data_url || '' } : pl));
+        } else if (payload.eventType === 'DELETE') {
+          const p = payload.old as any;
+          setPlansState(prev => prev.filter(pl => pl.id !== p.id));
+        }
+      })
+      .subscribe();
 
-  const addTruck = useCallback((truck: Truck) => {
-    setState(s => ({ ...s, trucks: [...s.trucks, truck] }));
-  }, []);
+    return () => { supabase.removeChannel(channel); };
+  }, [projectId]);
 
-  const updateTruck = useCallback((id: string, updates: Partial<Truck>) => {
-    setState(s => ({
-      ...s,
-      trucks: s.trucks.map(t => t.id === id ? { ...t, ...updates } : t),
-    }));
-  }, []);
+  // --- Mutations ---
 
-  const deleteTruck = useCallback((id: string) => {
-    setState(s => ({ ...s, trucks: s.trucks.filter(t => t.id !== id) }));
-  }, []);
+  const setProjectInfo = useCallback(async (info: ProjectInfo) => {
+    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
+    setProjectInfoState(info);
+    await supabase.from('projects').update({
+      otp_number: info.otpNumber, site_name: info.siteName,
+      client_name: info.clientName, site_address: info.siteAddress,
+      conductor: info.conductor, subcontractor: info.subcontractor,
+      contact_name: info.contactName, contact_phone: info.contactPhone,
+      show_saturdays: info.showSaturdays, updated_at: new Date().toISOString(),
+    }).eq('id', projectId);
+  }, [projectId, isReadOnly]);
 
-  const deleteAllTrucks = useCallback(() => {
-    setState(s => ({ ...s, trucks: [] }));
-  }, []);
+  const setElements = useCallback(async (newElements: BeamElement[]) => {
+    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
+    setElementsState(newElements);
+    // Delete all existing, then insert new
+    await supabase.from('beam_elements').delete().eq('project_id', projectId);
+    if (newElements.length > 0) {
+      await supabase.from('beam_elements').insert(
+        newElements.map(e => ({
+          id: e.id, project_id: projectId, repere: e.repere, zone: e.zone,
+          product_type: e.productType, section: e.section, length: e.length,
+          weight: e.weight, factory: e.factory,
+        }))
+      );
+    }
+  }, [projectId, isReadOnly]);
 
-  const addElementsToTruck = useCallback((truckId: string, elementIds: string[]) => {
-    setState(s => ({
-      ...s,
-      trucks: s.trucks.map(t =>
+  const addElements = useCallback(async (newElements: BeamElement[]) => {
+    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
+    setElementsState(prev => [...prev, ...newElements]);
+    await supabase.from('beam_elements').insert(
+      newElements.map(e => ({
+        id: e.id, project_id: projectId, repere: e.repere, zone: e.zone,
+        product_type: e.productType, section: e.section, length: e.length,
+        weight: e.weight, factory: e.factory,
+      }))
+    );
+  }, [projectId, isReadOnly]);
+
+  const updateElement = useCallback(async (id: string, updates: Partial<BeamElement>) => {
+    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
+    setElementsState(prev => prev.map(el => el.id === id ? { ...el, ...updates } : el));
+    const dbUpdates: any = {};
+    if (updates.repere !== undefined) dbUpdates.repere = updates.repere;
+    if (updates.zone !== undefined) dbUpdates.zone = updates.zone;
+    if (updates.productType !== undefined) dbUpdates.product_type = updates.productType;
+    if (updates.section !== undefined) dbUpdates.section = updates.section;
+    if (updates.length !== undefined) dbUpdates.length = updates.length;
+    if (updates.weight !== undefined) dbUpdates.weight = updates.weight;
+    if (updates.factory !== undefined) dbUpdates.factory = updates.factory;
+    await supabase.from('beam_elements').update(dbUpdates).eq('id', id);
+  }, [isReadOnly]);
+
+  const deleteElement = useCallback(async (id: string) => {
+    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
+    setElementsState(prev => prev.filter(el => el.id !== id));
+    setTrucksState(prev => {
+      const updated = prev.map(t => ({ ...t, elementIds: t.elementIds.filter(eid => eid !== id) }));
+      // Also update trucks in DB that had this element
+      updated.forEach(t => {
+        if (prev.find(pt => pt.id === t.id)?.elementIds.includes(id)) {
+          supabase.from('trucks').update({ element_ids: t.elementIds }).eq('id', t.id);
+        }
+      });
+      return updated;
+    });
+    await supabase.from('beam_elements').delete().eq('id', id);
+  }, [isReadOnly]);
+
+  const addTruck = useCallback(async (truck: Truck) => {
+    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
+    setTrucksState(prev => [...prev, truck]);
+    await supabase.from('trucks').insert({
+      id: truck.id, project_id: projectId, number: truck.number,
+      date: truck.date, time: truck.time, element_ids: truck.elementIds,
+      comment: truck.comment || '',
+    });
+  }, [projectId, isReadOnly]);
+
+  const updateTruck = useCallback(async (id: string, updates: Partial<Truck>) => {
+    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
+    setTrucksState(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+    const dbUpdates: any = {};
+    if (updates.number !== undefined) dbUpdates.number = updates.number;
+    if (updates.date !== undefined) dbUpdates.date = updates.date;
+    if (updates.time !== undefined) dbUpdates.time = updates.time;
+    if (updates.elementIds !== undefined) dbUpdates.element_ids = updates.elementIds;
+    if (updates.comment !== undefined) dbUpdates.comment = updates.comment;
+    await supabase.from('trucks').update(dbUpdates).eq('id', id);
+  }, [isReadOnly]);
+
+  const deleteTruck = useCallback(async (id: string) => {
+    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
+    setTrucksState(prev => prev.filter(t => t.id !== id));
+    await supabase.from('trucks').delete().eq('id', id);
+  }, [isReadOnly]);
+
+  const deleteAllTrucks = useCallback(async () => {
+    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
+    setTrucksState([]);
+    await supabase.from('trucks').delete().eq('project_id', projectId);
+  }, [projectId, isReadOnly]);
+
+  const addElementsToTruck = useCallback(async (truckId: string, elementIds: string[]) => {
+    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
+    setTrucksState(prev => {
+      const updated = prev.map(t =>
         t.id === truckId ? { ...t, elementIds: [...new Set([...t.elementIds, ...elementIds])] } : t
-      ),
-    }));
-  }, []);
+      );
+      const truck = updated.find(t => t.id === truckId);
+      if (truck) supabase.from('trucks').update({ element_ids: truck.elementIds }).eq('id', truckId);
+      return updated;
+    });
+  }, [isReadOnly]);
 
-  const removeElementFromTruck = useCallback((truckId: string, elementId: string) => {
-    setState(s => ({
-      ...s,
-      trucks: s.trucks.map(t =>
+  const removeElementFromTruck = useCallback(async (truckId: string, elementId: string) => {
+    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
+    setTrucksState(prev => {
+      const updated = prev.map(t =>
         t.id === truckId ? { ...t, elementIds: t.elementIds.filter(eid => eid !== elementId) } : t
-      ),
-    }));
-  }, []);
+      );
+      const truck = updated.find(t => t.id === truckId);
+      if (truck) supabase.from('trucks').update({ element_ids: truck.elementIds }).eq('id', truckId);
+      return updated;
+    });
+  }, [isReadOnly]);
 
   const getElementById = useCallback((id: string) => {
-    return state.elements.find(el => el.id === id);
-  }, [state.elements]);
+    return elements.find(el => el.id === id);
+  }, [elements]);
 
   const getTruckElements = useCallback((truckId: string) => {
-    const truck = state.trucks.find(t => t.id === truckId);
+    const truck = trucks.find(t => t.id === truckId);
     if (!truck) return [];
-    return truck.elementIds.map(id => state.elements.find(el => el.id === id)).filter(Boolean) as BeamElement[];
-  }, [state.trucks, state.elements]);
+    return truck.elementIds.map(id => elements.find(el => el.id === id)).filter(Boolean) as BeamElement[];
+  }, [trucks, elements]);
 
   const getUnassignedElements = useCallback(() => {
-    const assignedIds = new Set(state.trucks.flatMap(t => t.elementIds));
-    return state.elements.filter(el => !assignedIds.has(el.id));
-  }, [state.trucks, state.elements]);
+    const assignedIds = new Set(trucks.flatMap(t => t.elementIds));
+    return elements.filter(el => !assignedIds.has(el.id));
+  }, [trucks, elements]);
 
   const isElementAssigned = useCallback((elementId: string) => {
-    return state.trucks.some(t => t.elementIds.includes(elementId));
-  }, [state.trucks]);
+    return trucks.some(t => t.elementIds.includes(elementId));
+  }, [trucks]);
 
   const getTrucksForDate = useCallback((date: string) => {
-    return state.trucks.filter(t => t.date === date).sort((a, b) => a.time.localeCompare(b.time));
-  }, [state.trucks]);
+    return trucks.filter(t => t.date === date).sort((a, b) => a.time.localeCompare(b.time));
+  }, [trucks]);
 
-  const addPlan = useCallback((plan: Plan) => {
-    setState(s => ({ ...s, plans: [...s.plans, plan] }));
-  }, []);
+  const addPlan = useCallback(async (plan: Plan) => {
+    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
+    setPlansState(prev => [...prev, plan]);
+    await supabase.from('plans').insert({
+      id: plan.id, project_id: projectId, name: plan.name,
+      zones: plan.zones, product_types: plan.productTypes,
+      detected_reperes: plan.detectedReperes, pdf_data_url: plan.pdfDataUrl,
+    });
+  }, [projectId, isReadOnly]);
 
-  const updatePlan = useCallback((id: string, updates: Partial<Plan>) => {
-    setState(s => ({
-      ...s,
-      plans: s.plans.map(p => p.id === id ? { ...p, ...updates } : p),
-    }));
-  }, []);
+  const updatePlan = useCallback(async (id: string, updates: Partial<Plan>) => {
+    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
+    setPlansState(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    const dbUpdates: any = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.zones !== undefined) dbUpdates.zones = updates.zones;
+    if (updates.productTypes !== undefined) dbUpdates.product_types = updates.productTypes;
+    if (updates.detectedReperes !== undefined) dbUpdates.detected_reperes = updates.detectedReperes;
+    if (updates.pdfDataUrl !== undefined) dbUpdates.pdf_data_url = updates.pdfDataUrl;
+    await supabase.from('plans').update(dbUpdates).eq('id', id);
+  }, [isReadOnly]);
 
-  const deletePlan = useCallback((id: string) => {
-    setState(s => ({ ...s, plans: s.plans.filter(p => p.id !== id) }));
-  }, []);
+  const deletePlan = useCallback(async (id: string) => {
+    if (isReadOnly) { toast.error('Accès en lecture seule'); return; }
+    setPlansState(prev => prev.filter(p => p.id !== id));
+    await supabase.from('plans').delete().eq('id', id);
+  }, [isReadOnly]);
 
   return (
     <DeliveryContext.Provider value={{
-      ...state, setProjectInfo, setElements, addElements, updateElement, deleteElement,
+      projectInfo, elements, trucks, plans, role, projectId, loading,
+      setProjectInfo, setElements, addElements, updateElement, deleteElement,
       addTruck, updateTruck, deleteTruck, deleteAllTrucks, addElementsToTruck, removeElementFromTruck,
       getElementById, getTruckElements, getUnassignedElements, isElementAssigned, getTrucksForDate,
       addPlan, updatePlan, deletePlan,

@@ -41,6 +41,8 @@ export interface Plan {
 
 export type TransportCategory = 'standard' | 'cat1' | 'cat2' | 'cat3';
 
+export type AccessRole = 'admin' | 'editor' | 'viewer';
+
 export interface TransportInfo {
   category: TransportCategory;
   label: string;
