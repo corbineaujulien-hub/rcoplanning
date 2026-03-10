@@ -384,8 +384,12 @@ export default function DatabaseTab() {
             </CardTitle>
             <div className="flex gap-2 flex-wrap">
               <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleImport} className="hidden" />
+              <input ref={pdfInputRef} type="file" accept=".pdf" onChange={handlePdfFileChange} className="hidden" />
               <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
                 <Upload className="h-4 w-4 mr-1" /> Importer Excel
+              </Button>
+              <Button variant="outline" onClick={() => { resetPdfDialog(); setPdfDialogOpen(true); }}>
+                <FileText className="h-4 w-4 mr-1" /> Importer un plan PDF
               </Button>
               <Button variant="outline" onClick={() => setAddDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-1" /> Ajouter ligne manuellement
