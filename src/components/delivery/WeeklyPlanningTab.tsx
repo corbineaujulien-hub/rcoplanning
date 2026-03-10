@@ -118,57 +118,78 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
         </CardContent>
       </Card>
 
-      {/* Truck blocks */}
-      {weekTrucks.map(truck => {
-        const els = getTruckElements(truck.id);
-        const cat = getTransportCategory(els);
-        const catInfo = TRANSPORT_CATEGORIES[cat];
-        const weight = getTruckWeight(els);
-        const maxLen = getTruckMaxLength(els);
-        const factories = getTruckFactories(els);
-        const counts = getProductCountsByType(els);
-
-        return (
-          <Card key={truck.id} className={`border-l-4 ${getCategoryColorClass(cat).includes('standard') ? 'border-l-transport-standard' : getCategoryColorClass(cat).includes('cat1') ? 'border-l-transport-cat1' : getCategoryColorClass(cat).includes('cat2') ? 'border-l-transport-cat2' : 'border-l-transport-cat3'}`}>
-            <CardContent className="pt-4 space-y-3">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-3">
-                  <TruckIcon className="h-5 w-5 text-accent" />
-                  <span className="font-semibold text-lg">{truck.number}</span>
-                  <span className={`${getCategoryColorClass(cat)} px-2 py-0.5 rounded text-xs font-medium`}>{catInfo.label}</span>
-                </div>
-                <span className="text-sm text-muted-foreground">{format(parseISO(truck.date), 'EEEE dd/MM/yyyy', { locale: fr })} à {truck.time}</span>
+      {/* Truck blocks grouped by day */}
+      {(() => {
+        const grouped = new Map<string, typeof weekTrucks>();
+        weekTrucks.forEach(t => {
+          const key = t.date;
+          if (!grouped.has(key)) grouped.set(key, []);
+          grouped.get(key)!.push(t);
+        });
+        const dayColors = ['bg-primary/5', 'bg-accent/5'];
+        let dayIndex = 0;
+        return Array.from(grouped.entries()).map(([date, dayTrucks]) => {
+          const bgClass = dayColors[dayIndex % dayColors.length];
+          dayIndex++;
+          return (
+            <div key={date} className={`rounded-lg ${bgClass} p-3 space-y-3`}>
+              <div className="bg-primary text-primary-foreground rounded-md px-4 py-2 font-semibold text-sm capitalize">
+                {format(parseISO(date), 'EEEE dd MMMM yyyy', { locale: fr })} — {dayTrucks.length} camion{dayTrucks.length > 1 ? 's' : ''}
               </div>
+              {dayTrucks.map(truck => {
+                const els = getTruckElements(truck.id);
+                const cat = getTransportCategory(els);
+                const catInfo = TRANSPORT_CATEGORIES[cat];
+                const weight = getTruckWeight(els);
+                const maxLen = getTruckMaxLength(els);
+                const factories = getTruckFactories(els);
+                const counts = getProductCountsByType(els);
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                <div className="flex items-center gap-1"><Factory className="h-4 w-4 text-muted-foreground" /><span>{factories.join(', ') || '—'}</span></div>
-                <div className="flex items-center gap-1"><Weight className="h-4 w-4 text-muted-foreground" /><span>{weight.toFixed(2)} t</span></div>
-                <div className="flex items-center gap-1"><Ruler className="h-4 w-4 text-muted-foreground" /><span>{maxLen.toFixed(2)} m</span></div>
-                <div className="flex items-center gap-1"><Package className="h-4 w-4 text-muted-foreground" /><span>{els.length} produits</span></div>
-              </div>
+                return (
+                  <Card key={truck.id} className={`border-l-4 ${getCategoryColorClass(cat).includes('standard') ? 'border-l-transport-standard' : getCategoryColorClass(cat).includes('cat1') ? 'border-l-transport-cat1' : getCategoryColorClass(cat).includes('cat2') ? 'border-l-transport-cat2' : 'border-l-transport-cat3'}`}>
+                    <CardContent className="pt-4 space-y-3">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-3">
+                          <TruckIcon className="h-5 w-5 text-accent" />
+                          <span className="font-semibold text-lg">{truck.number}</span>
+                          <span className={`${getCategoryColorClass(cat)} px-2 py-0.5 rounded text-xs font-medium`}>{catInfo.label}</span>
+                        </div>
+                        <span className="text-sm text-muted-foreground">{truck.time}</span>
+                      </div>
 
-              <div className="flex flex-wrap gap-1">
-                {Object.entries(counts).map(([type, count]) => (
-                  <span key={type} className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs">{count}× {type}</span>
-                ))}
-              </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                        <div className="flex items-center gap-1"><Factory className="h-4 w-4 text-muted-foreground" /><span>{factories.join(', ') || '—'}</span></div>
+                        <div className="flex items-center gap-1"><Weight className="h-4 w-4 text-muted-foreground" /><span>{weight.toFixed(2)} t</span></div>
+                        <div className="flex items-center gap-1"><Ruler className="h-4 w-4 text-muted-foreground" /><span>{maxLen.toFixed(2)} m</span></div>
+                        <div className="flex items-center gap-1"><Package className="h-4 w-4 text-muted-foreground" /><span>{els.length} produits</span></div>
+                      </div>
 
-              <div className="flex flex-wrap gap-1">
-                {els.map(el => (
-                  <span key={el.id} className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-mono">{el.repere}</span>
-                ))}
-              </div>
+                      <div className="flex flex-wrap gap-1">
+                        {Object.entries(counts).map(([type, count]) => (
+                          <span key={type} className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs">{count}× {type}</span>
+                        ))}
+                      </div>
 
-              {truck.comment?.trim() && (
-                <div className="flex items-start gap-1.5 text-sm text-muted-foreground bg-muted rounded-md p-2">
-                  <MessageSquare className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                  <span>{truck.comment}</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        );
-      })}
+                      <div className="flex flex-wrap gap-1">
+                        {els.map(el => (
+                          <span key={el.id} className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-mono">{el.repere}</span>
+                        ))}
+                      </div>
+
+                      {truck.comment?.trim() && (
+                        <div className="flex items-start gap-1.5 text-sm text-muted-foreground bg-muted rounded-md p-2">
+                          <MessageSquare className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                          <span>{truck.comment}</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          );
+        });
+      })()}
 
       {weekTrucks.length === 0 && (
         <Card>
