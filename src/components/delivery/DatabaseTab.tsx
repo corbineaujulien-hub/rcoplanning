@@ -505,7 +505,43 @@ export default function DatabaseTab() {
         </CardContent>
       </Card>
 
-      {/* Import Dialog */}
+      {/* Plans importés section */}
+      {plans.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-5 w-5 text-accent" />
+              Plans importés – {plans.length} plan(s)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {plans.map(plan => (
+                <div key={plan.id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-secondary/30 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">{plan.name}</div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {plan.zones.map(z => (
+                        <Badge key={z} variant="secondary" className="text-[10px]">{z}</Badge>
+                      ))}
+                      {plan.productTypes.map(t => (
+                        <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>
+                      ))}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {plan.detectedReperes.length} repère(s) détecté(s)
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => deletePlan(plan.id)} className="h-8 w-8 text-destructive hover:text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
