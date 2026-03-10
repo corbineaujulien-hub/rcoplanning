@@ -456,31 +456,48 @@ export default function TruckCompositionTab() {
           <CardContent className="flex-1 overflow-auto p-2">
             {selectionMode === 'list' ? (
               <>
+                {/* Search above badges */}
+                <div className="relative mb-2">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input placeholder="Rechercher repère…" value={filterRepere} onChange={e => setFilterRepere(e.target.value)} className="h-7 text-xs pl-7" />
+                </div>
                 <div className="flex items-center gap-2 mb-2 px-1">
                   <Checkbox checked={selectedIds.size > 0 && selectedIds.size === filteredElements.filter(e => !isElementAssigned(e.id)).length} onCheckedChange={selectAll} />
-                  <span className="text-xs text-muted-foreground">{selectedIds.size} sélectionné(s)</span>
+                  <span className="text-xs text-muted-foreground">{selectedIds.size} sélectionné(s) / {filteredElements.length} repères</span>
                 </div>
-                <div className="space-y-1">
-                  {filteredElements.map(el => {
-                    const assigned = isElementAssigned(el.id);
-                    return (
-                      <div
-                        key={el.id}
-                        draggable={!assigned}
-                        onDragStart={e => onDragStart(e, el.id)}
-                        className={`flex items-center gap-2 p-2 rounded-md text-xs border transition-colors cursor-grab active:cursor-grabbing ${assigned ? 'bg-muted/50 opacity-60' : 'bg-card hover:bg-secondary/50'} ${selectedIds.has(el.id) ? 'border-accent ring-1 ring-accent/30' : 'border-transparent'}`}
-                      >
-                        {!assigned && <Checkbox checked={selectedIds.has(el.id)} onCheckedChange={() => toggleSelect(el.id)} />}
-                        {assigned && <Badge variant="outline" className="text-[10px] px-1">Chargé</Badge>}
-                        <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <span className="font-mono font-medium">{el.repere}</span>
-                          <span className="text-muted-foreground ml-1">{el.productType}</span>
-                          <div className="text-muted-foreground">{el.length}m · {el.weight}t · {el.zone}</div>
-                        </div>
+                {/* Badges grouped by product type */}
+                <div className="space-y-3">
+                  {Object.entries(groupByType(filteredElements)).sort(([a], [b]) => a.localeCompare(b)).map(([type, els]) => (
+                    <div key={type}>
+                      <div className="text-[11px] font-semibold text-muted-foreground mb-1 px-1">{type} ({els.length})</div>
+                      <div className="flex flex-wrap gap-1">
+                        {els.map(el => {
+                          const assigned = isElementAssigned(el.id);
+                          const selected = selectedIds.has(el.id);
+                          return (
+                            <div
+                              key={el.id}
+                              draggable={!assigned}
+                              onDragStart={e => onDragStart(e, el.id)}
+                              onClick={() => !assigned && toggleSelect(el.id)}
+                              className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono cursor-pointer border transition-colors ${
+                                assigned
+                                  ? 'bg-muted/50 opacity-50 cursor-default border-transparent'
+                                  : selected
+                                    ? 'bg-accent/20 border-accent ring-1 ring-accent/30'
+                                    : 'bg-secondary/50 hover:bg-secondary border-transparent'
+                              }`}
+                            >
+                              <span className="font-semibold">{el.repere}</span>
+                              <span className="text-muted-foreground font-sans">{el.weight}t</span>
+                              <span className="text-muted-foreground font-sans">{el.length}m</span>
+                              {assigned && <span className="text-muted-foreground font-sans italic">Chargé</span>}
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
               </>
             ) : (
