@@ -138,6 +138,12 @@ export default function DatabaseTab() {
   const [pdfReplaceId, setPdfReplaceId] = useState('');
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfResult, setPdfResult] = useState<{ found: string[]; notFound: string[]; allDetected: string[] } | null>(null);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [searchArea, setSearchArea] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pdfContainerRef = useRef<HTMLDivElement>(null);
 
   const availableZones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))].sort(), [elements]);
   const availableProductTypes = useMemo(() => [...new Set(elements.map(e => e.productType).filter(Boolean))].sort(), [elements]);
