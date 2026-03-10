@@ -9,7 +9,7 @@ import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { renderSectionsToPdf, badge, badgeLarge, badgeSmall } from '@/utils/pdfExportUtils';
 
 interface WeeklyPlanningTabProps {
   weekNumber: number;
