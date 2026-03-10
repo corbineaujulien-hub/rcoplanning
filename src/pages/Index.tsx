@@ -5,7 +5,7 @@ import GeneralInfoTab from '@/components/delivery/GeneralInfoTab';
 import DatabaseTab from '@/components/delivery/DatabaseTab';
 import TruckCompositionTab from '@/components/delivery/TruckCompositionTab';
 import WeeklyPlanningTab from '@/components/delivery/WeeklyPlanningTab';
-import { Truck as TruckIcon, ClipboardList, Database, CalendarDays, Calendar } from 'lucide-react';
+import { Truck as TruckIcon, ClipboardList, Database, Calendar } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 function DeliveryApp() {
