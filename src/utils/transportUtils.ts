@@ -78,6 +78,8 @@ const FACTORY_COLORS: Record<string, string> = {
   'PAU': '#0d9488',
   'CAHORS': '#b91c1c',
   'BERGERAC': '#4f46e5',
+  'DSR': '#0284c7',
+  'CSB': '#9333ea',
 };
 
 export function getFactoryColor(factory: string): string {
