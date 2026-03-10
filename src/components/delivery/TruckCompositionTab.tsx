@@ -307,9 +307,9 @@ export default function TruckCompositionTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex gap-4 h-[calc(100vh-16rem)]">
+      <div className={`flex ${selectionMode === 'plans' && selectedPlanId ? 'flex-col' : 'flex-row'} gap-4 ${selectionMode === 'plans' && selectedPlanId ? '' : 'h-[calc(100vh-16rem)]'}`}>
         {/* Left panel - element list or plans */}
-        <Card className="w-80 flex-shrink-0 flex flex-col">
+        <Card className={`${selectionMode === 'plans' && selectedPlanId ? 'w-full' : 'w-80'} flex-shrink-0 flex flex-col`}>
           <CardHeader className="pb-2">
             {/* Toggle between list and plans */}
             <div className="flex gap-1 mb-2">
@@ -427,7 +427,7 @@ export default function TruckCompositionTab() {
                     if (!plan) return null;
                     // Match detected repères to elements
                     const matchedElements = plan.detectedReperes
-                      .map(rep => elements.find(el => el.repere.toLowerCase() === rep.toLowerCase()))
+                      .map(rep => elements.find(el => rep.toLowerCase().includes(el.repere.toLowerCase()) || el.repere.toLowerCase().includes(rep.toLowerCase())))
                       .filter(Boolean) as BeamElement[];
                     return (
                       <>
@@ -458,13 +458,13 @@ export default function TruckCompositionTab() {
                           />
                           <span className="text-xs text-muted-foreground">{selectedIds.size} sélectionné(s)</span>
                         </div>
-                        {/* PDF viewer */}
+                        {/* PDF viewer - large when selected */}
                         {plan.pdfDataUrl && (
-                          <iframe src={plan.pdfDataUrl} className="w-full h-48 rounded border mb-2" title={plan.name} />
+                          <iframe src={plan.pdfDataUrl} className="w-full h-[50vh] rounded border mb-2" title={plan.name} />
                         )}
                         <div className="space-y-1">
-                          {plan.detectedReperes.map(rep => {
-                            const el = elements.find(e => e.repere.toLowerCase() === rep.toLowerCase());
+                        {plan.detectedReperes.map(rep => {
+                            const el = elements.find(e => rep.toLowerCase().includes(e.repere.toLowerCase()) || e.repere.toLowerCase().includes(rep.toLowerCase()));
                             if (!el) {
                               return (
                                 <div key={rep} className="flex items-center gap-2 p-2 rounded-md text-xs border border-destructive/30 bg-destructive/5 opacity-60">

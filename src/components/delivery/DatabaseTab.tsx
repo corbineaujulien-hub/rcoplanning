@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw, FileText, AlertTriangle, Loader2 } from 'lucide-react';
+import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw, FileText, AlertTriangle, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -138,6 +138,12 @@ export default function DatabaseTab() {
   const [pdfReplaceId, setPdfReplaceId] = useState('');
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfResult, setPdfResult] = useState<{ found: string[]; notFound: string[]; allDetected: string[] } | null>(null);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [searchArea, setSearchArea] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pdfContainerRef = useRef<HTMLDivElement>(null);
 
   const availableZones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))].sort(), [elements]);
   const availableProductTypes = useMemo(() => [...new Set(elements.map(e => e.productType).filter(Boolean))].sort(), [elements]);
@@ -266,7 +272,12 @@ export default function DatabaseTab() {
 
   const handlePdfFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setPdfFile(file);
+    if (file) {
+      setPdfFile(file);
+      const url = URL.createObjectURL(file);
+      setPdfPreviewUrl(url);
+      setSearchArea(null);
+    }
     e.target.value = '';
   };
 
@@ -290,7 +301,7 @@ export default function DatabaseTab() {
       );
 
       const { data, error } = await supabase.functions.invoke('extract-reperes', {
-        body: { pdfBase64: base64, zones: pdfZones, productTypes: pdfProductTypes },
+        body: { pdfBase64: base64, zones: pdfZones, productTypes: pdfProductTypes, searchArea: searchArea || undefined },
       });
 
       if (error) throw new Error(error.message || 'Erreur extraction');
@@ -304,9 +315,13 @@ export default function DatabaseTab() {
         return true;
       });
 
-      const elementReperes = new Set(filteredEls.map(el => el.repere.toLowerCase()));
-      const found = detectedReperes.filter(r => elementReperes.has(r.toLowerCase()));
-      const notFound = detectedReperes.filter(r => !elementReperes.has(r.toLowerCase()));
+      // Substring matching: a DB repère (e.g. "A003") matches if contained in a detected repère (e.g. "DBF-A003")
+      const found = detectedReperes.filter(r =>
+        filteredEls.some(el => r.toLowerCase().includes(el.repere.toLowerCase()) || el.repere.toLowerCase().includes(r.toLowerCase()))
+      );
+      const notFound = detectedReperes.filter(r =>
+        !filteredEls.some(el => r.toLowerCase().includes(el.repere.toLowerCase()) || el.repere.toLowerCase().includes(r.toLowerCase()))
+      );
 
       setPdfResult({ found, notFound, allDetected: detectedReperes });
 
@@ -342,13 +357,100 @@ export default function DatabaseTab() {
   };
 
   const resetPdfDialog = () => {
+    if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
     setPdfFile(null);
+    setPdfPreviewUrl(null);
     setPdfZones([]);
     setPdfProductTypes([]);
     setPdfImportMode('new');
     setPdfReplaceId('');
     setPdfResult(null);
     setPdfLoading(false);
+    setSearchArea(null);
+    setIsDrawing(false);
+    setDrawStart(null);
+  };
+
+  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    setDrawStart({ x, y });
+    setIsDrawing(true);
+    setSearchArea(null);
+  };
+
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !drawStart) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    // Draw preview rectangle
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const sx = drawStart.x * canvas.width;
+    const sy = drawStart.y * canvas.height;
+    const sw = (x - drawStart.x) * canvas.width;
+    const sh = (y - drawStart.y) * canvas.height;
+    ctx.strokeStyle = 'hsl(var(--primary))';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 3]);
+    ctx.strokeRect(sx, sy, sw, sh);
+    ctx.fillStyle = 'hsla(var(--primary), 0.1)';
+    ctx.fillRect(sx, sy, sw, sh);
+  };
+
+  const handleCanvasMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !drawStart) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const endX = (e.clientX - rect.left) / rect.width;
+    const endY = (e.clientY - rect.top) / rect.height;
+    const x = Math.min(drawStart.x, endX);
+    const y = Math.min(drawStart.y, endY);
+    const width = Math.abs(endX - drawStart.x);
+    const height = Math.abs(endY - drawStart.y);
+    if (width > 0.02 && height > 0.02) {
+      setSearchArea({ x, y, width, height });
+    }
+    setIsDrawing(false);
+    setDrawStart(null);
+  };
+
+  const clearSearchArea = () => {
+    setSearchArea(null);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx?.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  };
+
+  // Redraw search area on canvas when searchArea changes
+  const redrawSearchArea = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (searchArea) {
+      const sx = searchArea.x * canvas.width;
+      const sy = searchArea.y * canvas.height;
+      const sw = searchArea.width * canvas.width;
+      const sh = searchArea.height * canvas.height;
+      ctx.strokeStyle = 'hsl(var(--primary))';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 3]);
+      ctx.strokeRect(sx, sy, sw, sh);
+      ctx.fillStyle = 'hsla(var(--primary), 0.1)';
+      ctx.fillRect(sx, sy, sw, sh);
+    }
   };
 
   // Filtering
@@ -706,7 +808,7 @@ export default function DatabaseTab() {
 
       {/* PDF Import Dialog */}
       <Dialog open={pdfDialogOpen} onOpenChange={(open) => { if (!open) resetPdfDialog(); setPdfDialogOpen(open); }}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-auto">
+        <DialogContent className="sm:max-w-4xl w-fit max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Importer un plan PDF</DialogTitle>
             <DialogDescription>
@@ -724,6 +826,41 @@ export default function DatabaseTab() {
                 {pdfFile && <span className="text-sm text-muted-foreground truncate">{pdfFile.name}</span>}
               </div>
             </div>
+
+            {/* PDF preview with drawable canvas */}
+            {pdfPreviewUrl && (
+              <div>
+                <Label className="text-xs">Zone de recherche (dessinez un rectangle pour délimiter la zone)</Label>
+                <div ref={pdfContainerRef} className="relative mt-1 border rounded-md overflow-hidden" style={{ height: '400px' }}>
+                  <iframe src={pdfPreviewUrl} className="w-full h-full" title="Aperçu PDF" />
+                  <canvas
+                    ref={canvasRef}
+                    width={800}
+                    height={600}
+                    className="absolute inset-0 w-full h-full cursor-crosshair"
+                    style={{ zIndex: 10 }}
+                    onMouseDown={handleCanvasMouseDown}
+                    onMouseMove={handleCanvasMouseMove}
+                    onMouseUp={handleCanvasMouseUp}
+                    onMouseLeave={() => { if (isDrawing) { setIsDrawing(false); setDrawStart(null); } }}
+                  />
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  {searchArea ? (
+                    <>
+                      <Badge variant="secondary" className="text-[10px]">
+                        Zone définie : {Math.round(searchArea.x * 100)}%, {Math.round(searchArea.y * 100)}% → {Math.round((searchArea.x + searchArea.width) * 100)}%, {Math.round((searchArea.y + searchArea.height) * 100)}%
+                      </Badge>
+                      <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={clearSearchArea}>
+                        <X className="h-3 w-3 mr-1" /> Réinitialiser
+                      </Button>
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Aucune zone définie — recherche sur tout le document</span>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Zones multi-select */}
             <div>
