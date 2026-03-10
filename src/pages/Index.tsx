@@ -7,13 +7,12 @@ import DatabaseTab from '@/components/delivery/DatabaseTab';
 import TruckCompositionTab from '@/components/delivery/TruckCompositionTab';
 import WeeklyPlanningTab from '@/components/delivery/WeeklyPlanningTab';
 import { Truck as TruckIcon, ClipboardList, Database, Calendar, FileSpreadsheet } from 'lucide-react';
-import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getProductCountsByType, getFactoryColor } from '@/utils/transportUtils';
-import { TRANSPORT_CATEGORIES, BeamElement } from '@/types/delivery';
+import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories } from '@/utils/transportUtils';
+import { TRANSPORT_CATEGORIES } from '@/types/delivery';
 import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import { renderSectionsToPdf, badge, badgeLarge, badgeSmall } from '@/utils/pdfExportUtils';
+import { exportAllWeeksPdf } from '@/utils/pdfExportUtils';
 
 function DeliveryApp() {
   const { trucks, projectInfo, elements, getTruckElements } = useDelivery();
@@ -61,111 +60,10 @@ function DeliveryApp() {
     XLSX.writeFile(wb, `planning_toutes_semaines.xlsx`);
   };
 
-  const groupElementsByType = (els: BeamElement[]) => {
-    const groups: Record<string, string[]> = {};
-    els.forEach(el => {
-      if (!groups[el.productType]) groups[el.productType] = [];
-      groups[el.productType].push(el.repere);
-    });
-    return groups;
-  };
+  const totalSiteWeight = useMemo(() => elements.reduce((s, e) => s + e.weight, 0), [elements]);
 
-  const exportAllWeeksPdf = async () => {
-    let allSectionsHtml = '';
-
-    weeklyTabs.forEach((w, idx) => {
-      const weekTrucks = trucks
-        .filter(t => {
-          const d = parseISO(t.date);
-          return parseInt(format(d, 'II')) === w.weekNumber && d.getFullYear() === w.year;
-        })
-        .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
-
-      if (weekTrucks.length === 0) return;
-
-      const firstDate = parseISO(weekTrucks[0].date);
-      const ws = startOfWeek(firstDate, { weekStartsOn: 1 });
-      const we = endOfWeek(firstDate, { weekStartsOn: 1 });
-      const weekLabel = `Semaine ${w.weekNumber} – du ${format(ws, 'dd/MM', { locale: fr })} au ${format(we, 'dd/MM/yyyy', { locale: fr })}`;
-
-      // Week header section
-      allSectionsHtml += `<div data-pdf-section style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;border-bottom:2px solid #1e3a5f;padding-bottom:8px;${idx > 0 ? 'margin-top:20px;' : ''}">
-        <div>
-          <h2 style="font-size:16px;color:#1e3a5f;margin:0 0 4px 0;">RECTOR – ${weekLabel}</h2>
-          ${projectInfo.otpNumber ? `<p style="margin:1px 0;font-size:11px;"><strong>N° OTP :</strong> ${projectInfo.otpNumber}</p>` : ''}
-          ${projectInfo.siteName ? `<p style="margin:1px 0;font-size:11px;"><strong>Chantier :</strong> ${projectInfo.siteName}</p>` : ''}
-          ${projectInfo.siteAddress ? `<p style="margin:1px 0;font-size:11px;"><strong>Adresse :</strong> ${projectInfo.siteAddress}</p>` : ''}
-          ${projectInfo.clientName ? `<p style="margin:1px 0;font-size:11px;"><strong>Client :</strong> ${projectInfo.clientName}</p>` : ''}
-        </div>
-        <div style="text-align:right;">
-          <img src="/logo.png" style="height:40px;object-fit:contain;margin-bottom:4px;" onerror="this.style.display='none'" />
-          ${projectInfo.conductor ? `<p style="margin:1px 0;font-size:11px;"><strong>Conducteur :</strong> ${projectInfo.conductor}</p>` : ''}
-          ${projectInfo.subcontractor ? `<p style="margin:1px 0;font-size:11px;"><strong>Poseur :</strong> ${projectInfo.subcontractor}</p>` : ''}
-          ${projectInfo.contactName ? `<p style="margin:1px 0;font-size:11px;"><strong>Contact :</strong> ${projectInfo.contactName}${projectInfo.contactPhone ? ` — ${projectInfo.contactPhone}` : ''}</p>` : ''}
-        </div>
-      </div>`;
-
-      const grouped = new Map<string, typeof weekTrucks>();
-      weekTrucks.forEach(t => {
-        if (!grouped.has(t.date)) grouped.set(t.date, []);
-        grouped.get(t.date)!.push(t);
-      });
-
-      Array.from(grouped.entries()).forEach(([date, dayTrucks]) => {
-        allSectionsHtml += `<div data-pdf-section style="background:#1e3a5f;color:white;padding:6px 12px;border-radius:4px;font-weight:600;font-size:11px;margin-top:10px;text-transform:capitalize;">${format(parseISO(date), 'EEEE dd MMMM yyyy', { locale: fr })} — ${dayTrucks.length} camion${dayTrucks.length > 1 ? 's' : ''}</div>`;
-
-        dayTrucks.forEach(truck => {
-          const els = getTruckElements(truck.id);
-          const cat = getTransportCategory(els);
-          const catInfo = TRANSPORT_CATEGORIES[cat];
-          const weight = getTruckWeight(els);
-          const maxLen = getTruckMaxLength(els);
-          const typeGroups = groupElementsByType(els);
-          const factories = getTruckFactories(els);
-          const borderColor = cat === 'standard' ? '#22c55e' : cat === 'cat1' ? '#eab308' : cat === 'cat2' ? '#f97316' : '#ef4444';
-
-          let truckHtml = `<div data-pdf-section style="border:1px solid #b0b8c4;border-left:5px solid ${borderColor};background:white;border-radius:6px;padding:16px 20px;margin:8px 0;box-shadow:0 1px 3px rgba(0,0,0,.1);">`;
-          truckHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-              ${badgeLarge(`🚛 ${truck.number} — ${truck.time}`, '#1e3a5f')}
-              ${badge(catInfo.label, borderColor)}
-              ${factories.map(f => badge(f, getFactoryColor(f), 'white', 'font-weight:700;')).join('')}
-            </div>
-            <div style="display:inline-flex;align-items:center;font-size:12px;color:#555;white-space:nowrap;">⚖️ ${weight.toFixed(2)}t · 📏 ${maxLen.toFixed(2)}m</div>
-          </div>`;
-          truckHtml += `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">`;
-          Object.entries(typeGroups).forEach(([type, reperes]) => {
-            truckHtml += `<div style="display:inline-flex;align-items:center;font-size:12px;font-weight:600;color:#1e3a5f;line-height:1;">${reperes.length}× ${type} :</div>`;
-            reperes.forEach(r => {
-              truckHtml += badgeSmall(r, '#dbeafe', '#1e3a5f');
-            });
-          });
-          truckHtml += `</div>`;
-          if (truck.comment?.trim()) {
-            truckHtml += `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:4px;padding:8px 12px;margin-top:8px;font-size:11px;line-height:1.4;">💬 ${truck.comment}</div>`;
-          }
-          truckHtml += `</div>`;
-          allSectionsHtml += truckHtml;
-        });
-      });
-    });
-
-    const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.left = '-9999px';
-    container.style.top = '0';
-    container.innerHTML = `<div id="pdf-all-content" style="width:1580px;font-family:Inter,system-ui,sans-serif;color:#1e293b;padding:16px;">${allSectionsHtml}</div>`;
-    document.body.appendChild(container);
-
-    try {
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' });
-      await renderSectionsToPdf(container.querySelector('#pdf-all-content')!, pdf, {
-        pdfWidth: 420, pdfHeight: 297, margin: 8,
-      });
-      pdf.save(`planning_toutes_semaines.pdf`);
-    } finally {
-      document.body.removeChild(container);
-    }
+  const handleExportAllWeeksPdf = async () => {
+    await exportAllWeeksPdf(weeklyTabs, trucks, getTruckElements, projectInfo, totalSiteWeight, trucks);
   };
 
   return (
@@ -207,7 +105,7 @@ function DeliveryApp() {
                 <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={exportAllWeeksExcel}>
                   <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> Tout Excel
                 </Button>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={exportAllWeeksPdf}>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleExportAllWeeksPdf}>
                   <Calendar className="h-3.5 w-3.5 mr-1" /> Tout PDF
                 </Button>
               </div>
