@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw, FileText, AlertTriangle, Loader2, X } from 'lucide-react';
+import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw, FileText, AlertTriangle, Loader2, X, PenTool } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -142,8 +142,13 @@ export default function DatabaseTab() {
   const [searchArea, setSearchArea] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
+  const [drawMode, setDrawMode] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
+
+  // Delete plans dialog state
+  const [deletePlansDialogOpen, setDeletePlansDialogOpen] = useState(false);
+  const [selectedPlanIdsToDelete, setSelectedPlanIdsToDelete] = useState<Set<string>>(new Set());
 
   const availableZones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))].sort(), [elements]);
   const availableProductTypes = useMemo(() => [...new Set(elements.map(e => e.productType).filter(Boolean))].sort(), [elements]);
@@ -203,7 +208,6 @@ export default function DatabaseTab() {
       }
     });
 
-    // Add non-duplicates immediately
     if (fresh.length > 0) addElements(fresh);
 
     if (dupes.length > 0) {
@@ -277,6 +281,7 @@ export default function DatabaseTab() {
       const url = URL.createObjectURL(file);
       setPdfPreviewUrl(url);
       setSearchArea(null);
+      setDrawMode(false);
     }
     e.target.value = '';
   };
@@ -315,24 +320,24 @@ export default function DatabaseTab() {
         return true;
       });
 
-      // Substring matching: a DB repère (e.g. "A003") matches if contained in a detected repère (e.g. "DBF-A003")
-      const found = detectedReperes.filter(r =>
-        filteredEls.some(el => r.toLowerCase().includes(el.repere.toLowerCase()) || el.repere.toLowerCase().includes(r.toLowerCase()))
-      );
-      const notFound = detectedReperes.filter(r =>
-        !filteredEls.some(el => r.toLowerCase().includes(el.repere.toLowerCase()) || el.repere.toLowerCase().includes(r.toLowerCase()))
-      );
+      // Matching: found = DB repères that match detected ones (return DB repère names)
+      const foundDbReperes = filteredEls
+        .filter(el => detectedReperes.some(r => r.toLowerCase().includes(el.repere.toLowerCase()) || el.repere.toLowerCase().includes(r.toLowerCase())))
+        .map(el => el.repere);
+      // notFound = detected repères that don't match any DB element
+      const notFoundPdfReperes = detectedReperes
+        .filter(r => !filteredEls.some(el => r.toLowerCase().includes(el.repere.toLowerCase()) || el.repere.toLowerCase().includes(r.toLowerCase())));
 
-      setPdfResult({ found, notFound, allDetected: detectedReperes });
+      setPdfResult({ found: foundDbReperes, notFound: notFoundPdfReperes, allDetected: detectedReperes });
 
-      // Store the plan
+      // Store the plan with DB repère names as detectedReperes
       const pdfDataUrl = `data:application/pdf;base64,${base64}`;
       const plan: Plan = {
         id: crypto.randomUUID(),
         name: pdfFile.name,
         zones: pdfZones,
         productTypes: pdfProductTypes,
-        detectedReperes: detectedReperes,
+        detectedReperes: foundDbReperes,
         pdfDataUrl,
       };
 
@@ -369,9 +374,11 @@ export default function DatabaseTab() {
     setSearchArea(null);
     setIsDrawing(false);
     setDrawStart(null);
+    setDrawMode(false);
   };
 
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!drawMode) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -389,7 +396,6 @@ export default function DatabaseTab() {
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
-    // Draw preview rectangle
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -421,10 +427,12 @@ export default function DatabaseTab() {
     }
     setIsDrawing(false);
     setDrawStart(null);
+    setDrawMode(false); // Auto-disable draw mode after drawing
   };
 
   const clearSearchArea = () => {
     setSearchArea(null);
+    setDrawMode(false);
     const canvas = canvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext('2d');
@@ -432,7 +440,6 @@ export default function DatabaseTab() {
     }
   };
 
-  // Redraw search area on canvas when searchArea changes
   const redrawSearchArea = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -451,6 +458,29 @@ export default function DatabaseTab() {
       ctx.fillStyle = 'hsla(var(--primary), 0.1)';
       ctx.fillRect(sx, sy, sw, sh);
     }
+  };
+
+  // Delete plans helpers
+  const togglePlanToDelete = (planId: string) => {
+    setSelectedPlanIdsToDelete(prev => {
+      const next = new Set(prev);
+      next.has(planId) ? next.delete(planId) : next.add(planId);
+      return next;
+    });
+  };
+
+  const handleDeleteSelectedPlans = () => {
+    selectedPlanIdsToDelete.forEach(id => deletePlan(id));
+    toast.success(`${selectedPlanIdsToDelete.size} plan(s) supprimé(s)`);
+    setSelectedPlanIdsToDelete(new Set());
+    setDeletePlansDialogOpen(false);
+  };
+
+  const handleDeleteAllPlans = () => {
+    plans.forEach(p => deletePlan(p.id));
+    toast.success('Tous les plans ont été supprimés');
+    setSelectedPlanIdsToDelete(new Set());
+    setDeletePlansDialogOpen(false);
   };
 
   // Filtering
@@ -493,6 +523,11 @@ export default function DatabaseTab() {
               <Button variant="outline" onClick={() => { resetPdfDialog(); setPdfDialogOpen(true); }}>
                 <FileText className="h-4 w-4 mr-1" /> Importer un plan PDF
               </Button>
+              {plans.length > 0 && (
+                <Button variant="outline" onClick={() => { setSelectedPlanIdsToDelete(new Set()); setDeletePlansDialogOpen(true); }}>
+                  <Trash2 className="h-4 w-4 mr-1" /> Supprimer plans
+                </Button>
+              )}
               <Button variant="outline" onClick={() => setAddDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-1" /> Ajouter ligne manuellement
               </Button>
@@ -533,9 +568,7 @@ export default function DatabaseTab() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-32">
-                    N° Repère
-                  </TableHead>
+                  <TableHead className="w-32">N° Repère</TableHead>
                   <TableHead className="w-24">
                     <span className="flex items-center">Zone <ColumnFilter column="zone" values={filterValues.zone} filters={filters} setFilters={setFilters} /></span>
                   </TableHead>
@@ -681,7 +714,6 @@ export default function DatabaseTab() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {/* Manual form */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">N° Repère</Label>
@@ -812,56 +844,10 @@ export default function DatabaseTab() {
           <DialogHeader>
             <DialogTitle>Importer un plan PDF</DialogTitle>
             <DialogDescription>
-              Sélectionnez un plan PDF, les zones et types de produits concernés, puis lancez la détection des repères.
+              Sélectionnez les zones et types de produits, puis choisissez un fichier PDF pour lancer la détection des repères.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {/* File input */}
-            <div>
-              <Label className="text-xs">Fichier PDF</Label>
-              <div className="flex items-center gap-2 mt-1">
-                <Button variant="outline" size="sm" onClick={() => pdfInputRef.current?.click()}>
-                  <Upload className="h-4 w-4 mr-1" /> Choisir un fichier
-                </Button>
-                {pdfFile && <span className="text-sm text-muted-foreground truncate">{pdfFile.name}</span>}
-              </div>
-            </div>
-
-            {/* PDF preview with drawable canvas */}
-            {pdfPreviewUrl && (
-              <div>
-                <Label className="text-xs">Zone de recherche (dessinez un rectangle pour délimiter la zone)</Label>
-                <div ref={pdfContainerRef} className="relative mt-1 border rounded-md overflow-hidden" style={{ height: '400px' }}>
-                  <iframe src={pdfPreviewUrl} className="w-full h-full" title="Aperçu PDF" />
-                  <canvas
-                    ref={canvasRef}
-                    width={800}
-                    height={600}
-                    className="absolute inset-0 w-full h-full cursor-crosshair"
-                    style={{ zIndex: 10 }}
-                    onMouseDown={handleCanvasMouseDown}
-                    onMouseMove={handleCanvasMouseMove}
-                    onMouseUp={handleCanvasMouseUp}
-                    onMouseLeave={() => { if (isDrawing) { setIsDrawing(false); setDrawStart(null); } }}
-                  />
-                </div>
-                <div className="flex items-center gap-2 mt-1">
-                  {searchArea ? (
-                    <>
-                      <Badge variant="secondary" className="text-[10px]">
-                        Zone définie : {Math.round(searchArea.x * 100)}%, {Math.round(searchArea.y * 100)}% → {Math.round((searchArea.x + searchArea.width) * 100)}%, {Math.round((searchArea.y + searchArea.height) * 100)}%
-                      </Badge>
-                      <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={clearSearchArea}>
-                        <X className="h-3 w-3 mr-1" /> Réinitialiser
-                      </Button>
-                    </>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">Aucune zone définie — recherche sur tout le document</span>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* Zones multi-select */}
             <div>
               <Label className="text-xs">Zones concernées</Label>
@@ -891,6 +877,63 @@ export default function DatabaseTab() {
                 ))}
               </div>
             </div>
+
+            {/* File input */}
+            <div>
+              <Label className="text-xs">Fichier PDF</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <Button variant="outline" size="sm" onClick={() => pdfInputRef.current?.click()}>
+                  <Upload className="h-4 w-4 mr-1" /> Choisir un fichier
+                </Button>
+                {pdfFile && <span className="text-sm text-muted-foreground truncate">{pdfFile.name}</span>}
+              </div>
+            </div>
+
+            {/* PDF preview with drawable canvas */}
+            {pdfPreviewUrl && (
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Label className="text-xs">Zone de recherche sur le plan</Label>
+                  <Button
+                    variant={drawMode ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setDrawMode(!drawMode)}
+                  >
+                    <PenTool className="h-3 w-3 mr-1" />
+                    {drawMode ? 'Dessin actif — cliquez-glissez' : 'Dessiner zone'}
+                  </Button>
+                  {searchArea && (
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clearSearchArea}>
+                      <X className="h-3 w-3 mr-1" /> Réinitialiser
+                    </Button>
+                  )}
+                </div>
+                <div ref={pdfContainerRef} className="relative mt-1 border rounded-md overflow-hidden" style={{ height: '400px' }}>
+                  <iframe src={pdfPreviewUrl} className="w-full h-full" title="Aperçu PDF" />
+                  <canvas
+                    ref={canvasRef}
+                    width={800}
+                    height={600}
+                    className={`absolute inset-0 w-full h-full ${drawMode ? 'cursor-crosshair' : 'pointer-events-none'}`}
+                    style={{ zIndex: 10 }}
+                    onMouseDown={handleCanvasMouseDown}
+                    onMouseMove={handleCanvasMouseMove}
+                    onMouseUp={handleCanvasMouseUp}
+                    onMouseLeave={() => { if (isDrawing) { setIsDrawing(false); setDrawStart(null); } }}
+                  />
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  {searchArea ? (
+                    <Badge variant="secondary" className="text-[10px]">
+                      Zone définie : {Math.round(searchArea.x * 100)}%, {Math.round(searchArea.y * 100)}% → {Math.round((searchArea.x + searchArea.width) * 100)}%, {Math.round((searchArea.y + searchArea.height) * 100)}%
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Aucune zone définie — recherche sur tout le document</span>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Import mode */}
             <div>
@@ -932,12 +975,12 @@ export default function DatabaseTab() {
                 <Alert>
                   <AlertTitle className="text-sm">Résultat de la détection</AlertTitle>
                   <AlertDescription className="text-xs">
-                    {pdfResult.allDetected.length} repère(s) détecté(s) — {pdfResult.found.length} trouvé(s) dans la base — {pdfResult.notFound.length} non trouvé(s)
+                    {pdfResult.allDetected.length} repère(s) détecté(s) sur le plan — {pdfResult.found.length} trouvé(s) dans la base — {pdfResult.notFound.length} non trouvé(s)
                   </AlertDescription>
                 </Alert>
                 {pdfResult.found.length > 0 && (
                   <div>
-                    <span className="text-xs font-medium text-primary">Repères trouvés :</span>
+                    <span className="text-xs font-medium text-primary">Repères trouvés dans la base :</span>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {pdfResult.found.map(r => (
                         <Badge key={r} variant="secondary" className="text-[10px] font-mono">{r}</Badge>
@@ -979,6 +1022,53 @@ export default function DatabaseTab() {
                 )}
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Plans Dialog */}
+      <Dialog open={deletePlansDialogOpen} onOpenChange={setDeletePlansDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Supprimer des plans</DialogTitle>
+            <DialogDescription>
+              Sélectionnez les plans à supprimer ou supprimez tous les plans.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Button variant="destructive" size="sm" className="w-full" onClick={handleDeleteAllPlans}>
+              <Trash2 className="h-4 w-4 mr-1" /> Supprimer tous les plans ({plans.length})
+            </Button>
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+              <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">ou sélectionner</span></div>
+            </div>
+            <div className="space-y-1 max-h-[300px] overflow-auto">
+              {plans.map(plan => (
+                <label key={plan.id} className="flex items-center gap-2 p-2 rounded-md border cursor-pointer hover:bg-secondary/50 transition-colors">
+                  <Checkbox
+                    checked={selectedPlanIdsToDelete.has(plan.id)}
+                    onCheckedChange={() => togglePlanToDelete(plan.id)}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{plan.name}</div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {plan.zones.join(', ')} · {plan.detectedReperes.length} repère(s)
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletePlansDialogOpen(false)}>Annuler</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteSelectedPlans}
+              disabled={selectedPlanIdsToDelete.size === 0}
+            >
+              Supprimer ({selectedPlanIdsToDelete.size})
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
