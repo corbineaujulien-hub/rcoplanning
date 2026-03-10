@@ -7,6 +7,7 @@ export interface ProjectInfo {
   subcontractor: string;
   contactName: string;
   contactPhone: string;
+  showSaturdays?: boolean;
 }
 
 export interface BeamElement {
