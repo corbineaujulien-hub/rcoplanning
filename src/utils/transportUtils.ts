@@ -65,13 +65,19 @@ export function isMultiSite(elements: BeamElement[]): boolean {
 
 const FACTORY_COLORS: Record<string, string> = {
   'BRIVE': '#2563eb',
+  'BRIVE LA GAILLARDE': '#2563eb',
   'COULOUNIEIX': '#059669',
+  'COULOUNIEIX CHAMIERS': '#059669',
+  'COULOUNIEIX-CHAMIERS': '#059669',
   'PERIGUEUX': '#d97706',
   'LIMOGES': '#7c3aed',
   'BORDEAUX': '#dc2626',
   'TOULOUSE': '#0891b2',
   'AGEN': '#c026d3',
   'MONTAUBAN': '#ea580c',
+  'PAU': '#0d9488',
+  'CAHORS': '#b91c1c',
+  'BERGERAC': '#4f46e5',
 };
 
 export function getFactoryColor(factory: string): string {

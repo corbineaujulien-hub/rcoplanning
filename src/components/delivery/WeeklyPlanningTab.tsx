@@ -124,23 +124,21 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
         const factories = getTruckFactories(els);
         const borderColor = cat === 'standard' ? '#22c55e' : cat === 'cat1' ? '#eab308' : cat === 'cat2' ? '#f97316' : '#ef4444';
 
-        trucksHtml += `<div style="border:1px solid #b0b8c4;border-left:4px solid ${borderColor};background:white;border-radius:4px;padding:6px 10px;margin:5px 0;box-shadow:0 1px 3px rgba(0,0,0,.1);">`;
-        // Header: time + number + category + factories left, weight/length right
-        trucksHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <strong style="font-size:12px;">${truck.time}</strong>
-            <strong style="font-size:12px;">${truck.number}</strong>
-            <span style="background:${borderColor};color:white;padding:3px 8px;border-radius:3px;font-size:10px;display:inline-flex;align-items:center;line-height:1.2;font-weight:600;">${catInfo.label}</span>
-            ${factories.map(f => `<span style="background:${getFactoryColor(f)};color:white;padding:3px 8px;border-radius:3px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;line-height:1.2;">${f}</span>`).join('')}
+        trucksHtml += `<div style="border:1px solid #b0b8c4;border-left:4px solid ${borderColor};background:white;border-radius:4px;padding:10px 14px;margin:5px 0;box-shadow:0 1px 3px rgba(0,0,0,.1);">`;
+        trucksHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <div style="display:inline-flex;align-items:center;gap:4px;background:#1e3a5f;color:white;padding:5px 12px;border-radius:4px;font-size:13px;font-weight:700;line-height:1;">🚛 ${truck.number} — ${truck.time}</div>
+            <span style="background:${borderColor};color:white;padding:5px 12px;border-radius:3px;font-size:11px;display:inline-flex;align-items:center;line-height:1;font-weight:600;">${catInfo.label}</span>
+            ${factories.map(f => `<span style="background:${getFactoryColor(f)};color:white;padding:5px 12px;border-radius:3px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;line-height:1;">${f}</span>`).join('')}
           </div>
-          <span style="font-size:10px;color:#666;">⚖️ ${weight.toFixed(2)}t · 📏 ${maxLen.toFixed(2)}m</span>
+          <span style="font-size:11px;color:#666;">⚖️ ${weight.toFixed(2)}t · 📏 ${maxLen.toFixed(2)}m</span>
         </div>`;
         // Repères grouped by type
         trucksHtml += `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">`;
         Object.entries(typeGroups).forEach(([type, reperes]) => {
-          trucksHtml += `<span style="font-size:11px;font-weight:600;color:#1e3a5f;display:inline-flex;align-items:center;line-height:1.2;">${reperes.length}× ${type} :</span>`;
+          trucksHtml += `<span style="font-size:11px;font-weight:600;color:#1e3a5f;display:inline-flex;align-items:center;line-height:1;">${reperes.length}× ${type} :</span>`;
           reperes.forEach(r => {
-            trucksHtml += `<span style="background:#dbeafe;color:#1e3a5f;padding:3px 6px;border-radius:3px;font-size:11px;font-family:monospace;font-weight:500;display:inline-flex;align-items:center;line-height:1.2;">${r}</span>`;
+            trucksHtml += `<span style="background:#dbeafe;color:#1e3a5f;padding:4px 8px;border-radius:3px;font-size:11px;font-family:monospace;font-weight:500;display:inline-flex;align-items:center;line-height:1;">${r}</span>`;
           });
         });
         trucksHtml += `</div>`;
