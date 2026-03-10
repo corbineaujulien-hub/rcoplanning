@@ -49,9 +49,7 @@ function DeliveryApp() {
             <TabsTrigger value="composition" className="flex items-center gap-1 text-xs">
               <TruckIcon className="h-3.5 w-3.5" /> Compo camion
             </TabsTrigger>
-            <TabsTrigger value="planning" className="flex items-center gap-1 text-xs">
-              <CalendarDays className="h-3.5 w-3.5" /> Planning général
-            </TabsTrigger>
+            
             {weeklyTabs.map(w => (
               <TabsTrigger key={`${w.year}-${w.weekNumber}`} value={`week-${w.year}-${w.weekNumber}`} className="flex items-center gap-1 text-xs">
                 <Calendar className="h-3.5 w-3.5" /> S.{String(w.weekNumber).padStart(2, '0')}
