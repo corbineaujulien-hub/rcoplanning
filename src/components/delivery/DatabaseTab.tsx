@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
-import { BeamElement, PRODUCT_TYPES } from '@/types/delivery';
+import { BeamElement, Plan, PRODUCT_TYPES } from '@/types/delivery';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,8 +12,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw, FileText, AlertTriangle, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import { supabase } from '@/integrations/supabase/client';
 
 function findColumn(row: Record<string, unknown>, aliases: string[]): unknown {
   for (const alias of aliases) {
@@ -102,8 +106,9 @@ function ColumnFilter({ column, values, filters, setFilters }: {
 }
 
 export default function DatabaseTab() {
-  const { elements, setElements, addElements, updateElement, deleteElement } = useDelivery();
+  const { elements, setElements, addElements, updateElement, deleteElement, plans, addPlan, updatePlan, deletePlan } = useDelivery();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
   const [importMode, setImportMode] = useState<'overwrite' | 'update' | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -123,6 +128,19 @@ export default function DatabaseTab() {
   const [newWeight, setNewWeight] = useState('');
   const [newFactory, setNewFactory] = useState('');
   const [pasteText, setPasteText] = useState('');
+
+  // PDF import state
+  const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfZones, setPdfZones] = useState<string[]>([]);
+  const [pdfProductTypes, setPdfProductTypes] = useState<string[]>([]);
+  const [pdfImportMode, setPdfImportMode] = useState<'new' | 'replace'>('new');
+  const [pdfReplaceId, setPdfReplaceId] = useState('');
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfResult, setPdfResult] = useState<{ found: string[]; notFound: string[]; allDetected: string[] } | null>(null);
+
+  const availableZones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))].sort(), [elements]);
+  const availableProductTypes = useMemo(() => [...new Set(elements.map(e => e.productType).filter(Boolean))].sort(), [elements]);
 
   const parseExcel = (data: Uint8Array): BeamElement[] => {
     const workbook = XLSX.read(data, { type: 'array' });
@@ -246,6 +264,93 @@ export default function DatabaseTab() {
     setNewLength(''); setNewWeight(''); setNewFactory('');
   };
 
+  const handlePdfFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setPdfFile(file);
+    e.target.value = '';
+  };
+
+  const togglePdfZone = (zone: string) => {
+    setPdfZones(prev => prev.includes(zone) ? prev.filter(z => z !== zone) : [...prev, zone]);
+  };
+
+  const togglePdfProductType = (type: string) => {
+    setPdfProductTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
+  };
+
+  const handlePdfImport = async () => {
+    if (!pdfFile) return;
+    setPdfLoading(true);
+    setPdfResult(null);
+
+    try {
+      const arrayBuffer = await pdfFile.arrayBuffer();
+      const base64 = btoa(
+        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+      );
+
+      const { data, error } = await supabase.functions.invoke('extract-reperes', {
+        body: { pdfBase64: base64, zones: pdfZones, productTypes: pdfProductTypes },
+      });
+
+      if (error) throw new Error(error.message || 'Erreur extraction');
+
+      const detectedReperes: string[] = data?.reperes || [];
+
+      // Cross-reference with elements filtered by selected zones and product types
+      const filteredEls = elements.filter(el => {
+        if (pdfZones.length > 0 && !pdfZones.includes(el.zone)) return false;
+        if (pdfProductTypes.length > 0 && !pdfProductTypes.includes(el.productType)) return false;
+        return true;
+      });
+
+      const elementReperes = new Set(filteredEls.map(el => el.repere.toLowerCase()));
+      const found = detectedReperes.filter(r => elementReperes.has(r.toLowerCase()));
+      const notFound = detectedReperes.filter(r => !elementReperes.has(r.toLowerCase()));
+
+      setPdfResult({ found, notFound, allDetected: detectedReperes });
+
+      // Store the plan
+      const pdfDataUrl = `data:application/pdf;base64,${base64}`;
+      const plan: Plan = {
+        id: crypto.randomUUID(),
+        name: pdfFile.name,
+        zones: pdfZones,
+        productTypes: pdfProductTypes,
+        detectedReperes: detectedReperes,
+        pdfDataUrl,
+      };
+
+      if (pdfImportMode === 'replace' && pdfReplaceId) {
+        updatePlan(pdfReplaceId, {
+          name: plan.name,
+          zones: plan.zones,
+          productTypes: plan.productTypes,
+          detectedReperes: plan.detectedReperes,
+          pdfDataUrl: plan.pdfDataUrl,
+        });
+        toast.success('Plan remplacé avec succès');
+      } else {
+        addPlan(plan);
+        toast.success('Plan importé avec succès');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors de l\'import du plan');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const resetPdfDialog = () => {
+    setPdfFile(null);
+    setPdfZones([]);
+    setPdfProductTypes([]);
+    setPdfImportMode('new');
+    setPdfReplaceId('');
+    setPdfResult(null);
+    setPdfLoading(false);
+  };
+
   // Filtering
   const filteredElements = useMemo(() => {
     return elements.filter(el => {
@@ -279,8 +384,12 @@ export default function DatabaseTab() {
             </CardTitle>
             <div className="flex gap-2 flex-wrap">
               <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleImport} className="hidden" />
+              <input ref={pdfInputRef} type="file" accept=".pdf" onChange={handlePdfFileChange} className="hidden" />
               <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
                 <Upload className="h-4 w-4 mr-1" /> Importer Excel
+              </Button>
+              <Button variant="outline" onClick={() => { resetPdfDialog(); setPdfDialogOpen(true); }}>
+                <FileText className="h-4 w-4 mr-1" /> Importer un plan PDF
               </Button>
               <Button variant="outline" onClick={() => setAddDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-1" /> Ajouter ligne manuellement
@@ -396,7 +505,43 @@ export default function DatabaseTab() {
         </CardContent>
       </Card>
 
-      {/* Import Dialog */}
+      {/* Plans importés section */}
+      {plans.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-5 w-5 text-accent" />
+              Plans importés – {plans.length} plan(s)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {plans.map(plan => (
+                <div key={plan.id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-secondary/30 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">{plan.name}</div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {plan.zones.map(z => (
+                        <Badge key={z} variant="secondary" className="text-[10px]">{z}</Badge>
+                      ))}
+                      {plan.productTypes.map(t => (
+                        <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>
+                      ))}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {plan.detectedReperes.length} repère(s) détecté(s)
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => deletePlan(plan.id)} className="h-8 w-8 text-destructive hover:text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -555,6 +700,148 @@ export default function DatabaseTab() {
             <Button onClick={handleOverwriteDuplicates}>
               Écraser les existants ({duplicates.length})
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* PDF Import Dialog */}
+      <Dialog open={pdfDialogOpen} onOpenChange={(open) => { if (!open) resetPdfDialog(); setPdfDialogOpen(open); }}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Importer un plan PDF</DialogTitle>
+            <DialogDescription>
+              Sélectionnez un plan PDF, les zones et types de produits concernés, puis lancez la détection des repères.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* File input */}
+            <div>
+              <Label className="text-xs">Fichier PDF</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <Button variant="outline" size="sm" onClick={() => pdfInputRef.current?.click()}>
+                  <Upload className="h-4 w-4 mr-1" /> Choisir un fichier
+                </Button>
+                {pdfFile && <span className="text-sm text-muted-foreground truncate">{pdfFile.name}</span>}
+              </div>
+            </div>
+
+            {/* Zones multi-select */}
+            <div>
+              <Label className="text-xs">Zones concernées</Label>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {availableZones.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">Aucune zone disponible</span>
+                ) : availableZones.map(zone => (
+                  <label key={zone} className="flex items-center gap-1.5 text-sm cursor-pointer bg-secondary/50 hover:bg-secondary rounded px-2 py-1">
+                    <Checkbox checked={pdfZones.includes(zone)} onCheckedChange={() => togglePdfZone(zone)} />
+                    <span>{zone}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Product types multi-select */}
+            <div>
+              <Label className="text-xs">Types de produits concernés</Label>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {availableProductTypes.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">Aucun type disponible</span>
+                ) : availableProductTypes.map(type => (
+                  <label key={type} className="flex items-center gap-1.5 text-sm cursor-pointer bg-secondary/50 hover:bg-secondary rounded px-2 py-1">
+                    <Checkbox checked={pdfProductTypes.includes(type)} onCheckedChange={() => togglePdfProductType(type)} />
+                    <span>{type}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Import mode */}
+            <div>
+              <Label className="text-xs">Mode d'import</Label>
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <Button
+                  variant={pdfImportMode === 'new' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPdfImportMode('new')}
+                  className="justify-start"
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Nouveau plan
+                </Button>
+                <Button
+                  variant={pdfImportMode === 'replace' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPdfImportMode('replace')}
+                  disabled={plans.length === 0}
+                  className="justify-start"
+                >
+                  <RefreshCw className="h-4 w-4 mr-1" /> Écraser existant
+                </Button>
+              </div>
+              {pdfImportMode === 'replace' && plans.length > 0 && (
+                <Select value={pdfReplaceId} onValueChange={setPdfReplaceId}>
+                  <SelectTrigger className="h-8 text-sm mt-2"><SelectValue placeholder="Sélectionner un plan à écraser" /></SelectTrigger>
+                  <SelectContent>
+                    {plans.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            {/* Results */}
+            {pdfResult && (
+              <div className="space-y-2">
+                <Alert>
+                  <AlertTitle className="text-sm">Résultat de la détection</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    {pdfResult.allDetected.length} repère(s) détecté(s) — {pdfResult.found.length} trouvé(s) dans la base — {pdfResult.notFound.length} non trouvé(s)
+                  </AlertDescription>
+                </Alert>
+                {pdfResult.found.length > 0 && (
+                  <div>
+                    <span className="text-xs font-medium text-primary">Repères trouvés :</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {pdfResult.found.map(r => (
+                        <Badge key={r} variant="secondary" className="text-[10px] font-mono">{r}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {pdfResult.notFound.length > 0 && (
+                  <div>
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle className="text-sm">Repères non trouvés dans la base</AlertTitle>
+                      <AlertDescription>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {pdfResult.notFound.map(r => (
+                            <Badge key={r} variant="outline" className="text-[10px] font-mono border-destructive text-destructive">{r}</Badge>
+                          ))}
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { resetPdfDialog(); setPdfDialogOpen(false); }}>
+              {pdfResult ? 'Fermer' : 'Annuler'}
+            </Button>
+            {!pdfResult && (
+              <Button
+                onClick={handlePdfImport}
+                disabled={!pdfFile || pdfLoading || (pdfImportMode === 'replace' && !pdfReplaceId)}
+              >
+                {pdfLoading ? (
+                  <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Analyse en cours…</>
+                ) : (
+                  <><FileText className="h-4 w-4 mr-1" /> Analyser et importer</>
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

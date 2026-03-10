@@ -29,6 +29,15 @@ export interface Truck {
   comment?: string;
 }
 
+export interface Plan {
+  id: string;
+  name: string;
+  zones: string[];
+  productTypes: string[];
+  detectedReperes: string[];
+  pdfDataUrl: string;
+}
+
 export type TransportCategory = 'standard' | 'cat1' | 'cat2' | 'cat3';
 
 export interface TransportInfo {

@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { ProjectInfo, BeamElement, Truck, DEFAULT_PROJECT_INFO } from '@/types/delivery';
+import { ProjectInfo, BeamElement, Truck, Plan, DEFAULT_PROJECT_INFO } from '@/types/delivery';
 
 interface DeliveryState {
   projectInfo: ProjectInfo;
   elements: BeamElement[];
   trucks: Truck[];
+  plans: Plan[];
 }
 
 interface DeliveryContextType extends DeliveryState {
@@ -24,10 +25,13 @@ interface DeliveryContextType extends DeliveryState {
   getUnassignedElements: () => BeamElement[];
   isElementAssigned: (elementId: string) => boolean;
   getTrucksForDate: (date: string) => Truck[];
+  addPlan: (plan: Plan) => void;
+  updatePlan: (id: string, updates: Partial<Plan>) => void;
+  deletePlan: (id: string) => void;
 }
 
 const STORAGE_KEY = 'rector-delivery-planner';
-const defaultState: DeliveryState = { projectInfo: DEFAULT_PROJECT_INFO, elements: [], trucks: [] };
+const defaultState: DeliveryState = { projectInfo: DEFAULT_PROJECT_INFO, elements: [], trucks: [], plans: [] };
 
 const DeliveryContext = createContext<DeliveryContextType | null>(null);
 
@@ -132,11 +136,27 @@ export function DeliveryProvider({ children }: { children: React.ReactNode }) {
     return state.trucks.filter(t => t.date === date).sort((a, b) => a.time.localeCompare(b.time));
   }, [state.trucks]);
 
+  const addPlan = useCallback((plan: Plan) => {
+    setState(s => ({ ...s, plans: [...s.plans, plan] }));
+  }, []);
+
+  const updatePlan = useCallback((id: string, updates: Partial<Plan>) => {
+    setState(s => ({
+      ...s,
+      plans: s.plans.map(p => p.id === id ? { ...p, ...updates } : p),
+    }));
+  }, []);
+
+  const deletePlan = useCallback((id: string) => {
+    setState(s => ({ ...s, plans: s.plans.filter(p => p.id !== id) }));
+  }, []);
+
   return (
     <DeliveryContext.Provider value={{
       ...state, setProjectInfo, setElements, addElements, updateElement, deleteElement,
       addTruck, updateTruck, deleteTruck, deleteAllTrucks, addElementsToTruck, removeElementFromTruck,
       getElementById, getTruckElements, getUnassignedElements, isElementAssigned, getTrucksForDate,
+      addPlan, updatePlan, deletePlan,
     }}>
       {children}
     </DeliveryContext.Provider>
