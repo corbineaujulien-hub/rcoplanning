@@ -2,6 +2,3 @@ project_id = "tpsxgpatekltvlszmkpc"
 
 [functions.extract-reperes]
 verify_jwt = false
-
-[functions.admin-list-projects]
-verify_jwt = false
