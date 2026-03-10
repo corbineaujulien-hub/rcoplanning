@@ -757,7 +757,7 @@ export default function TruckCompositionTab() {
                     {filteredWeekDays.map(day => {
                       const dateStr = format(day, 'yyyy-MM-dd');
                       const holiday = isHoliday(dateStr);
-                      const hourTrucks = getTrucksForDate(dateStr).filter(t => {
+                      const hourTrucks = getTeamTrucksForDate(dateStr).filter(t => {
                         const h = parseInt(t.time.split(':')[0], 10);
                         return h === hour;
                       });
