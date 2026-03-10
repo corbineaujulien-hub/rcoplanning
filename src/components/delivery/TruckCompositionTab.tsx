@@ -696,6 +696,11 @@ export default function TruckCompositionTab() {
               <Button variant={viewMode === 'day' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('day')}>Jour</Button>
               {trucks.length > 0 && (
                 <>
+                  {hasMultipleTeams && (
+                    <Button variant="outline" size="sm" onClick={() => { setBulkSelectedTrucks(new Set()); setBulkTargetTeam(''); setShowBulkReassign(true); }}>
+                      <Users className="h-4 w-4 mr-1" /> Réaffecter
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" onClick={() => { setShiftSelectedTrucks(new Set()); setShiftValue(''); setShowShiftDialog(true); }}>
                     <ArrowRightLeft className="h-4 w-4 mr-1" /> Décaler
                   </Button>
