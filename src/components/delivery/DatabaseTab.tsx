@@ -761,6 +761,14 @@ export default function DatabaseTab() {
               </div>
             </div>
 
+            {/* Plan name */}
+            {pdfFile && (
+              <div>
+                <Label className="text-xs">Nom du plan</Label>
+                <Input value={pdfPlanName} onChange={e => setPdfPlanName(e.target.value)} className="h-8 text-sm mt-1" placeholder="Nom du plan" />
+              </div>
+            )}
+
             {/* File input */}
             <div>
               <Label className="text-xs">Fichier PDF</Label>
