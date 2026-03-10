@@ -202,11 +202,31 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
       const pdfWidth = 420;
       const pdfHeight = 297;
       const margin = 8;
-      const contentWidth = pdfWidth - margin * 2;
-      const contentHeight = (canvas.height / canvas.width) * contentWidth;
-      const finalHeight = Math.min(contentHeight, pdfHeight - margin * 2);
+      const usableWidth = pdfWidth - margin * 2;
+      const usableHeight = pdfHeight - margin * 2;
+      const contentHeight = (canvas.height / canvas.width) * usableWidth;
 
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin, contentWidth, finalHeight);
+      const imgData = canvas.toDataURL('image/png');
+
+      if (contentHeight <= usableHeight) {
+        pdf.addImage(imgData, 'PNG', margin, margin, usableWidth, contentHeight);
+      } else {
+        // Multi-page: slice canvas into page-sized chunks
+        const totalPages = Math.ceil(contentHeight / usableHeight);
+        for (let page = 0; page < totalPages; page++) {
+          if (page > 0) pdf.addPage();
+          const sourceY = (page * usableHeight / contentHeight) * canvas.height;
+          const sourceH = Math.min((usableHeight / contentHeight) * canvas.height, canvas.height - sourceY);
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = canvas.width;
+          sliceCanvas.height = sourceH;
+          const ctx = sliceCanvas.getContext('2d')!;
+          ctx.drawImage(canvas, 0, sourceY, canvas.width, sourceH, 0, 0, canvas.width, sourceH);
+          const sliceHeight = (sourceH / canvas.width) * usableWidth;
+          pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', margin, margin, usableWidth, sliceHeight);
+        }
+      }
+
       pdf.save(`planning_S${weekNumber}_${year}.pdf`);
     } finally {
       document.body.removeChild(container);
