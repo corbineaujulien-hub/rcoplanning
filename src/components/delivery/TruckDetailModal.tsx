@@ -146,18 +146,30 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
 
             <div>
               <p className="text-sm text-muted-foreground mb-2">Repères</p>
-              <div className="flex flex-wrap gap-1 max-h-32 overflow-auto">
-                {elements.map(el => (
-                  <span key={el.id} className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs font-mono flex items-center gap-1">
-                    {el.repere}
-                    <button
-                      onClick={() => handleRemoveElement(el.id)}
-                      className="hover:text-destructive transition-colors"
-                      title="Retirer du camion"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
+              <div className="max-h-40 overflow-auto space-y-2">
+                {Object.entries(
+                  elements.reduce<Record<string, typeof elements>>((acc, el) => {
+                    (acc[el.productType] = acc[el.productType] || []).push(el);
+                    return acc;
+                  }, {})
+                ).map(([type, els]) => (
+                  <div key={type}>
+                    <p className="text-xs font-semibold text-muted-foreground mb-1">{type}</p>
+                    <div className="flex flex-wrap gap-1">
+                      {els.map(el => (
+                        <span key={el.id} className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs font-mono flex items-center gap-1">
+                          {el.repere}
+                          <button
+                            onClick={() => handleRemoveElement(el.id)}
+                            className="hover:text-destructive transition-colors"
+                            title="Retirer du camion"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>

@@ -812,9 +812,30 @@ export default function TruckCompositionTab() {
                                 <span key={type} className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs">{count}× {type}</span>
                               ))}
                             </div>
-                            <div className="flex flex-wrap gap-1">
-                              {els.map(el => (
-                                <span key={el.id} className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-mono">{el.repere} <span className="text-muted-foreground font-sans">({el.productType})</span></span>
+                            <div className="space-y-1">
+                              {Object.entries(
+                                els.reduce<Record<string, typeof els>>((acc, el) => {
+                                  (acc[el.productType] = acc[el.productType] || []).push(el);
+                                  return acc;
+                                }, {})
+                              ).map(([type, typeEls]) => (
+                                <div key={type}>
+                                  <p className="text-xs font-semibold text-muted-foreground">{type}</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {typeEls.map(el => (
+                                      <span key={el.id} className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-mono flex items-center gap-0.5">
+                                        {el.repere}
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); removeElementFromTruck(truck.id, el.id); }}
+                                          className="hover:text-destructive transition-colors"
+                                          title="Retirer du camion"
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </button>
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
                               ))}
                             </div>
                             {truck.comment?.trim() && (
