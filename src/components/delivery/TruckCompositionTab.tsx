@@ -58,6 +58,14 @@ export default function TruckCompositionTab() {
 
   const showSaturdays = projectInfo.showSaturdays || false;
 
+  const getElementTruck = (elementId: string): Truck | undefined => {
+    return trucks.find(t => t.elementIds.includes(elementId));
+  };
+
+  // State for drag highlight on day view trucks
+  const [dragOverTruckId, setDragOverTruckId] = useState<string | null>(null);
+  const [dragOverNewZone, setDragOverNewZone] = useState(false);
+
   const zones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))], [elements]);
   const factoryList = useMemo(() => [...new Set(elements.map(e => e.factory).filter(Boolean))], [elements]);
   const productTypes = useMemo(() => [...new Set(elements.map(e => e.productType).filter(Boolean))].sort(), [elements]);
@@ -491,7 +499,7 @@ export default function TruckCompositionTab() {
                               <span className="font-semibold">{el.repere}</span>
                               <span className="text-muted-foreground font-sans">{el.weight}t</span>
                               <span className="text-muted-foreground font-sans">{el.length}m</span>
-                              {assigned && <span className="text-muted-foreground font-sans italic">Chargé</span>}
+                              {assigned && <span className="text-muted-foreground font-sans italic">Chargé · {getElementTruck(el.id)?.number}</span>}
                             </div>
                           );
                         })}
@@ -611,7 +619,7 @@ export default function TruckCompositionTab() {
                                       <span className="font-semibold">{el.repere}</span>
                                       <span className="text-muted-foreground font-sans">{el.weight}t</span>
                                       <span className="text-muted-foreground font-sans">{el.length}m</span>
-                                      {assigned && <span className="text-muted-foreground font-sans italic">Chargé</span>}
+                                      {assigned && <span className="text-muted-foreground font-sans italic">Chargé · {getElementTruck(el.id)?.number}</span>}
                                     </div>
                                   );
                                 })}
@@ -750,58 +758,98 @@ export default function TruckCompositionTab() {
                     </div>
                   );
                 }
-                return dayTrucks.map(truck => {
-                  const els = getTruckElements(truck.id);
-                  const cat = getTransportCategory(els);
-                  const catInfo = TRANSPORT_CATEGORIES[cat];
-                  const weight = getTruckWeight(els);
-                  const maxLen = getTruckMaxLength(els);
-                  const factories = getTruckFactories(els);
-                  const counts = getProductCountsByType(els);
-                  const isEmpty = els.length === 0;
-                  return (
-                    <Card
-                      key={truck.id}
-                      draggable
-                      onDragStart={e => onTruckDragStart(e, truck.id)}
-                      onClick={() => setDetailTruck(truck)}
-                      className={`cursor-pointer border-l-4 ${isEmpty ? 'border-l-foreground' : cat === 'standard' ? 'border-l-transport-standard' : cat === 'cat1' ? 'border-l-transport-cat1' : cat === 'cat2' ? 'border-l-transport-cat2' : 'border-l-transport-cat3'}`}
+                return (
+                  <>
+                    {dayTrucks.map(truck => {
+                      const els = getTruckElements(truck.id);
+                      const cat = getTransportCategory(els);
+                      const catInfo = TRANSPORT_CATEGORIES[cat];
+                      const weight = getTruckWeight(els);
+                      const maxLen = getTruckMaxLength(els);
+                      const factories = getTruckFactories(els);
+                      const counts = getProductCountsByType(els);
+                      const isEmpty = els.length === 0;
+                      return (
+                        <Card
+                          key={truck.id}
+                          draggable
+                          onDragStart={e => onTruckDragStart(e, truck.id)}
+                          onDragOver={onDragOver}
+                          onDragEnter={e => { e.preventDefault(); setDragOverTruckId(truck.id); }}
+                          onDragLeave={() => setDragOverTruckId(null)}
+                          onDrop={e => {
+                            e.preventDefault();
+                            setDragOverTruckId(null);
+                            const type = e.dataTransfer.getData('text/plain');
+                            if (type === 'trucks') {
+                              onDropOnDay(e, dateStr);
+                              return;
+                            }
+                            const ids = Array.from(selectedIds).filter(id => !isElementAssigned(id));
+                            if (ids.length === 0) return;
+                            checkAlertsAndAssign(truck.id, ids);
+                          }}
+                          onClick={() => setDetailTruck(truck)}
+                          className={`cursor-pointer border-l-4 transition-all ${dragOverTruckId === truck.id ? 'ring-2 ring-accent bg-accent/5' : ''} ${isEmpty ? 'border-l-foreground' : cat === 'standard' ? 'border-l-transport-standard' : cat === 'cat1' ? 'border-l-transport-cat1' : cat === 'cat2' ? 'border-l-transport-cat2' : 'border-l-transport-cat3'}`}
+                        >
+                          <CardContent className="pt-4 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <TruckIcon className="h-5 w-5 text-accent" />
+                                <span className="font-semibold text-lg">{truck.number}</span>
+                                <span className={`${getCategoryColorClass(cat)} px-2 py-0.5 rounded text-xs font-medium`}>{catInfo.label}</span>
+                              </div>
+                              <span className="text-sm text-muted-foreground">{truck.time}</span>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                              <div className="flex items-center gap-1"><Factory className="h-4 w-4 text-muted-foreground" />{factories.length > 0 ? factories.map(f => <span key={f} className="text-white text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: getFactoryColor(f) }}>{f}</span>) : <span>—</span>}</div>
+                              <div className="flex items-center gap-1"><Weight className="h-4 w-4 text-muted-foreground" /><span>{weight.toFixed(2)} t</span></div>
+                              <div className="flex items-center gap-1"><Ruler className="h-4 w-4 text-muted-foreground" /><span>{maxLen.toFixed(2)} m</span></div>
+                              <div className="flex items-center gap-1"><Package className="h-4 w-4 text-muted-foreground" /><span>{els.length} produits</span></div>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {Object.entries(counts).map(([type, count]) => (
+                                <span key={type} className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs">{count}× {type}</span>
+                              ))}
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {els.map(el => (
+                                <span key={el.id} className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-mono">{el.repere} <span className="text-muted-foreground font-sans">({el.productType})</span></span>
+                              ))}
+                            </div>
+                            {truck.comment?.trim() && (
+                              <div className="flex items-start gap-1.5 text-sm bg-amber-50 text-amber-800 border border-amber-200 rounded-md p-2">
+                                <MessageSquare className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                                <span>{truck.comment}</span>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                    {/* Drop zone for new truck */}
+                    <div
+                      onDragOver={onDragOver}
+                      onDragEnter={e => { e.preventDefault(); setDragOverNewZone(true); }}
+                      onDragLeave={() => setDragOverNewZone(false)}
+                      onDrop={e => {
+                        e.preventDefault();
+                        setDragOverNewZone(false);
+                        const type = e.dataTransfer.getData('text/plain');
+                        if (type === 'trucks') return;
+                        const ids = Array.from(selectedIds).filter(id => !isElementAssigned(id));
+                        if (ids.length === 0) return;
+                        setPendingElementIds(ids);
+                        setNewTruckDate(dateStr);
+                        setShowNewTruck(true);
+                      }}
+                      className={`flex items-center justify-center h-20 border-2 border-dashed rounded-lg text-muted-foreground text-sm cursor-pointer hover:bg-secondary/30 transition-all ${dragOverNewZone ? 'border-accent bg-accent/5 text-accent' : 'border-border'}`}
                     >
-                      <CardContent className="pt-4 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <TruckIcon className="h-5 w-5 text-accent" />
-                            <span className="font-semibold text-lg">{truck.number}</span>
-                            <span className={`${getCategoryColorClass(cat)} px-2 py-0.5 rounded text-xs font-medium`}>{catInfo.label}</span>
-                          </div>
-                          <span className="text-sm text-muted-foreground">{truck.time}</span>
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                          <div className="flex items-center gap-1"><Factory className="h-4 w-4 text-muted-foreground" />{factories.length > 0 ? factories.map(f => <span key={f} className="text-white text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: getFactoryColor(f) }}>{f}</span>) : <span>—</span>}</div>
-                          <div className="flex items-center gap-1"><Weight className="h-4 w-4 text-muted-foreground" /><span>{weight.toFixed(2)} t</span></div>
-                          <div className="flex items-center gap-1"><Ruler className="h-4 w-4 text-muted-foreground" /><span>{maxLen.toFixed(2)} m</span></div>
-                          <div className="flex items-center gap-1"><Package className="h-4 w-4 text-muted-foreground" /><span>{els.length} produits</span></div>
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {Object.entries(counts).map(([type, count]) => (
-                            <span key={type} className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs">{count}× {type}</span>
-                          ))}
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {els.map(el => (
-                            <span key={el.id} className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-mono">{el.repere} <span className="text-muted-foreground font-sans">({el.productType})</span></span>
-                          ))}
-                        </div>
-                        {truck.comment?.trim() && (
-                          <div className="flex items-start gap-1.5 text-sm bg-amber-50 text-amber-800 border border-amber-200 rounded-md p-2">
-                            <MessageSquare className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                            <span>{truck.comment}</span>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                });
+                      <TruckIcon className="h-4 w-4 mr-2" />
+                      Glissez ici pour créer un nouveau camion
+                    </div>
+                  </>
+                );
               })()}
             </div>
           )}
