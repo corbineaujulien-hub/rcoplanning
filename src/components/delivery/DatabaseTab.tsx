@@ -130,6 +130,7 @@ export default function DatabaseTab() {
   // PDF import state (simplified — no AI detection)
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfPlanName, setPdfPlanName] = useState('');
   const [pdfZones, setPdfZones] = useState<string[]>([]);
   const [pdfProductTypes, setPdfProductTypes] = useState<string[]>([]);
   const [pdfImportMode, setPdfImportMode] = useState<'new' | 'replace'>('new');
