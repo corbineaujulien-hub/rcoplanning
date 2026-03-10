@@ -269,6 +269,7 @@ export default function DatabaseTab() {
     const file = e.target.files?.[0];
     if (file) {
       setPdfFile(file);
+      setPdfPlanName(file.name.replace(/\.pdf$/i, ''));
       const url = URL.createObjectURL(file);
       setPdfPreviewUrl(url);
     }
