@@ -12,8 +12,7 @@ import { fr } from 'date-fns/locale';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getProductCountsByType, getFactoryColor } from '@/utils/transportUtils';
 import { TRANSPORT_CATEGORIES, BeamElement } from '@/types/delivery';
 import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import { renderSectionsToPdf, badge, badgeLarge, badgeSmall } from '@/utils/pdfExportUtils';
+import { exportAllWeeksPdf } from '@/utils/pdfExportUtils';
 
 function DeliveryApp() {
   const { trucks, projectInfo, elements, getTruckElements } = useDelivery();

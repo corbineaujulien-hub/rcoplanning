@@ -89,111 +89,16 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
     XLSX.writeFile(wb, `planning_S${weekNumber}.xlsx`);
   };
 
-  const groupElementsByType = useCallback((els: BeamElement[]) => {
-    const groups: Record<string, string[]> = {};
-    els.forEach(el => {
-      if (!groups[el.productType]) groups[el.productType] = [];
-      groups[el.productType].push(el.repere);
-    });
-    return groups;
-  }, []);
-
   const exportPdf = async () => {
-    const weekLabel = weekStart && weekEnd
-      ? `Semaine ${weekNumber} – du ${format(weekStart, 'dd/MM', { locale: fr })} au ${format(weekEnd, 'dd/MM/yyyy', { locale: fr })}`
-      : `Semaine ${weekNumber}`;
-
-    const grouped = new Map<string, typeof weekTrucks>();
-    weekTrucks.forEach(t => {
-      if (!grouped.has(t.date)) grouped.set(t.date, []);
-      grouped.get(t.date)!.push(t);
+    await exportWeekPdf({
+      weekNumber,
+      year,
+      trucks: weekTrucks,
+      getTruckElements,
+      projectInfo,
+      totalSiteWeight,
+      cumulativeWeight,
     });
-
-    let sectionsHtml = '';
-
-    // Header section
-    sectionsHtml += `<div data-pdf-section style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;border-bottom:2px solid #1e3a5f;padding-bottom:8px;">
-      <div>
-        <h1 style="font-size:16px;color:#1e3a5f;margin:0 0 4px 0;">RECTOR – ${weekLabel}</h1>
-        ${projectInfo.otpNumber ? `<p style="margin:1px 0;font-size:11px;"><strong>N° OTP :</strong> ${projectInfo.otpNumber}</p>` : ''}
-        ${projectInfo.siteName ? `<p style="margin:1px 0;font-size:11px;"><strong>Chantier :</strong> ${projectInfo.siteName}</p>` : ''}
-        ${projectInfo.siteAddress ? `<p style="margin:1px 0;font-size:11px;"><strong>Adresse :</strong> ${projectInfo.siteAddress}</p>` : ''}
-        ${projectInfo.clientName ? `<p style="margin:1px 0;font-size:11px;"><strong>Client :</strong> ${projectInfo.clientName}</p>` : ''}
-      </div>
-      <div style="text-align:right;">
-        <img src="/logo.png" style="height:40px;object-fit:contain;margin-bottom:4px;" onerror="this.style.display='none'" />
-        ${projectInfo.conductor ? `<p style="margin:1px 0;font-size:11px;"><strong>Conducteur :</strong> ${projectInfo.conductor}</p>` : ''}
-        ${projectInfo.subcontractor ? `<p style="margin:1px 0;font-size:11px;"><strong>Poseur :</strong> ${projectInfo.subcontractor}</p>` : ''}
-        ${projectInfo.contactName ? `<p style="margin:1px 0;font-size:11px;"><strong>Contact :</strong> ${projectInfo.contactName}${projectInfo.contactPhone ? ` — ${projectInfo.contactPhone}` : ''}</p>` : ''}
-      </div>
-    </div>`;
-
-    Array.from(grouped.entries()).forEach(([date, dayTrucks]) => {
-      sectionsHtml += `<div data-pdf-section style="background:#1e3a5f;color:white;padding:6px 12px;border-radius:4px;font-weight:600;font-size:11px;margin-top:10px;text-transform:capitalize;">${format(parseISO(date), 'EEEE dd MMMM yyyy', { locale: fr })} — ${dayTrucks.length} camion${dayTrucks.length > 1 ? 's' : ''}</div>`;
-
-      dayTrucks.forEach(truck => {
-        const els = getTruckElements(truck.id);
-        const cat = getTransportCategory(els);
-        const catInfo = TRANSPORT_CATEGORIES[cat];
-        const weight = getTruckWeight(els);
-        const maxLen = getTruckMaxLength(els);
-        const typeGroups = groupElementsByType(els);
-        const factories = getTruckFactories(els);
-        const borderColor = cat === 'standard' ? '#22c55e' : cat === 'cat1' ? '#eab308' : cat === 'cat2' ? '#f97316' : '#ef4444';
-
-        let truckHtml = `<div data-pdf-section style="border:1px solid #b0b8c4;border-left:5px solid ${borderColor};background:white;border-radius:6px;padding:16px 20px;margin:8px 0;box-shadow:0 1px 3px rgba(0,0,0,.1);">`;
-        truckHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            ${badgeLarge(`🚛 ${truck.number} — ${truck.time}`, '#1e3a5f')}
-            ${badge(catInfo.label, borderColor)}
-            ${factories.map(f => badge(f, getFactoryColor(f), 'white', 'font-weight:700;')).join('')}
-          </div>
-          <div style="display:inline-flex;align-items:center;font-size:12px;color:#555;white-space:nowrap;">⚖️ ${weight.toFixed(2)}t · 📏 ${maxLen.toFixed(2)}m</div>
-        </div>`;
-        truckHtml += `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">`;
-        Object.entries(typeGroups).forEach(([type, reperes]) => {
-          truckHtml += `<div style="display:inline-flex;align-items:center;font-size:12px;font-weight:600;color:#1e3a5f;line-height:1;">${reperes.length}× ${type} :</div>`;
-          reperes.forEach(r => {
-            truckHtml += badgeSmall(r, '#dbeafe', '#1e3a5f');
-          });
-        });
-        truckHtml += `</div>`;
-        if (truck.comment?.trim()) {
-          truckHtml += `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:4px;padding:8px 12px;margin-top:8px;font-size:11px;line-height:1.4;">💬 ${truck.comment}</div>`;
-        }
-        truckHtml += `</div>`;
-        sectionsHtml += truckHtml;
-      });
-    });
-
-    sectionsHtml += `
-      <div data-pdf-section style="margin-top:12px;border:1px solid #e2e8f0;border-radius:6px;padding:10px;background:white;">
-        <h3 style="font-weight:600;margin-bottom:8px;font-size:12px;">Récapitulatif semaine ${weekNumber}</h3>
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;font-size:11px;">
-          <div style="background:#f1f5f9;border-radius:6px;padding:8px;"><div style="color:#64748b;font-size:9px;">Camions</div><div style="font-size:16px;font-weight:700;">${weekTrucks.length}</div></div>
-          <div style="background:#f1f5f9;border-radius:6px;padding:8px;"><div style="color:#64748b;font-size:9px;">Produits</div><div style="font-size:16px;font-weight:700;">${totalProducts}</div>${Object.entries(weekProductCounts).map(([type, count]) => `<div style="font-size:9px;">${count}× ${type}</div>`).join('')}</div>
-          <div style="background:#f1f5f9;border-radius:6px;padding:8px;"><div style="color:#64748b;font-size:9px;">Tonnage</div><div style="font-size:16px;font-weight:700;">${weekWeight.toFixed(2)} t</div></div>
-          <div style="background:#f1f5f9;border-radius:6px;padding:8px;"><div style="color:#64748b;font-size:9px;">Avancement hebdo</div><div style="font-size:16px;font-weight:700;">${totalSiteWeight > 0 ? ((weekWeight / totalSiteWeight) * 100).toFixed(1) : 0} %</div></div>
-          <div style="background:#f1f5f9;border-radius:6px;padding:8px;"><div style="color:#64748b;font-size:9px;">Avancement cumulé</div><div style="font-size:16px;font-weight:700;">${totalSiteWeight > 0 ? ((cumulativeWeight / totalSiteWeight) * 100).toFixed(1) : 0} %</div></div>
-        </div>
-      </div>`;
-
-    const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.left = '-9999px';
-    container.style.top = '0';
-    container.innerHTML = `<div id="pdf-content" style="width:1580px;font-family:Inter,system-ui,sans-serif;color:#1e293b;padding:16px;">${sectionsHtml}</div>`;
-    document.body.appendChild(container);
-
-    try {
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' });
-      await renderSectionsToPdf(container.querySelector('#pdf-content')!, pdf, {
-        pdfWidth: 420, pdfHeight: 297, margin: 8,
-      });
-      pdf.save(`planning_S${weekNumber}_${year}.pdf`);
-    } finally {
-      document.body.removeChild(container);
-    }
   };
 
   return (
