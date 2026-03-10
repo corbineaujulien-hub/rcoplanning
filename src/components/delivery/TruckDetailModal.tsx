@@ -118,7 +118,6 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
                 <p className="text-sm text-muted-foreground flex items-center gap-1"><Factory className="h-3 w-3" />Usine(s)</p>
                 <div className="flex flex-wrap gap-1 mt-1">{factories.length > 0 ? factories.map(f => <span key={f} className="text-white text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: getFactoryColor(f) }}>{f}</span>) : <span className="font-semibold">—</span>}</div>
               </div>
-              </div>
               <div className="bg-muted rounded-lg p-3">
                 <p className="text-sm text-muted-foreground flex items-center gap-1"><Weight className="h-3 w-3" />Poids total</p>
                 <p className="font-semibold">{weight.toFixed(2)} t</p>
