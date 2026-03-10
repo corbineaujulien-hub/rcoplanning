@@ -48,6 +48,7 @@ export default function TruckCompositionTab() {
 
   const filteredElements = useMemo(() => {
     return elements.filter(el => {
+      if (filterRepere && !el.repere.toLowerCase().includes(filterRepere.toLowerCase())) return false;
       if (filterZone && filterZone !== '__all__' && el.zone !== filterZone) return false;
       if (filterType && filterType !== '__all__' && el.productType !== filterType) return false;
       if (filterFactory && filterFactory !== '__all__' && el.factory !== filterFactory) return false;
@@ -55,7 +56,7 @@ export default function TruckCompositionTab() {
       if (filterStatus === 'loaded' && !isElementAssigned(el.id)) return false;
       return true;
     });
-  }, [elements, filterZone, filterType, filterFactory, filterStatus, isElementAssigned]);
+  }, [elements, filterRepere, filterZone, filterType, filterFactory, filterStatus, isElementAssigned]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
