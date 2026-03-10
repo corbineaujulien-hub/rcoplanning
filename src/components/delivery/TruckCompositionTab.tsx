@@ -427,7 +427,7 @@ export default function TruckCompositionTab() {
                     if (!plan) return null;
                     // Match detected repères to elements
                     const matchedElements = plan.detectedReperes
-                      .map(rep => elements.find(el => el.repere.toLowerCase() === rep.toLowerCase()))
+                      .map(rep => elements.find(el => rep.toLowerCase().includes(el.repere.toLowerCase()) || el.repere.toLowerCase().includes(rep.toLowerCase())))
                       .filter(Boolean) as BeamElement[];
                     return (
                       <>
