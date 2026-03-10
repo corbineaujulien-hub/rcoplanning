@@ -711,7 +711,7 @@ export default function TruckCompositionTab() {
               ))}
               {filteredCalendarDays.map(day => {
                 const dateStr = format(day, 'yyyy-MM-dd');
-                const dayTrucks = getTrucksForDate(dateStr);
+                const dayTrucks = getTeamTrucksForDate(dateStr);
                 const inMonth = isSameMonth(day, currentDate);
                 const holiday = isHoliday(dateStr);
                 return (
