@@ -703,6 +703,148 @@ export default function DatabaseTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* PDF Import Dialog */}
+      <Dialog open={pdfDialogOpen} onOpenChange={(open) => { if (!open) resetPdfDialog(); setPdfDialogOpen(open); }}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Importer un plan PDF</DialogTitle>
+            <DialogDescription>
+              Sélectionnez un plan PDF, les zones et types de produits concernés, puis lancez la détection des repères.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* File input */}
+            <div>
+              <Label className="text-xs">Fichier PDF</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <Button variant="outline" size="sm" onClick={() => pdfInputRef.current?.click()}>
+                  <Upload className="h-4 w-4 mr-1" /> Choisir un fichier
+                </Button>
+                {pdfFile && <span className="text-sm text-muted-foreground truncate">{pdfFile.name}</span>}
+              </div>
+            </div>
+
+            {/* Zones multi-select */}
+            <div>
+              <Label className="text-xs">Zones concernées</Label>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {availableZones.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">Aucune zone disponible</span>
+                ) : availableZones.map(zone => (
+                  <label key={zone} className="flex items-center gap-1.5 text-sm cursor-pointer bg-secondary/50 hover:bg-secondary rounded px-2 py-1">
+                    <Checkbox checked={pdfZones.includes(zone)} onCheckedChange={() => togglePdfZone(zone)} />
+                    <span>{zone}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Product types multi-select */}
+            <div>
+              <Label className="text-xs">Types de produits concernés</Label>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {availableProductTypes.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">Aucun type disponible</span>
+                ) : availableProductTypes.map(type => (
+                  <label key={type} className="flex items-center gap-1.5 text-sm cursor-pointer bg-secondary/50 hover:bg-secondary rounded px-2 py-1">
+                    <Checkbox checked={pdfProductTypes.includes(type)} onCheckedChange={() => togglePdfProductType(type)} />
+                    <span>{type}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Import mode */}
+            <div>
+              <Label className="text-xs">Mode d'import</Label>
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <Button
+                  variant={pdfImportMode === 'new' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPdfImportMode('new')}
+                  className="justify-start"
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Nouveau plan
+                </Button>
+                <Button
+                  variant={pdfImportMode === 'replace' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPdfImportMode('replace')}
+                  disabled={plans.length === 0}
+                  className="justify-start"
+                >
+                  <RefreshCw className="h-4 w-4 mr-1" /> Écraser existant
+                </Button>
+              </div>
+              {pdfImportMode === 'replace' && plans.length > 0 && (
+                <Select value={pdfReplaceId} onValueChange={setPdfReplaceId}>
+                  <SelectTrigger className="h-8 text-sm mt-2"><SelectValue placeholder="Sélectionner un plan à écraser" /></SelectTrigger>
+                  <SelectContent>
+                    {plans.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            {/* Results */}
+            {pdfResult && (
+              <div className="space-y-2">
+                <Alert>
+                  <AlertTitle className="text-sm">Résultat de la détection</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    {pdfResult.allDetected.length} repère(s) détecté(s) — {pdfResult.found.length} trouvé(s) dans la base — {pdfResult.notFound.length} non trouvé(s)
+                  </AlertDescription>
+                </Alert>
+                {pdfResult.found.length > 0 && (
+                  <div>
+                    <span className="text-xs font-medium text-primary">Repères trouvés :</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {pdfResult.found.map(r => (
+                        <Badge key={r} variant="secondary" className="text-[10px] font-mono">{r}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {pdfResult.notFound.length > 0 && (
+                  <div>
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle className="text-sm">Repères non trouvés dans la base</AlertTitle>
+                      <AlertDescription>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {pdfResult.notFound.map(r => (
+                            <Badge key={r} variant="outline" className="text-[10px] font-mono border-destructive text-destructive">{r}</Badge>
+                          ))}
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { resetPdfDialog(); setPdfDialogOpen(false); }}>
+              {pdfResult ? 'Fermer' : 'Annuler'}
+            </Button>
+            {!pdfResult && (
+              <Button
+                onClick={handlePdfImport}
+                disabled={!pdfFile || pdfLoading || (pdfImportMode === 'replace' && !pdfReplaceId)}
+              >
+                {pdfLoading ? (
+                  <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Analyse en cours…</>
+                ) : (
+                  <><FileText className="h-4 w-4 mr-1" /> Analyser et importer</>
+                )}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
