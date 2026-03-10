@@ -60,7 +60,7 @@ function DeliveryApp() {
           <TabsContent value="info"><GeneralInfoTab /></TabsContent>
           <TabsContent value="database"><DatabaseTab /></TabsContent>
           <TabsContent value="composition"><TruckCompositionTab /></TabsContent>
-          <TabsContent value="planning"><GeneralPlanningTab /></TabsContent>
+          
           {weeklyTabs.map(w => (
             <TabsContent key={`${w.year}-${w.weekNumber}`} value={`week-${w.year}-${w.weekNumber}`}>
               <WeeklyPlanningTab weekNumber={w.weekNumber} year={w.year} />
