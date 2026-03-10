@@ -307,7 +307,7 @@ export default function TruckCompositionTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex gap-4 h-[calc(100vh-16rem)]">
+      <div className={`flex ${selectionMode === 'plans' && selectedPlanId ? 'flex-col' : 'flex-row'} gap-4 ${selectionMode === 'plans' && selectedPlanId ? '' : 'h-[calc(100vh-16rem)]'}`}>
         {/* Left panel - element list or plans */}
         <Card className={`${selectionMode === 'plans' && selectedPlanId ? 'w-full' : 'w-80'} flex-shrink-0 flex flex-col`}>
           <CardHeader className="pb-2">
