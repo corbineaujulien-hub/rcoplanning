@@ -463,8 +463,8 @@ export default function TruckCompositionTab() {
                           <iframe src={plan.pdfDataUrl} className="w-full h-48 rounded border mb-2" title={plan.name} />
                         )}
                         <div className="space-y-1">
-                          {plan.detectedReperes.map(rep => {
-                            const el = elements.find(e => e.repere.toLowerCase() === rep.toLowerCase());
+                        {plan.detectedReperes.map(rep => {
+                            const el = elements.find(e => rep.toLowerCase().includes(e.repere.toLowerCase()) || e.repere.toLowerCase().includes(rep.toLowerCase()));
                             if (!el) {
                               return (
                                 <div key={rep} className="flex items-center gap-2 p-2 rounded-md text-xs border border-destructive/30 bg-destructive/5 opacity-60">
