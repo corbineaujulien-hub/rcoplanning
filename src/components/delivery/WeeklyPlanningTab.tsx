@@ -260,9 +260,9 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
                         <div className="flex items-center gap-3">
                           <TruckIcon className="h-5 w-5 text-accent" />
                           <span className="font-semibold text-lg">{truck.number}</span>
+                          <span className="text-sm text-muted-foreground">— {truck.time}</span>
                           <span className={`${getCategoryColorClass(cat)} px-2 py-0.5 rounded text-xs font-medium`}>{catInfo.label}</span>
                         </div>
-                        <span className="text-sm text-muted-foreground">{truck.time}</span>
                       </div>
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
@@ -278,11 +278,23 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
                         ))}
                       </div>
 
-                      <div className="flex flex-wrap gap-1">
-                        {els.map(el => (
-                          <span key={el.id} className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-mono">{el.repere}</span>
-                        ))}
-                      </div>
+                      {(() => {
+                        const grouped: Record<string, typeof els> = {};
+                        els.forEach(el => {
+                          if (!grouped[el.productType]) grouped[el.productType] = [];
+                          grouped[el.productType].push(el);
+                        });
+                        return Object.entries(grouped).map(([type, typeEls]) => (
+                          <div key={type} className="space-y-1">
+                            <span className="text-xs font-semibold text-muted-foreground">{type}</span>
+                            <div className="flex flex-wrap gap-1">
+                              {typeEls.map(el => (
+                                <span key={el.id} className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-mono">{el.repere}</span>
+                              ))}
+                            </div>
+                          </div>
+                        ));
+                      })()}
 
                       {truck.comment?.trim() && (
                         <div className="flex items-start gap-1.5 text-sm bg-amber-50 text-amber-800 border border-amber-200 rounded-md p-2">
