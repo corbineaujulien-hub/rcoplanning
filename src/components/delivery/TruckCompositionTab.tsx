@@ -432,7 +432,7 @@ export default function TruckCompositionTab() {
                 );
               })}
             </div>
-          ) : (
+          ) : viewMode === 'week' ? (
             /* Week view: hourly grid */
             <div className="flex-1 overflow-auto border rounded-lg">
               <div className="grid grid-cols-[60px_repeat(7,1fr)] gap-px bg-border min-w-[700px]">
@@ -472,6 +472,80 @@ export default function TruckCompositionTab() {
                   </React.Fragment>
                 ))}
               </div>
+            </div>
+          ) : (
+            /* Day view: detailed truck list */
+            <div className="flex-1 overflow-auto space-y-3">
+              {(() => {
+                const dateStr = format(currentDate, 'yyyy-MM-dd');
+                const dayTrucks = getTrucksForDate(dateStr);
+                if (dayTrucks.length === 0) {
+                  return (
+                    <div
+                      onDragOver={onDragOver}
+                      onDrop={e => onDropOnDay(e, dateStr)}
+                      onDragEnter={onDragEnter}
+                      onDragLeave={onDragLeave}
+                      onClick={() => selectedIds.size > 0 && handleDrop(dateStr)}
+                      className="flex items-center justify-center h-40 border-2 border-dashed border-border rounded-lg text-muted-foreground text-sm cursor-pointer hover:bg-secondary/30"
+                    >
+                      Aucun camion – glissez des repères ici pour créer un camion
+                    </div>
+                  );
+                }
+                return dayTrucks.map(truck => {
+                  const els = getTruckElements(truck.id);
+                  const cat = getTransportCategory(els);
+                  const catInfo = TRANSPORT_CATEGORIES[cat];
+                  const weight = getTruckWeight(els);
+                  const maxLen = getTruckMaxLength(els);
+                  const factories = getTruckFactories(els);
+                  const counts = getProductCountsByType(els);
+                  const isEmpty = els.length === 0;
+                  return (
+                    <Card
+                      key={truck.id}
+                      draggable
+                      onDragStart={e => onTruckDragStart(e, truck.id)}
+                      onClick={() => setDetailTruck(truck)}
+                      className={`cursor-pointer border-l-4 ${isEmpty ? 'border-l-foreground' : cat === 'standard' ? 'border-l-transport-standard' : cat === 'cat1' ? 'border-l-transport-cat1' : cat === 'cat2' ? 'border-l-transport-cat2' : 'border-l-transport-cat3'}`}
+                    >
+                      <CardContent className="pt-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <TruckIcon className="h-5 w-5 text-accent" />
+                            <span className="font-semibold text-lg">{truck.number}</span>
+                            <span className={`${getCategoryColorClass(cat)} px-2 py-0.5 rounded text-xs font-medium`}>{catInfo.label}</span>
+                          </div>
+                          <span className="text-sm text-muted-foreground">{truck.time}</span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                          <div className="flex items-center gap-1"><Factory className="h-4 w-4 text-muted-foreground" /><span>{factories.join(', ') || '—'}</span></div>
+                          <div className="flex items-center gap-1"><Weight className="h-4 w-4 text-muted-foreground" /><span>{weight.toFixed(2)} t</span></div>
+                          <div className="flex items-center gap-1"><Ruler className="h-4 w-4 text-muted-foreground" /><span>{maxLen.toFixed(2)} m</span></div>
+                          <div className="flex items-center gap-1"><Package className="h-4 w-4 text-muted-foreground" /><span>{els.length} produits</span></div>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {Object.entries(counts).map(([type, count]) => (
+                            <span key={type} className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs">{count}× {type}</span>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {els.map(el => (
+                            <span key={el.id} className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-mono">{el.repere} <span className="text-muted-foreground font-sans">({el.productType})</span></span>
+                          ))}
+                        </div>
+                        {truck.comment?.trim() && (
+                          <div className="flex items-start gap-1.5 text-sm text-muted-foreground bg-muted rounded-md p-2">
+                            <MessageSquare className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                            <span>{truck.comment}</span>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                });
+              })()}
             </div>
           )}
         </div>
