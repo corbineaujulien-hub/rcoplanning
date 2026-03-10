@@ -1,1 +1,4 @@
 project_id = "tpsxgpatekltvlszmkpc"
+
+[functions.extract-reperes]
+verify_jwt = false

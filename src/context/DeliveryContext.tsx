@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { ProjectInfo, BeamElement, Truck, DEFAULT_PROJECT_INFO } from '@/types/delivery';
+import { ProjectInfo, BeamElement, Truck, Plan, DEFAULT_PROJECT_INFO } from '@/types/delivery';
 
 interface DeliveryState {
   projectInfo: ProjectInfo;
   elements: BeamElement[];
   trucks: Truck[];
+  plans: Plan[];
 }
 
 interface DeliveryContextType extends DeliveryState {
@@ -24,6 +25,9 @@ interface DeliveryContextType extends DeliveryState {
   getUnassignedElements: () => BeamElement[];
   isElementAssigned: (elementId: string) => boolean;
   getTrucksForDate: (date: string) => Truck[];
+  addPlan: (plan: Plan) => void;
+  updatePlan: (id: string, updates: Partial<Plan>) => void;
+  deletePlan: (id: string) => void;
 }
 
 const STORAGE_KEY = 'rector-delivery-planner';
