@@ -303,10 +303,16 @@ function drawSummary(
   totalSiteWeight: number,
   cumulativeWeight: number
 ) {
-  ensureSpace(ctx, 30);
+  // Compute needed height based on product type count
+  const productTypeCount = Object.keys(weekProductCounts).length;
+  const productSubHeight = productTypeCount * 3.5;
+  const boxH = Math.max(14, 12 + productSubHeight);
+  const totalH = 8 + boxH + 4;
+
+  ensureSpace(ctx, totalH);
   const { pdf, margin, usableWidth } = ctx;
 
-  drawRoundedRect(pdf, margin, ctx.y, usableWidth, 25, 2, '#ffffff', '#e2e8f0');
+  drawRoundedRect(pdf, margin, ctx.y, usableWidth, totalH, 2, '#ffffff', '#e2e8f0');
   pdf.setFontSize(9);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(30, 58, 95);
@@ -314,7 +320,7 @@ function drawSummary(
 
   const colW = (usableWidth - 8) / 5;
   const colY = ctx.y + 8;
-  const labels = ['Camions', 'Produits', 'Tonnage', 'Avancement hebdo', 'Avancement cumulé'];
+  const labels = ['Camions livrés', 'Produits livrés', 'Tonnage semaine', 'Avancement hebdo', 'Avancement cumulé'];
   const values = [
     `${truckCount}`,
     `${totalProducts}`,
@@ -325,7 +331,7 @@ function drawSummary(
 
   labels.forEach((label, i) => {
     const cx = margin + 4 + i * colW;
-    drawRoundedRect(pdf, cx, colY, colW - 2, 14, 1.5, '#f1f5f9');
+    drawRoundedRect(pdf, cx, colY, colW - 2, boxH, 1.5, '#f1f5f9');
     pdf.setFontSize(6);
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(100, 116, 139);
@@ -334,9 +340,21 @@ function drawSummary(
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(30, 41, 59);
     pdf.text(values[i], cx + 2, colY + 10);
+
+    // Sub-details for "Produits livrés"
+    if (i === 1) {
+      let subY = colY + 13;
+      pdf.setFontSize(5.5);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(80, 80, 80);
+      Object.entries(weekProductCounts).forEach(([type, count]) => {
+        pdf.text(`${count}× ${type}`, cx + 2, subY);
+        subY += 3.5;
+      });
+    }
   });
 
-  ctx.y += 28;
+  ctx.y += totalH + 2;
 }
 
 async function loadLogoAsBase64(): Promise<string | null> {
