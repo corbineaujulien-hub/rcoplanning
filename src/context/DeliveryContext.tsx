@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { ProjectInfo, BeamElement, Truck, Plan, DEFAULT_PROJECT_INFO } from '@/types/delivery';
+import { ProjectInfo, BeamElement, Truck, Plan, Team, DEFAULT_PROJECT_INFO } from '@/types/delivery';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -8,6 +8,7 @@ interface DeliveryContextType {
   elements: BeamElement[];
   trucks: Truck[];
   plans: Plan[];
+  teams: Team[];
   projectId: string;
   loading: boolean;
   setProjectInfo: (info: ProjectInfo) => void;
@@ -29,6 +30,9 @@ interface DeliveryContextType {
   addPlan: (plan: Plan) => void;
   updatePlan: (id: string, updates: Partial<Plan>) => void;
   deletePlan: (id: string) => void;
+  addTeam: (team: Team) => void;
+  updateTeam: (id: string, updates: Partial<Team>) => void;
+  deleteTeam: (id: string) => void;
 }
 
 const DeliveryContext = createContext<DeliveryContextType | null>(null);
@@ -44,6 +48,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
   const [elements, setElementsState] = useState<BeamElement[]>([]);
   const [trucks, setTrucksState] = useState<Truck[]>([]);
   const [plans, setPlansState] = useState<Plan[]>([]);
+  const [teams, setTeamsState] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Load initial data
@@ -74,6 +79,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           setTrucksState(trks.map(t => ({
             id: t.id, number: t.number || '', date: t.date || '', time: t.time || '',
             elementIds: (t.element_ids as string[]) || [], comment: t.comment || '',
+            teamId: (t as any).team_id || undefined,
           })));
         }
 
@@ -84,6 +90,21 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
             productTypes: (p.product_types as string[]) || [], detectedReperes: (p.detected_reperes as string[]) || [],
             pdfDataUrl: p.pdf_data_url || '',
           })));
+        }
+
+        // Load teams
+        const { data: tms } = await supabase.from('teams').select('*').eq('project_id', projectId).order('sort_order');
+        if (tms && tms.length > 0) {
+          setTeamsState(tms.map(t => ({
+            id: t.id, projectId: t.project_id, name: t.name, sortOrder: t.sort_order,
+          })));
+        } else {
+          // Create default team if none exist
+          const defaultTeam: Team = { id: crypto.randomUUID(), projectId, name: 'Équipe 1', sortOrder: 0 };
+          await supabase.from('teams').insert({
+            id: defaultTeam.id, project_id: projectId, name: defaultTeam.name, sort_order: 0,
+          });
+          setTeamsState([defaultTeam]);
         }
       } catch (err: any) {
         toast.error('Erreur de chargement : ' + err.message);
@@ -130,11 +151,11 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           const t = payload.new as any;
           setTrucksState(prev => {
             if (prev.some(tr => tr.id === t.id)) return prev;
-            return [...prev, { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '' }];
+            return [...prev, { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined }];
           });
         } else if (payload.eventType === 'UPDATE') {
           const t = payload.new as any;
-          setTrucksState(prev => prev.map(tr => tr.id === t.id ? { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '' } : tr));
+          setTrucksState(prev => prev.map(tr => tr.id === t.id ? { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined } : tr));
         } else if (payload.eventType === 'DELETE') {
           const t = payload.old as any;
           setTrucksState(prev => prev.filter(tr => tr.id !== t.id));
@@ -153,6 +174,21 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
         } else if (payload.eventType === 'DELETE') {
           const p = payload.old as any;
           setPlansState(prev => prev.filter(pl => pl.id !== p.id));
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `project_id=eq.${projectId}` }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const t = payload.new as any;
+          setTeamsState(prev => {
+            if (prev.some(tm => tm.id === t.id)) return prev;
+            return [...prev, { id: t.id, projectId: t.project_id, name: t.name, sortOrder: t.sort_order }].sort((a, b) => a.sortOrder - b.sortOrder);
+          });
+        } else if (payload.eventType === 'UPDATE') {
+          const t = payload.new as any;
+          setTeamsState(prev => prev.map(tm => tm.id === t.id ? { id: t.id, projectId: t.project_id, name: t.name, sortOrder: t.sort_order } : tm).sort((a, b) => a.sortOrder - b.sortOrder));
+        } else if (payload.eventType === 'DELETE') {
+          const t = payload.old as any;
+          setTeamsState(prev => prev.filter(tm => tm.id !== t.id));
         }
       })
       .subscribe();
@@ -229,8 +265,8 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
     await supabase.from('trucks').insert({
       id: truck.id, project_id: projectId, number: truck.number,
       date: truck.date, time: truck.time, element_ids: truck.elementIds,
-      comment: truck.comment || '',
-    });
+      comment: truck.comment || '', team_id: truck.teamId || null,
+    } as any);
   }, [projectId]);
 
   const updateTruck = useCallback(async (id: string, updates: Partial<Truck>) => {
@@ -241,6 +277,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
     if (updates.time !== undefined) dbUpdates.time = updates.time;
     if (updates.elementIds !== undefined) dbUpdates.element_ids = updates.elementIds;
     if (updates.comment !== undefined) dbUpdates.comment = updates.comment;
+    if (updates.teamId !== undefined) dbUpdates.team_id = updates.teamId;
     await supabase.from('trucks').update(dbUpdates).eq('id', id);
   }, []);
 
@@ -314,13 +351,42 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
     await supabase.from('plans').delete().eq('id', id);
   }, []);
 
+  // Team mutations
+  const addTeam = useCallback(async (team: Team) => {
+    setTeamsState(prev => [...prev, team].sort((a, b) => a.sortOrder - b.sortOrder));
+    await supabase.from('teams').insert({
+      id: team.id, project_id: projectId, name: team.name, sort_order: team.sortOrder,
+    });
+  }, [projectId]);
+
+  const updateTeam = useCallback(async (id: string, updates: Partial<Team>) => {
+    setTeamsState(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t).sort((a, b) => a.sortOrder - b.sortOrder));
+    const dbUpdates: any = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.sortOrder !== undefined) dbUpdates.sort_order = updates.sortOrder;
+    await supabase.from('teams').update(dbUpdates).eq('id', id);
+  }, []);
+
+  const deleteTeam = useCallback(async (id: string) => {
+    setTeamsState(prev => prev.filter(t => t.id !== id));
+    // Unassign trucks from this team
+    setTrucksState(prev => {
+      const updated = prev.map(t => t.teamId === id ? { ...t, teamId: undefined } : t);
+      updated.filter(t => t.teamId === undefined && prev.find(pt => pt.id === t.id)?.teamId === id)
+        .forEach(t => supabase.from('trucks').update({ team_id: null } as any).eq('id', t.id));
+      return updated;
+    });
+    await supabase.from('teams').delete().eq('id', id);
+  }, []);
+
   return (
     <DeliveryContext.Provider value={{
-      projectInfo, elements, trucks, plans, projectId, loading,
+      projectInfo, elements, trucks, plans, teams, projectId, loading,
       setProjectInfo, setElements, addElements, updateElement, deleteElement,
       addTruck, updateTruck, deleteTruck, deleteAllTrucks, addElementsToTruck, removeElementFromTruck,
       getElementById, getTruckElements, getUnassignedElements, isElementAssigned, getTrucksForDate,
       addPlan, updatePlan, deletePlan,
+      addTeam, updateTeam, deleteTeam,
     }}>
       {children}
     </DeliveryContext.Provider>

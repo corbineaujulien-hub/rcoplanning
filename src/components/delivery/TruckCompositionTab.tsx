@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
 import { BeamElement, Truck, TRANSPORT_CATEGORIES, TransportCategory, Plan } from '@/types/delivery';
 import { getTransportCategory, getTruckWeight, getCategoryColorClass, isNonStandard, isMultiSite, getTruckMaxLength, getTruckFactories, getProductCountsByType, getFactoryColor } from '@/utils/transportUtils';
@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
-import { ChevronLeft, ChevronRight, GripVertical, Truck as TruckIcon, Filter, X, Trash2, MessageSquare, Search, Weight, Ruler, Factory, Package, FileText, List, ArrowRightLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical, Truck as TruckIcon, Filter, X, Trash2, MessageSquare, Search, Weight, Ruler, Factory, Package, FileText, List, ArrowRightLeft, Users } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, isSameMonth, isSameDay, isToday, getDay, addHours, parse } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import NewTruckModal from './NewTruckModal';
@@ -23,7 +23,19 @@ import { TransportAlertModal, MultiSiteAlertModal } from './AlertModal';
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 6);
 
 export default function TruckCompositionTab() {
-  const { elements, trucks, getTrucksForDate, getTruckElements, addTruck, addElementsToTruck, removeElementFromTruck, deleteTruck, deleteAllTrucks, updateTruck, isElementAssigned, plans, projectInfo } = useDelivery();
+  const { elements, trucks, getTrucksForDate, getTruckElements, addTruck, addElementsToTruck, removeElementFromTruck, deleteTruck, deleteAllTrucks, updateTruck, isElementAssigned, plans, projectInfo, teams } = useDelivery();
+  const hasMultipleTeams = teams.length > 1;
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+
+  // Initialize selected team
+  const activeTeamId = selectedTeamId || (teams.length > 0 ? teams[0].id : null);
+
+  // Filter trucks by selected team when multiple teams exist
+  const filteredTrucks = useMemo(() => {
+    if (!hasMultipleTeams) return trucks;
+    if (!activeTeamId) return trucks;
+    return trucks.filter(t => t.teamId === activeTeamId);
+  }, [trucks, hasMultipleTeams, activeTeamId]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
   const [filterRepere, setFilterRepere] = useState('');
@@ -61,6 +73,13 @@ export default function TruckCompositionTab() {
   const getElementTruck = (elementId: string): Truck | undefined => {
     return trucks.find(t => t.elementIds.includes(elementId));
   };
+
+  // Helper: get trucks for a date, filtered by team if multi-team
+  const getTeamTrucksForDate = useCallback((dateStr: string) => {
+    const dayTrucks = getTrucksForDate(dateStr);
+    if (!hasMultipleTeams || !activeTeamId) return dayTrucks;
+    return dayTrucks.filter(t => t.teamId === activeTeamId);
+  }, [getTrucksForDate, hasMultipleTeams, activeTeamId]);
 
   // State for drag highlight on day view trucks
   const [dragOverTruckId, setDragOverTruckId] = useState<string | null>(null);
@@ -179,7 +198,7 @@ export default function TruckCompositionTab() {
   const handleDrop = (dateStr: string) => {
     const ids = Array.from(selectedIds).filter(id => !isElementAssigned(id));
     if (ids.length === 0) return;
-    const dayTrucks = getTrucksForDate(dateStr);
+    const dayTrucks = getTeamTrucksForDate(dateStr);
     setPendingElementIds(ids);
     setNewTruckDate(dateStr);
     if (dayTrucks.length === 0) {
@@ -224,7 +243,7 @@ export default function TruckCompositionTab() {
 
   const handleNewTruckConfirm = (number: string, time: string) => {
     const truckId = crypto.randomUUID();
-    const newTruck: Truck = { id: truckId, number, date: newTruckDate, time, elementIds: [...pendingElementIds] };
+    const newTruck: Truck = { id: truckId, number, date: newTruckDate, time, elementIds: [...pendingElementIds], teamId: hasMultipleTeams ? activeTeamId || undefined : undefined };
     addTruck(newTruck);
     setShowNewTruck(false);
 
@@ -349,7 +368,7 @@ export default function TruckCompositionTab() {
     const allFactories = new Set<string>();
     const data: Record<string, Record<TransportCategory | 'total', number>> = {};
 
-    trucks.forEach(truck => {
+    filteredTrucks.forEach(truck => {
       const els = getTruckElements(truck.id);
       const cat = getTransportCategory(els);
       const facs = getTruckFactories(els);
@@ -399,6 +418,25 @@ export default function TruckCompositionTab() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Team selector */}
+      {hasMultipleTeams && (
+        <div className="flex items-center gap-2 px-1">
+          <Users className="h-4 w-4 text-muted-foreground" />
+          <div className="flex gap-1">
+            {teams.map(team => (
+              <Button
+                key={team.id}
+                variant={activeTeamId === team.id ? 'default' : 'outline'}
+                size="sm"
+                className="text-xs"
+                onClick={() => setSelectedTeamId(team.id)}
+              >
+                {team.name}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className={`flex ${selectionMode === 'plans' && selectedPlanId ? 'flex-col' : 'flex-row'} gap-4 ${selectionMode === 'plans' && selectedPlanId ? '' : 'h-[calc(100vh-16rem)]'}`}>
         {/* Left panel - element list or plans */}
         <Card className={`${selectionMode === 'plans' && selectedPlanId ? 'w-full' : 'w-80'} flex-shrink-0 flex flex-col`}>
@@ -671,7 +709,7 @@ export default function TruckCompositionTab() {
               ))}
               {filteredCalendarDays.map(day => {
                 const dateStr = format(day, 'yyyy-MM-dd');
-                const dayTrucks = getTrucksForDate(dateStr);
+                const dayTrucks = getTeamTrucksForDate(dateStr);
                 const inMonth = isSameMonth(day, currentDate);
                 const holiday = isHoliday(dateStr);
                 return (
@@ -717,7 +755,7 @@ export default function TruckCompositionTab() {
                     {filteredWeekDays.map(day => {
                       const dateStr = format(day, 'yyyy-MM-dd');
                       const holiday = isHoliday(dateStr);
-                      const hourTrucks = getTrucksForDate(dateStr).filter(t => {
+                      const hourTrucks = getTeamTrucksForDate(dateStr).filter(t => {
                         const h = parseInt(t.time.split(':')[0], 10);
                         return h === hour;
                       });
@@ -743,7 +781,7 @@ export default function TruckCompositionTab() {
             <div className="flex-1 overflow-auto space-y-3">
               {(() => {
                 const dateStr = format(currentDate, 'yyyy-MM-dd');
-                const dayTrucks = getTrucksForDate(dateStr);
+                const dayTrucks = getTeamTrucksForDate(dateStr);
                 if (dayTrucks.length === 0) {
                   return (
                     <div

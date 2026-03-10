@@ -13,10 +13,11 @@ import { exportWeekPdf } from '@/utils/pdfExportUtils';
 interface WeeklyPlanningTabProps {
   weekNumber: number;
   year: number;
+  teamId?: string;
 }
 
-export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTabProps) {
-  const { projectInfo, trucks, elements, getTruckElements } = useDelivery();
+export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPlanningTabProps) {
+  const { projectInfo, trucks, elements, getTruckElements, teams } = useDelivery();
 
   const weekTrucks = useMemo(() => {
     return trucks
@@ -24,10 +25,12 @@ export default function WeeklyPlanningTab({ weekNumber, year }: WeeklyPlanningTa
         const d = parseISO(t.date);
         const wn = parseInt(format(d, 'II'));
         const y = d.getFullYear();
-        return wn === weekNumber && y === year;
+        if (wn !== weekNumber || y !== year) return false;
+        if (teamId !== undefined) return t.teamId === teamId;
+        return true;
       })
       .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
-  }, [trucks, weekNumber, year]);
+  }, [trucks, weekNumber, year, teamId]);
 
   const weekStart = useMemo(() => {
     if (weekTrucks.length === 0) return null;

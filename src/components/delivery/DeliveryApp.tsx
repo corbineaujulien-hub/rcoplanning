@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDelivery } from '@/context/DeliveryContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,9 +15,12 @@ import * as XLSX from 'xlsx';
 import { exportAllWeeksPdf } from '@/utils/pdfExportUtils';
 
 export default function DeliveryApp() {
-  const { trucks, projectInfo, elements, getTruckElements } = useDelivery();
+  const { trucks, projectInfo, elements, getTruckElements, teams } = useDelivery();
   const navigate = useNavigate();
 
+  const hasMultipleTeams = teams.length > 1;
+
+  // Build weekly tabs, optionally per team
   const weeklyTabs = useMemo(() => {
     const weeks = new Map<string, { weekNumber: number; year: number }>();
     trucks.forEach(t => {
@@ -29,6 +32,37 @@ export default function DeliveryApp() {
     });
     return Array.from(weeks.values()).sort((a, b) => a.year - b.year || a.weekNumber - b.weekNumber);
   }, [trucks]);
+
+  // For multi-team: build tabs per team per week
+  const weeklyTeamTabs = useMemo(() => {
+    if (!hasMultipleTeams) return [];
+    const result: { weekNumber: number; year: number; teamId: string; teamName: string }[] = [];
+    weeklyTabs.forEach(w => {
+      teams.forEach(team => {
+        // Check if this team has trucks in this week
+        const hasData = trucks.some(t => {
+          const d = parseISO(t.date);
+          const wn = parseInt(format(d, 'II'));
+          const y = d.getFullYear();
+          return wn === w.weekNumber && y === w.year && t.teamId === team.id;
+        });
+        if (hasData) {
+          result.push({ ...w, teamId: team.id, teamName: team.name });
+        }
+      });
+      // Also check for trucks with no team assigned
+      const hasUnassigned = trucks.some(t => {
+        const d = parseISO(t.date);
+        const wn = parseInt(format(d, 'II'));
+        const y = d.getFullYear();
+        return wn === w.weekNumber && y === w.year && !t.teamId;
+      });
+      if (hasUnassigned) {
+        result.push({ ...w, teamId: '__none__', teamName: 'Sans équipe' });
+      }
+    });
+    return result;
+  }, [weeklyTabs, teams, trucks, hasMultipleTeams]);
 
   const exportAllWeeksExcel = () => {
     const wb = XLSX.utils.book_new();
@@ -46,6 +80,7 @@ export default function DeliveryApp() {
           'Date': t.date,
           'Horaire': t.time,
           'N° Camion': t.number,
+          'Équipe': hasMultipleTeams ? (teams.find(tm => tm.id === t.teamId)?.name || '—') : undefined,
           'Usine': getTruckFactories(els).join(', '),
           'Poids (t)': getTruckWeight(els).toFixed(2),
           'Plus long (m)': getTruckMaxLength(els).toFixed(2),
@@ -96,9 +131,15 @@ export default function DeliveryApp() {
               <TruckIcon className="h-3.5 w-3.5" /> Compo camion
             </TabsTrigger>
             
-            {weeklyTabs.map(w => (
+            {!hasMultipleTeams && weeklyTabs.map(w => (
               <TabsTrigger key={`${w.year}-${w.weekNumber}`} value={`week-${w.year}-${w.weekNumber}`} className="flex items-center gap-1 text-xs">
                 <Calendar className="h-3.5 w-3.5" /> S.{String(w.weekNumber).padStart(2, '0')}
+              </TabsTrigger>
+            ))}
+
+            {hasMultipleTeams && weeklyTeamTabs.map(w => (
+              <TabsTrigger key={`${w.year}-${w.weekNumber}-${w.teamId}`} value={`week-${w.year}-${w.weekNumber}-${w.teamId}`} className="flex items-center gap-1 text-xs">
+                <Calendar className="h-3.5 w-3.5" /> S.{String(w.weekNumber).padStart(2, '0')} {w.teamName}
               </TabsTrigger>
             ))}
 
@@ -118,9 +159,15 @@ export default function DeliveryApp() {
           <TabsContent value="database"><DatabaseTab /></TabsContent>
           <TabsContent value="composition"><TruckCompositionTab /></TabsContent>
           
-          {weeklyTabs.map(w => (
+          {!hasMultipleTeams && weeklyTabs.map(w => (
             <TabsContent key={`${w.year}-${w.weekNumber}`} value={`week-${w.year}-${w.weekNumber}`}>
               <WeeklyPlanningTab weekNumber={w.weekNumber} year={w.year} />
+            </TabsContent>
+          ))}
+
+          {hasMultipleTeams && weeklyTeamTabs.map(w => (
+            <TabsContent key={`${w.year}-${w.weekNumber}-${w.teamId}`} value={`week-${w.year}-${w.weekNumber}-${w.teamId}`}>
+              <WeeklyPlanningTab weekNumber={w.weekNumber} year={w.year} teamId={w.teamId === '__none__' ? undefined : w.teamId} />
             </TabsContent>
           ))}
         </Tabs>
