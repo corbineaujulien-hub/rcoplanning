@@ -808,7 +808,7 @@ export default function DatabaseTab() {
 
       {/* PDF Import Dialog */}
       <Dialog open={pdfDialogOpen} onOpenChange={(open) => { if (!open) resetPdfDialog(); setPdfDialogOpen(open); }}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-auto">
+        <DialogContent className="sm:max-w-4xl w-fit max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Importer un plan PDF</DialogTitle>
             <DialogDescription>
@@ -826,6 +826,41 @@ export default function DatabaseTab() {
                 {pdfFile && <span className="text-sm text-muted-foreground truncate">{pdfFile.name}</span>}
               </div>
             </div>
+
+            {/* PDF preview with drawable canvas */}
+            {pdfPreviewUrl && (
+              <div>
+                <Label className="text-xs">Zone de recherche (dessinez un rectangle pour délimiter la zone)</Label>
+                <div ref={pdfContainerRef} className="relative mt-1 border rounded-md overflow-hidden" style={{ height: '400px' }}>
+                  <iframe src={pdfPreviewUrl} className="w-full h-full" title="Aperçu PDF" />
+                  <canvas
+                    ref={canvasRef}
+                    width={800}
+                    height={600}
+                    className="absolute inset-0 w-full h-full cursor-crosshair"
+                    style={{ zIndex: 10 }}
+                    onMouseDown={handleCanvasMouseDown}
+                    onMouseMove={handleCanvasMouseMove}
+                    onMouseUp={handleCanvasMouseUp}
+                    onMouseLeave={() => { if (isDrawing) { setIsDrawing(false); setDrawStart(null); } }}
+                  />
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  {searchArea ? (
+                    <>
+                      <Badge variant="secondary" className="text-[10px]">
+                        Zone définie : {Math.round(searchArea.x * 100)}%, {Math.round(searchArea.y * 100)}% → {Math.round((searchArea.x + searchArea.width) * 100)}%, {Math.round((searchArea.y + searchArea.height) * 100)}%
+                      </Badge>
+                      <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={clearSearchArea}>
+                        <X className="h-3 w-3 mr-1" /> Réinitialiser
+                      </Button>
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Aucune zone définie — recherche sur tout le document</span>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Zones multi-select */}
             <div>

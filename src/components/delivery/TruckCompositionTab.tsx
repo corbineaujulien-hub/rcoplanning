@@ -458,9 +458,9 @@ export default function TruckCompositionTab() {
                           />
                           <span className="text-xs text-muted-foreground">{selectedIds.size} sélectionné(s)</span>
                         </div>
-                        {/* PDF viewer */}
+                        {/* PDF viewer - large when selected */}
                         {plan.pdfDataUrl && (
-                          <iframe src={plan.pdfDataUrl} className="w-full h-48 rounded border mb-2" title={plan.name} />
+                          <iframe src={plan.pdfDataUrl} className="w-full h-[50vh] rounded border mb-2" title={plan.name} />
                         )}
                         <div className="space-y-1">
                         {plan.detectedReperes.map(rep => {

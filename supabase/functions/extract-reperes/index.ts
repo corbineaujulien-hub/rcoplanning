@@ -28,8 +28,9 @@ Ils identifient des éléments structurels : poteaux, poutres, panneaux, longrin
 
 ${zones?.length ? `Zones concernées par ce plan : ${zones.join(', ')}` : ''}
 ${productTypes?.length ? `Types de produits concernés : ${productTypes.join(', ')}` : ''}
+${searchArea ? `ZONE DE RECHERCHE : Concentre ta recherche UNIQUEMENT dans la zone rectangulaire définie par les coordonnées suivantes (en pourcentage du document) : x=${Math.round(searchArea.x * 100)}%, y=${Math.round(searchArea.y * 100)}%, largeur=${Math.round(searchArea.width * 100)}%, hauteur=${Math.round(searchArea.height * 100)}%. Ignore les repères en dehors de cette zone.` : ''}
 
-IMPORTANT : 
+IMPORTANT :
 - Extrais UNIQUEMENT les identifiants/repères de pièces, pas les cotes, dimensions ou numéros de page.
 - Un repère est un identifiant unique attribué à une pièce préfabriquée.
 - Retourne la liste sans doublons.`;
