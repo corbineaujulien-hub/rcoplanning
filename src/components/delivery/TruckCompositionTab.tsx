@@ -619,7 +619,7 @@ export default function TruckCompositionTab() {
                                       <span className="font-semibold">{el.repere}</span>
                                       <span className="text-muted-foreground font-sans">{el.weight}t</span>
                                       <span className="text-muted-foreground font-sans">{el.length}m</span>
-                                      {assigned && <span className="text-muted-foreground font-sans italic">Chargé</span>}
+                                      {assigned && <span className="text-muted-foreground font-sans italic">Chargé · {getElementTruck(el.id)?.number}</span>}
                                     </div>
                                   );
                                 })}
