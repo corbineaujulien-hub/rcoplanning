@@ -399,7 +399,7 @@ export default function TruckCompositionTab() {
     const els = getTruckElements(truck.id);
     const cat = getTransportCategory(els);
     const weight = getTruckWeight(els);
-    const zones = getTruckZones(els);
+    const counts = getProductCountsByType(els);
     const isSelected = selectedTruckIds.has(truck.id);
     const isEmpty = els.length === 0;
     const hasComment = !!truck.comment?.trim();
@@ -426,10 +426,9 @@ export default function TruckCompositionTab() {
           {showTime && <span className="text-[10px] opacity-80">{truck.time}</span>}
           <span className="ml-auto text-[10px]">{weight.toFixed(1)}t</span>
         </div>
-        {zones.length > 0 && (
-          <div className="flex items-center gap-0.5 pl-4">
-            <MapPin className="h-2.5 w-2.5 flex-shrink-0 opacity-70" />
-            <span className="text-[9px] opacity-80 truncate">{zones.join(', ')}</span>
+        {Object.keys(counts).length > 0 && (
+          <div className="text-[9px] opacity-80 pl-4 truncate">
+            {Object.entries(counts).map(([type, count]) => `${type} (${count})`).join(', ')}
           </div>
         )}
       </div>
