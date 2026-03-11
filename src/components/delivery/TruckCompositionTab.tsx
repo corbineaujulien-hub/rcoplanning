@@ -17,7 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
 import { ChevronLeft, ChevronRight, GripVertical, Truck as TruckIcon, Filter, X, Trash2, MessageSquare, Search, Weight, Ruler, Factory, Package, FileText, List, ArrowRightLeft, Users } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, isSameMonth, isSameDay, isToday, getDay, addHours, parse } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, isSameMonth, isSameDay, isToday, getDay, addHours, parse, getISOWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import NewTruckModal from './NewTruckModal';
 import TruckDetailModal from './TruckDetailModal';
@@ -764,7 +764,23 @@ export default function TruckCompositionTab() {
             <div className="flex gap-1">
               <Button variant={viewMode === 'month' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('month')}>Mois</Button>
               <Button variant={viewMode === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('week')}>Semaine</Button>
-              <Button variant={viewMode === 'day' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('day')}>Jour</Button>
+              <Button variant={viewMode === 'day' ? 'default' : 'outline'} size="sm" onClick={() => {
+                // Smart day selection: find first day with trucks in current view
+                if (viewMode === 'month') {
+                  const monthStart = startOfMonth(currentDate);
+                  const monthEnd = endOfMonth(currentDate);
+                  const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+                  const firstDayWithTrucks = monthDays.find(d => getTeamTrucksForDate(format(d, 'yyyy-MM-dd')).length > 0);
+                  if (firstDayWithTrucks) setCurrentDate(firstDayWithTrucks);
+                } else if (viewMode === 'week') {
+                  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+                  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+                  const weekDaysRange = eachDayOfInterval({ start: weekStart, end: weekEnd });
+                  const firstDayWithTrucks = weekDaysRange.find(d => getTeamTrucksForDate(format(d, 'yyyy-MM-dd')).length > 0);
+                  if (firstDayWithTrucks) setCurrentDate(firstDayWithTrucks);
+                }
+                setViewMode('day');
+              }}>Jour</Button>
               {trucks.length > 0 && (
                 <>
                   {hasMultipleTeams && (
@@ -785,35 +801,59 @@ export default function TruckCompositionTab() {
 
           {viewMode === 'month' ? (
             <div className="flex-1 overflow-auto">
-            <div className={`grid gap-px bg-border rounded-lg overflow-hidden`} style={{ gridTemplateColumns: `repeat(${gridCols}, 1fr)` }}>
+            <div className={`grid gap-px bg-border rounded-lg overflow-hidden`} style={{ gridTemplateColumns: `40px repeat(${gridCols}, 1fr)` }}>
+              {/* Week number header */}
+              <div className="bg-muted text-muted-foreground text-center text-xs font-medium py-2">Sem.</div>
               {dayNames.map(d => (
                 <div key={d} className="bg-primary text-primary-foreground text-center text-xs font-medium py-2">{d}</div>
               ))}
-              {filteredCalendarDays.map(day => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                const dayTrucks = getTeamTrucksForDate(dateStr);
-                const inMonth = isSameMonth(day, currentDate);
-                const holiday = isHoliday(dateStr);
-                return (
-                  <div
-                    key={dateStr}
-                    onDragOver={onDragOver}
-                    onDrop={e => onDropOnDay(e, dateStr)}
-                    onDragEnter={onDragEnter}
-                    onDragLeave={onDragLeave}
-                    onClick={() => selectedIds.size > 0 && handleDrop(dateStr)}
-                    className={`bg-card p-1 min-h-[80px] ${!inMonth ? 'opacity-40' : ''} ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''} ${holiday ? 'bg-muted/60' : ''} transition-colors cursor-pointer hover:bg-secondary/30`}
-                  >
-                    <div className={`text-xs font-medium mb-1 ${isToday(day) ? 'text-accent' : holiday ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
-                      {format(day, 'd')}
-                      {holiday && <span className="ml-1 text-[9px] italic">férié</span>}
-                    </div>
-                    <div className="space-y-1">
-                      {dayTrucks.map(truck => renderTruckBadge(truck, true))}
-                    </div>
-                  </div>
-                );
-              })}
+              {/* Group days by week and render with week number */}
+              {(() => {
+                const weeks: Date[][] = [];
+                for (let i = 0; i < filteredCalendarDays.length; i += gridCols) {
+                  weeks.push(filteredCalendarDays.slice(i, i + gridCols));
+                }
+                return weeks.map((weekDaysGroup, wi) => {
+                  const weekNum = getISOWeek(weekDaysGroup[0]);
+                  return (
+                    <React.Fragment key={`week-${wi}`}>
+                      <div className="bg-muted text-muted-foreground text-center text-[10px] font-semibold flex items-center justify-center">
+                        S{weekNum}
+                      </div>
+                      {weekDaysGroup.map(day => {
+                        const dateStr = format(day, 'yyyy-MM-dd');
+                        const dayTrucks = getTeamTrucksForDate(dateStr);
+                        const inMonth = isSameMonth(day, currentDate);
+                        const holiday = isHoliday(dateStr);
+                        return (
+                          <div
+                            key={dateStr}
+                            onDragOver={onDragOver}
+                            onDrop={e => onDropOnDay(e, dateStr)}
+                            onDragEnter={onDragEnter}
+                            onDragLeave={onDragLeave}
+                            onClick={() => selectedIds.size > 0 && handleDrop(dateStr)}
+                            onDoubleClick={e => {
+                              e.stopPropagation();
+                              setCurrentDate(day);
+                              setViewMode('day');
+                            }}
+                            className={`bg-card p-1 min-h-[80px] ${!inMonth ? 'opacity-40' : ''} ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''} ${holiday ? 'bg-muted/60' : ''} transition-colors cursor-pointer hover:bg-secondary/30`}
+                          >
+                            <div className={`text-xs font-medium mb-1 ${isToday(day) ? 'text-accent' : holiday ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
+                              {format(day, 'd')}
+                              {holiday && <span className="ml-1 text-[9px] italic">férié</span>}
+                            </div>
+                            <div className="space-y-1">
+                              {dayTrucks.map(truck => renderTruckBadge(truck, true))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                });
+              })()}
             </div>
             </div>
           ) : viewMode === 'week' ? (
@@ -824,7 +864,14 @@ export default function TruckCompositionTab() {
                   const dateStr = format(day, 'yyyy-MM-dd');
                   const holiday = isHoliday(dateStr);
                   return (
-                    <div key={dateStr} className={`bg-primary text-primary-foreground text-center text-xs font-medium py-2 ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''} ${holiday ? 'opacity-70' : ''}`}>
+                    <div key={dateStr} className={`bg-primary text-primary-foreground text-center text-xs font-medium py-2 ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''} ${holiday ? 'opacity-70' : ''}`}
+                      onDoubleClick={e => {
+                        e.stopPropagation();
+                        setCurrentDate(day);
+                        setViewMode('day');
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
                       {format(day, 'EEE dd/MM', { locale: fr })}
                       {holiday && <span className="block text-[9px] italic opacity-80">férié</span>}
                     </div>
@@ -850,6 +897,11 @@ export default function TruckCompositionTab() {
                           onDragEnter={onDragEnter}
                           onDragLeave={onDragLeave}
                           onClick={() => selectedIds.size > 0 && handleDrop(dateStr)}
+                          onDoubleClick={e => {
+                            e.stopPropagation();
+                            setCurrentDate(day);
+                            setViewMode('day');
+                          }}
                           className={`bg-card p-0.5 min-h-[40px] border-t border-border transition-colors hover:bg-secondary/30 ${holiday ? 'bg-muted/40' : ''}`}
                         >
                           {hourTrucks.map(truck => renderTruckBadge(truck))}

@@ -17,9 +17,29 @@ interface NewTruckModalProps {
 }
 
 export default function NewTruckModal({ open, onClose, onConfirm, date, trucks = [], teamTrucks }: NewTruckModalProps) {
+  // Compute next auto-increment number
+  const nextNumber = useMemo(() => {
+    if (trucks.length === 0) return '1';
+    const nums = trucks.map(t => {
+      const n = parseInt(t.number, 10);
+      return isNaN(n) ? 0 : n;
+    });
+    return String(Math.max(...nums) + 1);
+  }, [trucks]);
+
   const [number, setNumber] = useState('');
   const [time, setTime] = useState('08:00');
   const [showTimeConflict, setShowTimeConflict] = useState(false);
+
+  // Pre-fill number when modal opens
+  const [lastOpen, setLastOpen] = useState(false);
+  if (open && !lastOpen) {
+    setNumber(nextNumber);
+    setLastOpen(true);
+  }
+  if (!open && lastOpen) {
+    setLastOpen(false);
+  }
 
   const isDuplicate = useMemo(() => {
     if (!number.trim()) return false;
@@ -40,14 +60,12 @@ export default function NewTruckModal({ open, onClose, onConfirm, date, trucks =
 
   const doConfirm = () => {
     onConfirm(number.trim(), time);
-    setNumber('');
     setTime('08:00');
     setShowTimeConflict(false);
   };
 
   const handleClose = () => {
     setShowTimeConflict(false);
-    setNumber('');
     setTime('08:00');
     onClose();
   };
