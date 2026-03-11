@@ -9,8 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useDelivery } from '@/context/DeliveryContext';
 import { Truck, TRANSPORT_CATEGORIES } from '@/types/delivery';
-import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getProductCountsByType, getCategoryColorClass, getFactoryColor } from '@/utils/transportUtils';
-import { Truck as TruckIcon, Weight, Ruler, Factory, Package, Trash2, X, Pencil, MessageSquare, Users } from 'lucide-react';
+import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getProductCountsByType, getCategoryColorClass, getFactoryColor } from '@/utils/transportUtils';
+import { Truck as TruckIcon, Weight, Ruler, Factory, Package, Trash2, X, Pencil, MessageSquare, Users, MapPin } from 'lucide-react';
 
 interface TruckDetailModalProps {
   open: boolean;
@@ -41,6 +41,7 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
   const weight = getTruckWeight(elements);
   const maxLen = getTruckMaxLength(elements);
   const factories = getTruckFactories(elements);
+  const truckZones = getTruckZones(elements);
   const counts = getProductCountsByType(elements);
   const catInfo = TRANSPORT_CATEGORIES[category];
 
@@ -164,7 +165,17 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
               </div>
             </div>
 
-            {/* Team assignment */}
+            {truckZones.length > 0 && (
+              <div className="bg-muted rounded-lg p-3">
+                <p className="text-sm text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />Zone(s)</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {truckZones.map(z => (
+                    <span key={z} className="bg-secondary text-secondary-foreground text-xs font-medium px-2 py-0.5 rounded">{z}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {hasMultipleTeams && (
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-muted-foreground" />
