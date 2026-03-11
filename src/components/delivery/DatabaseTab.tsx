@@ -377,6 +377,8 @@ export default function DatabaseTab() {
     factory: elements.map(el => el.factory),
   }), [elements]);
 
+  const hasActiveFilters = useMemo(() => Object.values(filters).some(s => s.size > 0), [filters]);
+
   const totalLength = filteredElements.reduce((s, el) => s + el.length, 0);
   const totalWeight = filteredElements.reduce((s, el) => s + el.weight, 0);
 
