@@ -692,6 +692,20 @@ export default function TruckCompositionTab() {
                           />
                           <span className="text-xs text-muted-foreground">{selectedIds.size} sélectionné(s) / {matchedElements.length} repères</span>
                         </div>
+                        {selectedIds.size > 0 && (() => {
+                          const selEls = elements.filter(e => selectedIds.has(e.id));
+                          const selWeight = selEls.reduce((s, e) => s + e.weight, 0);
+                          const selMaxLen = selEls.length > 0 ? Math.max(...selEls.map(e => e.length)) : 0;
+                          const selCat = getTransportCategory(selEls);
+                          const selCatInfo = TRANSPORT_CATEGORIES[selCat];
+                          return (
+                            <div className="flex flex-wrap items-center gap-1.5 mb-2 px-1">
+                              <Badge variant="secondary" className="text-[10px]"><Weight className="h-3 w-3 mr-0.5" />{selWeight.toFixed(2)} t</Badge>
+                              <Badge variant="secondary" className="text-[10px]"><Ruler className="h-3 w-3 mr-0.5" />{selMaxLen.toFixed(2)} m</Badge>
+                              <Badge className={`text-[10px] ${getCategoryColorClass(selCat)}`}>{selCatInfo.label}</Badge>
+                            </div>
+                          );
+                        })()}
                         {/* Badges grouped by product type */}
                         <div className="space-y-3">
                           {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([type, els]) => (
