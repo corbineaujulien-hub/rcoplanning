@@ -29,6 +29,10 @@ export function getTruckFactories(elements: BeamElement[]): string[] {
   return [...new Set(elements.map(el => el.factory).filter(Boolean))];
 }
 
+export function getTruckZones(elements: BeamElement[]): string[] {
+  return [...new Set(elements.map(el => el.zone).filter(Boolean))];
+}
+
 export function getProductCountsByType(elements: BeamElement[]): Record<string, number> {
   const counts: Record<string, number> = {};
   elements.forEach(el => {
