@@ -50,26 +50,26 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
   }
 
   const handleStartEdit = () => {
-    setEditDate(truck.date);
-    setEditTime(truck.time);
+    setEditDate(liveTruck.date);
+    setEditTime(liveTruck.time);
     setEditing(true);
   };
 
   const handleSaveEdit = () => {
     if (editDate && editTime) {
-      updateTruck(truck.id, { date: editDate, time: editTime });
+      updateTruck(liveTruck.id, { date: editDate, time: editTime });
     }
     setEditing(false);
   };
 
   const handleStartEditNumber = () => {
-    setEditNumber(truck.number);
+    setEditNumber(liveTruck.number);
     setEditingNumber(true);
   };
 
   const handleSaveNumber = () => {
-    if (editNumber.trim() && editNumber !== truck.number) {
-      updateTruck(truck.id, { number: editNumber.trim() });
+    if (editNumber.trim() && editNumber !== liveTruck.number && !isDuplicateNumber) {
+      updateTruck(liveTruck.id, { number: editNumber.trim() });
     }
     setEditingNumber(false);
   };
