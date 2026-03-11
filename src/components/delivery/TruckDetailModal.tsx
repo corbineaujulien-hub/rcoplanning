@@ -75,26 +75,26 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
   };
 
   const handleDelete = () => {
-    deleteTruck(truck.id);
+    deleteTruck(liveTruck.id);
     setConfirmDelete(false);
     onClose();
   };
 
   const handleRemoveElement = (elementId: string) => {
-    removeElementFromTruck(truck.id, elementId);
+    removeElementFromTruck(liveTruck.id, elementId);
   };
 
   const handleCommentBlur = () => {
-    if (comment !== (truck.comment || '')) {
-      updateTruck(truck.id, { comment });
+    if (comment !== (liveTruck.comment || '')) {
+      updateTruck(liveTruck.id, { comment });
     }
     setCommentDirty(false);
   };
 
   const handleClose = () => {
     // Save comment on close if dirty
-    if (commentDirty && comment !== (truck.comment || '')) {
-      updateTruck(truck.id, { comment });
+    if (commentDirty && comment !== (liveTruck.comment || '')) {
+      updateTruck(liveTruck.id, { comment });
     }
     setCommentDirty(false);
     setEditing(false);
