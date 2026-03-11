@@ -45,8 +45,8 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
   const catInfo = TRANSPORT_CATEGORIES[category];
 
   // Sync comment state when truck changes
-  if (!commentDirty && comment !== (truck.comment || '')) {
-    setComment(truck.comment || '');
+  if (!commentDirty && comment !== (liveTruck.comment || '')) {
+    setComment(liveTruck.comment || '');
   }
 
   const handleStartEdit = () => {
