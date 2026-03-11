@@ -801,35 +801,59 @@ export default function TruckCompositionTab() {
 
           {viewMode === 'month' ? (
             <div className="flex-1 overflow-auto">
-            <div className={`grid gap-px bg-border rounded-lg overflow-hidden`} style={{ gridTemplateColumns: `repeat(${gridCols}, 1fr)` }}>
+            <div className={`grid gap-px bg-border rounded-lg overflow-hidden`} style={{ gridTemplateColumns: `40px repeat(${gridCols}, 1fr)` }}>
+              {/* Week number header */}
+              <div className="bg-muted text-muted-foreground text-center text-xs font-medium py-2">Sem.</div>
               {dayNames.map(d => (
                 <div key={d} className="bg-primary text-primary-foreground text-center text-xs font-medium py-2">{d}</div>
               ))}
-              {filteredCalendarDays.map(day => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                const dayTrucks = getTeamTrucksForDate(dateStr);
-                const inMonth = isSameMonth(day, currentDate);
-                const holiday = isHoliday(dateStr);
-                return (
-                  <div
-                    key={dateStr}
-                    onDragOver={onDragOver}
-                    onDrop={e => onDropOnDay(e, dateStr)}
-                    onDragEnter={onDragEnter}
-                    onDragLeave={onDragLeave}
-                    onClick={() => selectedIds.size > 0 && handleDrop(dateStr)}
-                    className={`bg-card p-1 min-h-[80px] ${!inMonth ? 'opacity-40' : ''} ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''} ${holiday ? 'bg-muted/60' : ''} transition-colors cursor-pointer hover:bg-secondary/30`}
-                  >
-                    <div className={`text-xs font-medium mb-1 ${isToday(day) ? 'text-accent' : holiday ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
-                      {format(day, 'd')}
-                      {holiday && <span className="ml-1 text-[9px] italic">férié</span>}
-                    </div>
-                    <div className="space-y-1">
-                      {dayTrucks.map(truck => renderTruckBadge(truck, true))}
-                    </div>
-                  </div>
-                );
-              })}
+              {/* Group days by week and render with week number */}
+              {(() => {
+                const weeks: Date[][] = [];
+                for (let i = 0; i < filteredCalendarDays.length; i += gridCols) {
+                  weeks.push(filteredCalendarDays.slice(i, i + gridCols));
+                }
+                return weeks.map((weekDaysGroup, wi) => {
+                  const weekNum = getISOWeek(weekDaysGroup[0]);
+                  return (
+                    <React.Fragment key={`week-${wi}`}>
+                      <div className="bg-muted text-muted-foreground text-center text-[10px] font-semibold flex items-center justify-center">
+                        S{weekNum}
+                      </div>
+                      {weekDaysGroup.map(day => {
+                        const dateStr = format(day, 'yyyy-MM-dd');
+                        const dayTrucks = getTeamTrucksForDate(dateStr);
+                        const inMonth = isSameMonth(day, currentDate);
+                        const holiday = isHoliday(dateStr);
+                        return (
+                          <div
+                            key={dateStr}
+                            onDragOver={onDragOver}
+                            onDrop={e => onDropOnDay(e, dateStr)}
+                            onDragEnter={onDragEnter}
+                            onDragLeave={onDragLeave}
+                            onClick={() => selectedIds.size > 0 && handleDrop(dateStr)}
+                            onDoubleClick={e => {
+                              e.stopPropagation();
+                              setCurrentDate(day);
+                              setViewMode('day');
+                            }}
+                            className={`bg-card p-1 min-h-[80px] ${!inMonth ? 'opacity-40' : ''} ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''} ${holiday ? 'bg-muted/60' : ''} transition-colors cursor-pointer hover:bg-secondary/30`}
+                          >
+                            <div className={`text-xs font-medium mb-1 ${isToday(day) ? 'text-accent' : holiday ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
+                              {format(day, 'd')}
+                              {holiday && <span className="ml-1 text-[9px] italic">férié</span>}
+                            </div>
+                            <div className="space-y-1">
+                              {dayTrucks.map(truck => renderTruckBadge(truck, true))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                });
+              })()}
             </div>
             </div>
           ) : viewMode === 'week' ? (
