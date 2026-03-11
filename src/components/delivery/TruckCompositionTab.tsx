@@ -451,9 +451,9 @@ export default function TruckCompositionTab() {
       <div className={`flex ${selectionMode === 'plans' && selectedPlanId ? 'flex-col' : 'flex-row'} gap-4 ${selectionMode === 'plans' && selectedPlanId ? '' : 'h-[calc(100vh-16rem)]'}`}>
         {/* Left panel - element list or plans */}
         <Card className={`${selectionMode === 'plans' && selectedPlanId ? 'w-full' : 'w-80'} flex-shrink-0 flex flex-col`}>
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-1">
             {/* Toggle between list and plans */}
-            <div className="flex gap-1 mb-2">
+            <div className="flex gap-1 mb-1">
               <Button variant={selectionMode === 'list' ? 'default' : 'outline'} size="sm" className="flex-1 text-xs" onClick={() => setSelectionMode('list')}>
                 <List className="h-3.5 w-3.5 mr-1" /> Liste
               </Button>
@@ -464,84 +464,161 @@ export default function TruckCompositionTab() {
 
             {selectionMode === 'list' && (
               <>
-                <CardTitle className="text-sm flex items-center gap-1">
-                  <Filter className="h-4 w-4 text-accent" /> Repères disponibles
-                </CardTitle>
-                <div className="space-y-2 mt-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={`h-8 text-xs w-full justify-start ${filterZone.size > 0 ? 'border-primary text-primary' : ''}`}>
-                        <Filter className="h-3 w-3 mr-1" />
-                        {filterZone.size > 0 ? `Zone (${filterZone.size})` : 'Zone'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="start">
-                      <div className="space-y-1">
-                        {zones.map(z => (
-                          <label key={z} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
-                            <Checkbox checked={filterZone.has(z)} onCheckedChange={() => setFilterZone(prev => { const next = new Set(prev); next.has(z) ? next.delete(z) : next.add(z); return next; })} />
-                            <span className="truncate">{z || '(vide)'}</span>
-                          </label>
-                        ))}
+                <Collapsible defaultOpen={false}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="w-full justify-between text-xs h-7 px-2">
+                      <span className="flex items-center gap-1"><Filter className="h-3 w-3" /> Filtres {hasAnyFilter ? `(${[filterZone.size, filterType.size, filterFactory.size, filterStatus !== 'all' ? 1 : 0].reduce((a, b) => a + b, 0)} actif${[filterZone.size, filterType.size, filterFactory.size, filterStatus !== 'all' ? 1 : 0].reduce((a, b) => a + b, 0) > 1 ? 's' : ''})` : ''}</span>
+                      <ChevronDown className="h-3 w-3 transition-transform" />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="space-y-1.5 mt-1.5">
+                      <div className="grid grid-cols-2 gap-1">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className={`h-7 text-[11px] justify-start ${filterZone.size > 0 ? 'border-primary text-primary' : ''}`}>
+                              {filterZone.size > 0 ? `Zone (${filterZone.size})` : 'Zone'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="start">
+                            <div className="space-y-1">
+                              {zones.map(z => (
+                                <label key={z} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                                  <Checkbox checked={filterZone.has(z)} onCheckedChange={() => setFilterZone(prev => { const next = new Set(prev); next.has(z) ? next.delete(z) : next.add(z); return next; })} />
+                                  <span className="truncate">{z || '(vide)'}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className={`h-7 text-[11px] justify-start ${filterType.size > 0 ? 'border-primary text-primary' : ''}`}>
+                              {filterType.size > 0 ? `Type (${filterType.size})` : 'Type'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="start">
+                            <div className="space-y-1">
+                              {productTypes.map(t => (
+                                <label key={t} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                                  <Checkbox checked={filterType.has(t)} onCheckedChange={() => setFilterType(prev => { const next = new Set(prev); next.has(t) ? next.delete(t) : next.add(t); return next; })} />
+                                  <span className="truncate">{t}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className={`h-7 text-[11px] justify-start ${filterFactory.size > 0 ? 'border-primary text-primary' : ''}`}>
+                              {filterFactory.size > 0 ? `Usine (${filterFactory.size})` : 'Usine'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="start">
+                            <div className="space-y-1">
+                              {factoryList.map(f => (
+                                <label key={f} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                                  <Checkbox checked={filterFactory.has(f)} onCheckedChange={() => setFilterFactory(prev => { const next = new Set(prev); next.has(f) ? next.delete(f) : next.add(f); return next; })} />
+                                  <span className="truncate">{f}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                        <Select value={filterStatus} onValueChange={v => setFilterStatus(v as any)}>
+                          <SelectTrigger className={`h-7 text-[11px] ${filterStatus !== 'all' ? 'border-primary text-primary' : ''}`}><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Tous</SelectItem>
+                            <SelectItem value="unloaded">Non chargé</SelectItem>
+                            <SelectItem value="loaded">Chargé</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </PopoverContent>
-                  </Popover>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={`h-8 text-xs w-full justify-start ${filterType.size > 0 ? 'border-primary text-primary' : ''}`}>
-                        <Filter className="h-3 w-3 mr-1" />
-                        {filterType.size > 0 ? `Type (${filterType.size})` : 'Type'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="start">
-                      <div className="space-y-1">
-                        {productTypes.map(t => (
-                          <label key={t} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
-                            <Checkbox checked={filterType.has(t)} onCheckedChange={() => setFilterType(prev => { const next = new Set(prev); next.has(t) ? next.delete(t) : next.add(t); return next; })} />
-                            <span className="truncate">{t}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={`h-8 text-xs w-full justify-start ${filterFactory.size > 0 ? 'border-primary text-primary' : ''}`}>
-                        <Filter className="h-3 w-3 mr-1" />
-                        {filterFactory.size > 0 ? `Usine (${filterFactory.size})` : 'Usine'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="start">
-                      <div className="space-y-1">
-                        {factoryList.map(f => (
-                          <label key={f} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
-                            <Checkbox checked={filterFactory.has(f)} onCheckedChange={() => setFilterFactory(prev => { const next = new Set(prev); next.has(f) ? next.delete(f) : next.add(f); return next; })} />
-                            <span className="truncate">{f}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                  <Select value={filterStatus} onValueChange={v => setFilterStatus(v as any)}>
-                    <SelectTrigger className={`h-8 text-xs ${filterStatus !== 'all' ? 'border-primary text-primary' : ''}`}><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tous</SelectItem>
-                      <SelectItem value="unloaded">Non chargé</SelectItem>
-                      <SelectItem value="loaded">Chargé</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant={hasAnyFilter ? 'default' : 'outline'}
-                    size="sm"
-                    className="w-full text-xs"
-                    onClick={() => { setFilterRepere(''); setFilterZone(new Set()); setFilterType(new Set()); setFilterFactory(new Set()); setFilterStatus('all'); }}
-                  >
-                    <X className="h-3 w-3 mr-1" /> Réinitialiser filtres
-                  </Button>
+                      {hasAnyFilter && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="w-full text-xs h-6"
+                          onClick={() => { setFilterRepere(''); setFilterZone(new Set()); setFilterType(new Set()); setFilterFactory(new Set()); setFilterStatus('all'); }}
+                        >
+                          <X className="h-3 w-3 mr-1" /> Réinitialiser
+                        </Button>
+                      )}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+
+                {/* Sticky search + selection info */}
+                <div className="relative mt-1.5">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input placeholder="Rechercher repère…" value={filterRepere} onChange={e => setFilterRepere(e.target.value)} className="h-7 text-xs pl-7" />
                 </div>
+                <div className="flex items-center gap-2 mt-1 px-1">
+                  <Checkbox checked={selectedIds.size > 0 && selectedIds.size === filteredElements.filter(e => !isElementAssigned(e.id)).length} onCheckedChange={selectAll} />
+                  <span className="text-xs text-muted-foreground">{selectedIds.size} sélectionné(s) / {filteredElements.length}</span>
+                </div>
+                {selectedIds.size > 0 && (() => {
+                  const selEls = elements.filter(e => selectedIds.has(e.id));
+                  const selWeight = selEls.reduce((s, e) => s + e.weight, 0);
+                  const selMaxLen = selEls.length > 0 ? Math.max(...selEls.map(e => e.length)) : 0;
+                  const selCat = getTransportCategory(selEls);
+                  const selCatInfo = TRANSPORT_CATEGORIES[selCat];
+                  return (
+                    <div className="flex flex-wrap items-center gap-1 mt-1 px-1">
+                      <Badge variant="secondary" className="text-[10px]"><Weight className="h-3 w-3 mr-0.5" />{selWeight.toFixed(2)} t</Badge>
+                      <Badge variant="secondary" className="text-[10px]"><Ruler className="h-3 w-3 mr-0.5" />{selMaxLen.toFixed(2)} m</Badge>
+                      <Badge className={`text-[10px] ${getCategoryColorClass(selCat)}`}>{selCatInfo.label}</Badge>
+                    </div>
+                  );
+                })()}
               </>
             )}
 
+            {selectionMode === 'plans' && (
+              <CardTitle className="text-sm flex items-center gap-1">
+                <FileText className="h-4 w-4 text-accent" /> Sélection par plan
+              </CardTitle>
+            )}
+          </CardHeader>
+          <CardContent className="flex-1 overflow-auto p-2">
+            {selectionMode === 'list' ? (
+              <>
+                {/* Badges grouped by product type */}
+                <div className="space-y-3">
+                  {Object.entries(groupByType(filteredElements)).sort(([a], [b]) => a.localeCompare(b)).map(([type, els]) => (
+                    <div key={type}>
+                      <div className="text-[11px] font-semibold text-muted-foreground mb-1 px-1">{type} ({els.length})</div>
+                      <div className="flex flex-wrap gap-1">
+                        {els.map(el => {
+                          const assigned = isElementAssigned(el.id);
+                          const selected = selectedIds.has(el.id);
+                          return (
+                            <div
+                              key={el.id}
+                              draggable={!assigned}
+                              onDragStart={e => onDragStart(e, el.id)}
+                              onClick={() => !assigned && toggleSelect(el.id)}
+                              className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono cursor-pointer border transition-colors ${
+                                assigned
+                                  ? 'bg-muted/50 opacity-50 cursor-default border-transparent'
+                                  : selected
+                                    ? 'bg-accent/20 border-accent ring-1 ring-accent/30'
+                                    : 'bg-secondary/50 hover:bg-secondary border-transparent'
+                              }`}
+                            >
+                              <span className="font-semibold">{el.repere}</span>
+                              <span className="text-muted-foreground font-sans">{el.weight}t</span>
+                              <span className="text-muted-foreground font-sans">{el.length}m</span>
+                              {assigned && <span className="text-muted-foreground font-sans italic">Chargé · {getElementTruck(el.id)?.number}</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
             {selectionMode === 'plans' && (
               <CardTitle className="text-sm flex items-center gap-1">
                 <FileText className="h-4 w-4 text-accent" /> Sélection par plan
