@@ -1,10 +1,10 @@
 import { useMemo, useCallback } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
-import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getProductCountsByType, getCategoryColorClass, getFactoryColor } from '@/utils/transportUtils';
+import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getProductCountsByType, getCategoryColorClass, getFactoryColor } from '@/utils/transportUtils';
 import { TRANSPORT_CATEGORIES, BeamElement } from '@/types/delivery';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Truck as TruckIcon, Weight, Ruler, Factory, Package, FileSpreadsheet, Download, MessageSquare } from 'lucide-react';
+import { Truck as TruckIcon, Weight, Ruler, Factory, Package, FileSpreadsheet, Download, MessageSquare, MapPin } from 'lucide-react';
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
@@ -158,6 +158,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
                 const weight = getTruckWeight(els);
                 const maxLen = getTruckMaxLength(els);
                 const factories = getTruckFactories(els);
+                const truckZones = getTruckZones(els);
                 const counts = getProductCountsByType(els);
 
                 return (
@@ -179,6 +180,14 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
                         <div className="flex items-center gap-1"><Package className="h-4 w-4 text-muted-foreground" /><span>{els.length} produits</span></div>
                       </div>
 
+                      {truckZones.length > 0 && (
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          {truckZones.map(z => (
+                            <span key={z} className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs">{z}</span>
+                          ))}
+                        </div>
+                      )}
                       <div className="flex flex-wrap gap-1">
                         {Object.entries(counts).map(([type, count]) => (
                           <span key={type} className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs">{count}× {type}</span>
