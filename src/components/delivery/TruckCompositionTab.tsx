@@ -897,6 +897,11 @@ export default function TruckCompositionTab() {
                           onDragEnter={onDragEnter}
                           onDragLeave={onDragLeave}
                           onClick={() => selectedIds.size > 0 && handleDrop(dateStr)}
+                          onDoubleClick={e => {
+                            e.stopPropagation();
+                            setCurrentDate(day);
+                            setViewMode('day');
+                          }}
                           className={`bg-card p-0.5 min-h-[40px] border-t border-border transition-colors hover:bg-secondary/30 ${holiday ? 'bg-muted/40' : ''}`}
                         >
                           {hourTrucks.map(truck => renderTruckBadge(truck))}
