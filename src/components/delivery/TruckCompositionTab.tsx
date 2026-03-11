@@ -764,7 +764,23 @@ export default function TruckCompositionTab() {
             <div className="flex gap-1">
               <Button variant={viewMode === 'month' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('month')}>Mois</Button>
               <Button variant={viewMode === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('week')}>Semaine</Button>
-              <Button variant={viewMode === 'day' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('day')}>Jour</Button>
+              <Button variant={viewMode === 'day' ? 'default' : 'outline'} size="sm" onClick={() => {
+                // Smart day selection: find first day with trucks in current view
+                if (viewMode === 'month') {
+                  const monthStart = startOfMonth(currentDate);
+                  const monthEnd = endOfMonth(currentDate);
+                  const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+                  const firstDayWithTrucks = monthDays.find(d => getTeamTrucksForDate(format(d, 'yyyy-MM-dd')).length > 0);
+                  if (firstDayWithTrucks) setCurrentDate(firstDayWithTrucks);
+                } else if (viewMode === 'week') {
+                  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+                  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+                  const weekDaysRange = eachDayOfInterval({ start: weekStart, end: weekEnd });
+                  const firstDayWithTrucks = weekDaysRange.find(d => getTeamTrucksForDate(format(d, 'yyyy-MM-dd')).length > 0);
+                  if (firstDayWithTrucks) setCurrentDate(firstDayWithTrucks);
+                }
+                setViewMode('day');
+              }}>Jour</Button>
               {trucks.length > 0 && (
                 <>
                   {hasMultipleTeams && (
