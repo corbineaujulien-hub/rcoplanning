@@ -950,6 +950,7 @@ export default function TruckCompositionTab() {
                       const weight = getTruckWeight(els);
                       const maxLen = getTruckMaxLength(els);
                       const factories = getTruckFactories(els);
+                      const truckZones = getTruckZones(els);
                       const counts = getProductCountsByType(els);
                       const isEmpty = els.length === 0;
                       return (
