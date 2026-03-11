@@ -42,9 +42,9 @@ export default function TruckCompositionTab() {
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
   const [filterRepere, setFilterRepere] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [filterZone, setFilterZone] = useState('');
-  const [filterType, setFilterType] = useState('');
-  const [filterFactory, setFilterFactory] = useState('');
+  const [filterZone, setFilterZone] = useState<Set<string>>(new Set());
+  const [filterType, setFilterType] = useState<Set<string>>(new Set());
+  const [filterFactory, setFilterFactory] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState<'all' | 'unloaded' | 'loaded'>('all');
   const [newTruckDate, setNewTruckDate] = useState('');
   const [showNewTruck, setShowNewTruck] = useState(false);
