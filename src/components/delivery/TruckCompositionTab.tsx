@@ -864,7 +864,14 @@ export default function TruckCompositionTab() {
                   const dateStr = format(day, 'yyyy-MM-dd');
                   const holiday = isHoliday(dateStr);
                   return (
-                    <div key={dateStr} className={`bg-primary text-primary-foreground text-center text-xs font-medium py-2 ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''} ${holiday ? 'opacity-70' : ''}`}>
+                    <div key={dateStr} className={`bg-primary text-primary-foreground text-center text-xs font-medium py-2 ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''} ${holiday ? 'opacity-70' : ''}`}
+                      onDoubleClick={e => {
+                        e.stopPropagation();
+                        setCurrentDate(day);
+                        setViewMode('day');
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
                       {format(day, 'EEE dd/MM', { locale: fr })}
                       {holiday && <span className="block text-[9px] italic opacity-80">férié</span>}
                     </div>
