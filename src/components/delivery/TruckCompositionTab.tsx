@@ -99,14 +99,16 @@ export default function TruckCompositionTab() {
   const filteredElements = useMemo(() => {
     return elements.filter(el => {
       if (filterRepere && !el.repere.toLowerCase().includes(filterRepere.toLowerCase())) return false;
-      if (filterZone && filterZone !== '__all__' && el.zone !== filterZone) return false;
-      if (filterType && filterType !== '__all__' && el.productType !== filterType) return false;
-      if (filterFactory && filterFactory !== '__all__' && el.factory !== filterFactory) return false;
+      if (filterZone.size > 0 && !filterZone.has(el.zone)) return false;
+      if (filterType.size > 0 && !filterType.has(el.productType)) return false;
+      if (filterFactory.size > 0 && !filterFactory.has(el.factory)) return false;
       if (filterStatus === 'unloaded' && isElementAssigned(el.id)) return false;
       if (filterStatus === 'loaded' && !isElementAssigned(el.id)) return false;
       return true;
     });
   }, [elements, filterRepere, filterZone, filterType, filterFactory, filterStatus, isElementAssigned]);
+
+  const hasAnyFilter = filterZone.size > 0 || filterType.size > 0 || filterFactory.size > 0 || filterStatus !== 'all';
 
   const getPlanElements = (plan: Plan): BeamElement[] => {
     return elements.filter(el => {
