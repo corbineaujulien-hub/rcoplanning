@@ -165,7 +165,17 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
               </div>
             </div>
 
-            {/* Team assignment */}
+            {truckZones.length > 0 && (
+              <div className="bg-muted rounded-lg p-3">
+                <p className="text-sm text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />Zone(s)</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {truckZones.map(z => (
+                    <span key={z} className="bg-secondary text-secondary-foreground text-xs font-medium px-2 py-0.5 rounded">{z}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {hasMultipleTeams && (
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-muted-foreground" />
