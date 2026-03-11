@@ -25,6 +25,8 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
   const [editDate, setEditDate] = useState('');
   const [editTime, setEditTime] = useState('');
   const [editing, setEditing] = useState(false);
+  const [editingNumber, setEditingNumber] = useState(false);
+  const [editNumber, setEditNumber] = useState('');
   const [comment, setComment] = useState('');
   const [commentDirty, setCommentDirty] = useState(false);
 
