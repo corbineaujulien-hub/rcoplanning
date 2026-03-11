@@ -170,8 +170,8 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
                 <Users className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">Équipe :</span>
                 <Select
-                  value={truck.teamId || teams[0]?.id || ''}
-                  onValueChange={v => updateTruck(truck.id, { teamId: v })}
+                  value={liveTruck.teamId || teams[0]?.id || ''}
+                  onValueChange={v => updateTruck(liveTruck.id, { teamId: v })}
                 >
                   <SelectTrigger className="h-8 w-40 text-xs">
                     <SelectValue />
