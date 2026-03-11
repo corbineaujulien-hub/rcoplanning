@@ -1,10 +1,10 @@
 import { useMemo, useCallback } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
-import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getProductCountsByType, getCategoryColorClass, getFactoryColor } from '@/utils/transportUtils';
+import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getProductCountsByType, getCategoryColorClass, getFactoryColor } from '@/utils/transportUtils';
 import { TRANSPORT_CATEGORIES, BeamElement } from '@/types/delivery';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Truck as TruckIcon, Weight, Ruler, Factory, Package, FileSpreadsheet, Download, MessageSquare } from 'lucide-react';
+import { Truck as TruckIcon, Weight, Ruler, Factory, Package, FileSpreadsheet, Download, MessageSquare, MapPin } from 'lucide-react';
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
