@@ -58,6 +58,18 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
     setEditing(false);
   };
 
+  const handleStartEditNumber = () => {
+    setEditNumber(truck.number);
+    setEditingNumber(true);
+  };
+
+  const handleSaveNumber = () => {
+    if (editNumber.trim() && editNumber !== truck.number) {
+      updateTruck(truck.id, { number: editNumber.trim() });
+    }
+    setEditingNumber(false);
+  };
+
   const handleDelete = () => {
     deleteTruck(truck.id);
     setConfirmDelete(false);
