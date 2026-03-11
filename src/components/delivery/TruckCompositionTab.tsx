@@ -1025,6 +1025,14 @@ export default function TruckCompositionTab() {
                               <div className="flex items-center gap-1"><Ruler className="h-4 w-4 text-muted-foreground" /><span>{maxLen.toFixed(2)} m</span></div>
                               <div className="flex items-center gap-1"><Package className="h-4 w-4 text-muted-foreground" /><span>{els.length} produits</span></div>
                             </div>
+                            {truckZones.length > 0 && (
+                              <div className="flex items-center gap-1 flex-wrap">
+                                <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                {truckZones.map(z => (
+                                  <span key={z} className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs">{z}</span>
+                                ))}
+                              </div>
+                            )}
                             <div className="flex flex-wrap gap-1">
                               {Object.entries(counts).map(([type, count]) => (
                                 <span key={type} className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs">{count}× {type}</span>
