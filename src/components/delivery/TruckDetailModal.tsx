@@ -41,6 +41,7 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
   const weight = getTruckWeight(elements);
   const maxLen = getTruckMaxLength(elements);
   const factories = getTruckFactories(elements);
+  const truckZones = getTruckZones(elements);
   const counts = getProductCountsByType(elements);
   const catInfo = TRANSPORT_CATEGORIES[category];
 
