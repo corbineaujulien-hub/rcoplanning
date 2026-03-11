@@ -17,7 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
 import { ChevronLeft, ChevronRight, GripVertical, Truck as TruckIcon, Filter, X, Trash2, MessageSquare, Search, Weight, Ruler, Factory, Package, FileText, List, ArrowRightLeft, Users } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, isSameMonth, isSameDay, isToday, getDay, addHours, parse } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, isSameMonth, isSameDay, isToday, getDay, addHours, parse, getISOWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import NewTruckModal from './NewTruckModal';
 import TruckDetailModal from './TruckDetailModal';
