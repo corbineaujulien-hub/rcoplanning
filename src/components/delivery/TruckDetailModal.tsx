@@ -19,7 +19,7 @@ interface TruckDetailModalProps {
 }
 
 export default function TruckDetailModal({ open, onClose, truck }: TruckDetailModalProps) {
-  const { getTruckElements, deleteTruck, removeElementFromTruck, updateTruck, teams } = useDelivery();
+  const { getTruckElements, deleteTruck, removeElementFromTruck, updateTruck, teams, trucks } = useDelivery();
   const hasMultipleTeams = teams.length > 1;
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editDate, setEditDate] = useState('');
@@ -32,7 +32,11 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
 
   if (!truck) return null;
 
-  const elements = getTruckElements(truck.id);
+  // Always use latest truck data from context for real-time refresh
+  const liveTruck = trucks.find(t => t.id === truck.id) || truck;
+
+  const elements = getTruckElements(liveTruck.id);
+  const isDuplicateNumber = editNumber.trim() !== '' && editNumber.trim().toLowerCase() !== liveTruck.number.toLowerCase() && trucks.some(t => t.id !== liveTruck.id && t.number.toLowerCase() === editNumber.trim().toLowerCase());
   const category = getTransportCategory(elements);
   const weight = getTruckWeight(elements);
   const maxLen = getTruckMaxLength(elements);
@@ -41,56 +45,56 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
   const catInfo = TRANSPORT_CATEGORIES[category];
 
   // Sync comment state when truck changes
-  if (!commentDirty && comment !== (truck.comment || '')) {
-    setComment(truck.comment || '');
+  if (!commentDirty && comment !== (liveTruck.comment || '')) {
+    setComment(liveTruck.comment || '');
   }
 
   const handleStartEdit = () => {
-    setEditDate(truck.date);
-    setEditTime(truck.time);
+    setEditDate(liveTruck.date);
+    setEditTime(liveTruck.time);
     setEditing(true);
   };
 
   const handleSaveEdit = () => {
     if (editDate && editTime) {
-      updateTruck(truck.id, { date: editDate, time: editTime });
+      updateTruck(liveTruck.id, { date: editDate, time: editTime });
     }
     setEditing(false);
   };
 
   const handleStartEditNumber = () => {
-    setEditNumber(truck.number);
+    setEditNumber(liveTruck.number);
     setEditingNumber(true);
   };
 
   const handleSaveNumber = () => {
-    if (editNumber.trim() && editNumber !== truck.number) {
-      updateTruck(truck.id, { number: editNumber.trim() });
+    if (editNumber.trim() && editNumber !== liveTruck.number && !isDuplicateNumber) {
+      updateTruck(liveTruck.id, { number: editNumber.trim() });
     }
     setEditingNumber(false);
   };
 
   const handleDelete = () => {
-    deleteTruck(truck.id);
+    deleteTruck(liveTruck.id);
     setConfirmDelete(false);
     onClose();
   };
 
   const handleRemoveElement = (elementId: string) => {
-    removeElementFromTruck(truck.id, elementId);
+    removeElementFromTruck(liveTruck.id, elementId);
   };
 
   const handleCommentBlur = () => {
-    if (comment !== (truck.comment || '')) {
-      updateTruck(truck.id, { comment });
+    if (comment !== (liveTruck.comment || '')) {
+      updateTruck(liveTruck.id, { comment });
     }
     setCommentDirty(false);
   };
 
   const handleClose = () => {
     // Save comment on close if dirty
-    if (commentDirty && comment !== (truck.comment || '')) {
-      updateTruck(truck.id, { comment });
+    if (commentDirty && comment !== (liveTruck.comment || '')) {
+      updateTruck(liveTruck.id, { comment });
     }
     setCommentDirty(false);
     setEditing(false);
@@ -107,13 +111,16 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
               {editingNumber ? (
                 <div className="flex items-center gap-1">
                   <span>Camion</span>
-                  <Input value={editNumber} onChange={e => setEditNumber(e.target.value)} className="h-7 w-24 text-sm" autoFocus onKeyDown={e => e.key === 'Enter' && handleSaveNumber()} />
-                  <Button size="sm" variant="default" className="h-6 text-xs px-2" onClick={handleSaveNumber}>OK</Button>
+                  <div>
+                    <Input value={editNumber} onChange={e => setEditNumber(e.target.value)} className={`h-7 w-24 text-sm ${isDuplicateNumber ? 'border-destructive' : ''}`} autoFocus onKeyDown={e => e.key === 'Enter' && handleSaveNumber()} />
+                    {isDuplicateNumber && <p className="text-xs text-destructive mt-0.5">Ce numéro existe déjà.</p>}
+                  </div>
+                  <Button size="sm" variant="default" className="h-6 text-xs px-2" onClick={handleSaveNumber} disabled={isDuplicateNumber}>OK</Button>
                   <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => setEditingNumber(false)}>Annuler</Button>
                 </div>
               ) : (
                 <span className="flex items-center gap-1">
-                  Camion {truck.number}
+                  Camion {liveTruck.number}
                   <button onClick={handleStartEditNumber} className="text-accent hover:text-accent/80"><Pencil className="h-3 w-3" /></button>
                 </span>
               )}
@@ -140,7 +147,7 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
                     </div>
                   </div>
                 ) : (
-                  <p className="font-semibold">{format(parseISO(truck.date), 'dd-MM-yyyy')} à {truck.time}</p>
+                  <p className="font-semibold">{format(parseISO(liveTruck.date), 'dd-MM-yyyy')} à {liveTruck.time}</p>
                 )}
               </div>
               <div className="bg-muted rounded-lg p-3">
@@ -163,8 +170,8 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
                 <Users className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">Équipe :</span>
                 <Select
-                  value={truck.teamId || teams[0]?.id || ''}
-                  onValueChange={v => updateTruck(truck.id, { teamId: v })}
+                  value={liveTruck.teamId || teams[0]?.id || ''}
+                  onValueChange={v => updateTruck(liveTruck.id, { teamId: v })}
                 >
                   <SelectTrigger className="h-8 w-40 text-xs">
                     <SelectValue />
@@ -249,7 +256,7 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer le camion {truck.number} ?</AlertDialogTitle>
+            <AlertDialogTitle>Supprimer le camion {liveTruck.number} ?</AlertDialogTitle>
             <AlertDialogDescription>
               Tous les repères seront libérés et pourront être affectés à d'autres camions.
             </AlertDialogDescription>

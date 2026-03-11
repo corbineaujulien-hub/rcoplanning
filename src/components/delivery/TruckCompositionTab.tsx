@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { toast } from 'sonner';
 import { useDelivery } from '@/context/DeliveryContext';
 import { BeamElement, Truck, TRANSPORT_CATEGORIES, TransportCategory, Plan } from '@/types/delivery';
 import { getTransportCategory, getTruckWeight, getCategoryColorClass, isNonStandard, isMultiSite, getTruckMaxLength, getTruckFactories, getProductCountsByType, getFactoryColor } from '@/utils/transportUtils';
@@ -928,7 +929,17 @@ export default function TruckCompositionTab() {
                               <TruckIcon className="h-5 w-5 text-accent flex-shrink-0" />
                               <Input
                                 defaultValue={truck.number}
-                                onBlur={e => { const v = e.target.value.trim(); if (v && v !== truck.number) updateTruck(truck.id, { number: v }); }}
+                                onBlur={e => {
+                                  const v = e.target.value.trim();
+                                  if (!v || v === truck.number) return;
+                                  const isDup = trucks.some(t => t.id !== truck.id && t.number.toLowerCase() === v.toLowerCase());
+                                  if (isDup) {
+                                    toast.error('Ce numéro de camion existe déjà.');
+                                    e.target.value = truck.number;
+                                    return;
+                                  }
+                                  updateTruck(truck.id, { number: v });
+                                }}
                                 className="h-7 text-lg font-semibold w-24 border-transparent hover:border-input focus:border-input bg-transparent px-1"
                               />
                               <Input
