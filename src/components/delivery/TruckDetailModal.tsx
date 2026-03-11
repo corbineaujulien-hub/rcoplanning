@@ -140,7 +140,7 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
                     </div>
                   </div>
                 ) : (
-                  <p className="font-semibold">{truck.date} à {truck.time}</p>
+                  <p className="font-semibold">{format(parseISO(truck.date), 'dd-MM-yyyy')} à {truck.time}</p>
                 )}
               </div>
               <div className="bg-muted rounded-lg p-3">

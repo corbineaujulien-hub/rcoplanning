@@ -900,6 +900,18 @@ export default function TruckCompositionTab() {
                           onDrop={e => {
                             e.preventDefault();
                             setDragOverTruckId(null);
+                            // Inter-truck element transfer
+                            const transferData = e.dataTransfer.getData('application/element-transfer');
+                            if (transferData) {
+                              try {
+                                const { sourceTruckId, elementId } = JSON.parse(transferData);
+                                if (sourceTruckId !== truck.id) {
+                                  removeElementFromTruck(sourceTruckId, elementId);
+                                  addElementsToTruck(truck.id, [elementId]);
+                                }
+                              } catch {}
+                              return;
+                            }
                             const type = e.dataTransfer.getData('text/plain');
                             if (type === 'trucks') {
                               onDropOnDay(e, dateStr);
@@ -909,17 +921,29 @@ export default function TruckCompositionTab() {
                             if (ids.length === 0) return;
                             checkAlertsAndAssign(truck.id, ids);
                           }}
-                          onClick={() => setDetailTruck(truck)}
-                          className={`cursor-pointer border-l-4 transition-all ${dragOverTruckId === truck.id ? 'ring-2 ring-accent bg-accent/5' : ''} ${isEmpty ? 'border-l-foreground' : cat === 'standard' ? 'border-l-transport-standard' : cat === 'cat1' ? 'border-l-transport-cat1' : cat === 'cat2' ? 'border-l-transport-cat2' : 'border-l-transport-cat3'}`}
+                          className={`border-l-4 transition-all ${dragOverTruckId === truck.id ? 'ring-2 ring-accent bg-accent/5' : ''} ${isEmpty ? 'border-l-foreground' : cat === 'standard' ? 'border-l-transport-standard' : cat === 'cat1' ? 'border-l-transport-cat1' : cat === 'cat2' ? 'border-l-transport-cat2' : 'border-l-transport-cat3'}`}
                         >
                           <CardContent className="pt-4 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <TruckIcon className="h-5 w-5 text-accent" />
-                                <span className="font-semibold text-lg">{truck.number}</span>
-                                <span className={`${getCategoryColorClass(cat)} px-2 py-0.5 rounded text-xs font-medium`}>{catInfo.label}</span>
-                              </div>
-                              <span className="text-sm text-muted-foreground">{truck.time}</span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <TruckIcon className="h-5 w-5 text-accent flex-shrink-0" />
+                              <Input
+                                defaultValue={truck.number}
+                                onBlur={e => { const v = e.target.value.trim(); if (v && v !== truck.number) updateTruck(truck.id, { number: v }); }}
+                                className="h-7 text-lg font-semibold w-24 border-transparent hover:border-input focus:border-input bg-transparent px-1"
+                              />
+                              <Input
+                                type="date"
+                                defaultValue={truck.date}
+                                onBlur={e => { const v = e.target.value; if (v && v !== truck.date) updateTruck(truck.id, { date: v }); }}
+                                className="h-7 text-sm w-36 border-transparent hover:border-input focus:border-input bg-transparent px-1"
+                              />
+                              <Input
+                                type="time"
+                                defaultValue={truck.time}
+                                onBlur={e => { const v = e.target.value; if (v && v !== truck.time) updateTruck(truck.id, { time: v }); }}
+                                className="h-7 text-sm w-24 border-transparent hover:border-input focus:border-input bg-transparent px-1"
+                              />
+                              <span className={`${getCategoryColorClass(cat)} px-2 py-0.5 rounded text-xs font-medium ml-auto`}>{catInfo.label}</span>
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                               <div className="flex items-center gap-1"><Factory className="h-4 w-4 text-muted-foreground" />{factories.length > 0 ? factories.map(f => <span key={f} className="text-white text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: getFactoryColor(f) }}>{f}</span>) : <span>—</span>}</div>
@@ -943,7 +967,16 @@ export default function TruckCompositionTab() {
                                   <p className="text-xs font-semibold text-muted-foreground">{type}</p>
                                   <div className="flex flex-wrap gap-1">
                                     {typeEls.map(el => (
-                                      <span key={el.id} className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-mono flex items-center gap-0.5">
+                                      <span
+                                        key={el.id}
+                                        draggable
+                                        onDragStart={e => {
+                                          e.stopPropagation();
+                                          e.dataTransfer.setData('application/element-transfer', JSON.stringify({ sourceTruckId: truck.id, elementId: el.id }));
+                                          e.dataTransfer.effectAllowed = 'move';
+                                        }}
+                                        className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-mono flex items-center gap-0.5 cursor-grab active:cursor-grabbing"
+                                      >
                                         {el.repere}
                                         <button
                                           onClick={(e) => { e.stopPropagation(); removeElementFromTruck(truck.id, el.id); }}
@@ -958,12 +991,12 @@ export default function TruckCompositionTab() {
                                 </div>
                               ))}
                             </div>
-                            {truck.comment?.trim() && (
-                              <div className="flex items-start gap-1.5 text-sm bg-amber-50 text-amber-800 border border-amber-200 rounded-md p-2">
-                                <MessageSquare className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                                <span>{truck.comment}</span>
-                              </div>
-                            )}
+                            <Textarea
+                              defaultValue={truck.comment || ''}
+                              onBlur={e => { const v = e.target.value; if (v !== (truck.comment || '')) updateTruck(truck.id, { comment: v }); }}
+                              placeholder="Commentaire..."
+                              className="min-h-[40px] text-sm resize-none"
+                            />
                           </CardContent>
                         </Card>
                       );

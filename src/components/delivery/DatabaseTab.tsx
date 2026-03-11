@@ -449,6 +449,16 @@ export default function DatabaseTab() {
             <span className="text-muted-foreground">•</span>
             <span>{totalWeight.toFixed(3)} t</span>
           </div>
+          {hasActiveFilters && (
+            <div className="flex items-center gap-2 mb-2 px-2">
+              <Button variant="default" size="sm" className="text-xs" onClick={() => setFilters({})}>
+                <RefreshCw className="h-3 w-3 mr-1" /> Réinitialiser les filtres
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {Object.entries(filters).filter(([, s]) => s.size > 0).map(([col, s]) => `${col === 'zone' ? 'Zone' : col === 'productType' ? 'Type' : col === 'section' ? 'Section' : 'Usine'} (${s.size})`).join(', ')}
+              </span>
+            </div>
+          )}
           <div className="overflow-auto max-h-[65vh]">
             <Table>
               <TableHeader>
