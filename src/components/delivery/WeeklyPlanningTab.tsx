@@ -158,6 +158,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
                 const weight = getTruckWeight(els);
                 const maxLen = getTruckMaxLength(els);
                 const factories = getTruckFactories(els);
+                const truckZones = getTruckZones(els);
                 const counts = getProductCountsByType(els);
 
                 return (
