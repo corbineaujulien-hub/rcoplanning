@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { format, parseISO } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,8 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
   const [editDate, setEditDate] = useState('');
   const [editTime, setEditTime] = useState('');
   const [editing, setEditing] = useState(false);
+  const [editingNumber, setEditingNumber] = useState(false);
+  const [editNumber, setEditNumber] = useState('');
   const [comment, setComment] = useState('');
   const [commentDirty, setCommentDirty] = useState(false);
 
@@ -53,6 +56,18 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
       updateTruck(truck.id, { date: editDate, time: editTime });
     }
     setEditing(false);
+  };
+
+  const handleStartEditNumber = () => {
+    setEditNumber(truck.number);
+    setEditingNumber(true);
+  };
+
+  const handleSaveNumber = () => {
+    if (editNumber.trim() && editNumber !== truck.number) {
+      updateTruck(truck.id, { number: editNumber.trim() });
+    }
+    setEditingNumber(false);
   };
 
   const handleDelete = () => {
@@ -89,7 +104,19 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <TruckIcon className="h-5 w-5 text-accent" />
-              Camion {truck.number}
+              {editingNumber ? (
+                <div className="flex items-center gap-1">
+                  <span>Camion</span>
+                  <Input value={editNumber} onChange={e => setEditNumber(e.target.value)} className="h-7 w-24 text-sm" autoFocus onKeyDown={e => e.key === 'Enter' && handleSaveNumber()} />
+                  <Button size="sm" variant="default" className="h-6 text-xs px-2" onClick={handleSaveNumber}>OK</Button>
+                  <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => setEditingNumber(false)}>Annuler</Button>
+                </div>
+              ) : (
+                <span className="flex items-center gap-1">
+                  Camion {truck.number}
+                  <button onClick={handleStartEditNumber} className="text-accent hover:text-accent/80"><Pencil className="h-3 w-3" /></button>
+                </span>
+              )}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -113,7 +140,7 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
                     </div>
                   </div>
                 ) : (
-                  <p className="font-semibold">{truck.date} à {truck.time}</p>
+                  <p className="font-semibold">{format(parseISO(truck.date), 'dd-MM-yyyy')} à {truck.time}</p>
                 )}
               </div>
               <div className="bg-muted rounded-lg p-3">

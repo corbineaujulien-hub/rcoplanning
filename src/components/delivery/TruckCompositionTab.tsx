@@ -6,6 +6,8 @@ import { isHoliday } from '@/utils/frenchHolidays';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -40,9 +42,9 @@ export default function TruckCompositionTab() {
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
   const [filterRepere, setFilterRepere] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [filterZone, setFilterZone] = useState('');
-  const [filterType, setFilterType] = useState('');
-  const [filterFactory, setFilterFactory] = useState('');
+  const [filterZone, setFilterZone] = useState<Set<string>>(new Set());
+  const [filterType, setFilterType] = useState<Set<string>>(new Set());
+  const [filterFactory, setFilterFactory] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState<'all' | 'unloaded' | 'loaded'>('all');
   const [newTruckDate, setNewTruckDate] = useState('');
   const [showNewTruck, setShowNewTruck] = useState(false);
@@ -97,14 +99,16 @@ export default function TruckCompositionTab() {
   const filteredElements = useMemo(() => {
     return elements.filter(el => {
       if (filterRepere && !el.repere.toLowerCase().includes(filterRepere.toLowerCase())) return false;
-      if (filterZone && filterZone !== '__all__' && el.zone !== filterZone) return false;
-      if (filterType && filterType !== '__all__' && el.productType !== filterType) return false;
-      if (filterFactory && filterFactory !== '__all__' && el.factory !== filterFactory) return false;
+      if (filterZone.size > 0 && !filterZone.has(el.zone)) return false;
+      if (filterType.size > 0 && !filterType.has(el.productType)) return false;
+      if (filterFactory.size > 0 && !filterFactory.has(el.factory)) return false;
       if (filterStatus === 'unloaded' && isElementAssigned(el.id)) return false;
       if (filterStatus === 'loaded' && !isElementAssigned(el.id)) return false;
       return true;
     });
   }, [elements, filterRepere, filterZone, filterType, filterFactory, filterStatus, isElementAssigned]);
+
+  const hasAnyFilter = filterZone.size > 0 || filterType.size > 0 || filterFactory.size > 0 || filterStatus !== 'all';
 
   const getPlanElements = (plan: Plan): BeamElement[] => {
     return elements.filter(el => {
@@ -462,36 +466,74 @@ export default function TruckCompositionTab() {
                   <Filter className="h-4 w-4 text-accent" /> Repères disponibles
                 </CardTitle>
                 <div className="space-y-2 mt-2">
-                  <Select value={filterZone} onValueChange={setFilterZone}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Zone" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">Toutes les zones</SelectItem>
-                      {zones.map(z => <SelectItem key={z} value={z}>{z}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Select value={filterType} onValueChange={setFilterType}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">Tous les types</SelectItem>
-                      {productTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Select value={filterFactory} onValueChange={setFilterFactory}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Usine" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">Toutes les usines</SelectItem>
-                      {factoryList.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={`h-8 text-xs w-full justify-start ${filterZone.size > 0 ? 'border-primary text-primary' : ''}`}>
+                        <Filter className="h-3 w-3 mr-1" />
+                        {filterZone.size > 0 ? `Zone (${filterZone.size})` : 'Zone'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="start">
+                      <div className="space-y-1">
+                        {zones.map(z => (
+                          <label key={z} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                            <Checkbox checked={filterZone.has(z)} onCheckedChange={() => setFilterZone(prev => { const next = new Set(prev); next.has(z) ? next.delete(z) : next.add(z); return next; })} />
+                            <span className="truncate">{z || '(vide)'}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={`h-8 text-xs w-full justify-start ${filterType.size > 0 ? 'border-primary text-primary' : ''}`}>
+                        <Filter className="h-3 w-3 mr-1" />
+                        {filterType.size > 0 ? `Type (${filterType.size})` : 'Type'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="start">
+                      <div className="space-y-1">
+                        {productTypes.map(t => (
+                          <label key={t} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                            <Checkbox checked={filterType.has(t)} onCheckedChange={() => setFilterType(prev => { const next = new Set(prev); next.has(t) ? next.delete(t) : next.add(t); return next; })} />
+                            <span className="truncate">{t}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={`h-8 text-xs w-full justify-start ${filterFactory.size > 0 ? 'border-primary text-primary' : ''}`}>
+                        <Filter className="h-3 w-3 mr-1" />
+                        {filterFactory.size > 0 ? `Usine (${filterFactory.size})` : 'Usine'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="start">
+                      <div className="space-y-1">
+                        {factoryList.map(f => (
+                          <label key={f} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                            <Checkbox checked={filterFactory.has(f)} onCheckedChange={() => setFilterFactory(prev => { const next = new Set(prev); next.has(f) ? next.delete(f) : next.add(f); return next; })} />
+                            <span className="truncate">{f}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                   <Select value={filterStatus} onValueChange={v => setFilterStatus(v as any)}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className={`h-8 text-xs ${filterStatus !== 'all' ? 'border-primary text-primary' : ''}`}><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Tous</SelectItem>
                       <SelectItem value="unloaded">Non chargé</SelectItem>
                       <SelectItem value="loaded">Chargé</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => { setFilterRepere(''); setFilterZone(''); setFilterType(''); setFilterFactory(''); setFilterStatus('all'); }}>
+                  <Button
+                    variant={hasAnyFilter ? 'default' : 'outline'}
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => { setFilterRepere(''); setFilterZone(new Set()); setFilterType(new Set()); setFilterFactory(new Set()); setFilterStatus('all'); }}
+                  >
                     <X className="h-3 w-3 mr-1" /> Réinitialiser filtres
                   </Button>
                 </div>
@@ -516,6 +558,20 @@ export default function TruckCompositionTab() {
                   <Checkbox checked={selectedIds.size > 0 && selectedIds.size === filteredElements.filter(e => !isElementAssigned(e.id)).length} onCheckedChange={selectAll} />
                   <span className="text-xs text-muted-foreground">{selectedIds.size} sélectionné(s) / {filteredElements.length} repères</span>
                 </div>
+                {selectedIds.size > 0 && (() => {
+                  const selEls = elements.filter(e => selectedIds.has(e.id));
+                  const selWeight = selEls.reduce((s, e) => s + e.weight, 0);
+                  const selMaxLen = selEls.length > 0 ? Math.max(...selEls.map(e => e.length)) : 0;
+                  const selCat = getTransportCategory(selEls);
+                  const selCatInfo = TRANSPORT_CATEGORIES[selCat];
+                  return (
+                    <div className="flex flex-wrap items-center gap-1.5 mb-2 px-1">
+                      <Badge variant="secondary" className="text-[10px]"><Weight className="h-3 w-3 mr-0.5" />{selWeight.toFixed(2)} t</Badge>
+                      <Badge variant="secondary" className="text-[10px]"><Ruler className="h-3 w-3 mr-0.5" />{selMaxLen.toFixed(2)} m</Badge>
+                      <Badge className={`text-[10px] ${getCategoryColorClass(selCat)}`}>{selCatInfo.label}</Badge>
+                    </div>
+                  );
+                })()}
                 {/* Badges grouped by product type */}
                 <div className="space-y-3">
                   {Object.entries(groupByType(filteredElements)).sort(([a], [b]) => a.localeCompare(b)).map(([type, els]) => (
@@ -636,6 +692,20 @@ export default function TruckCompositionTab() {
                           />
                           <span className="text-xs text-muted-foreground">{selectedIds.size} sélectionné(s) / {matchedElements.length} repères</span>
                         </div>
+                        {selectedIds.size > 0 && (() => {
+                          const selEls = elements.filter(e => selectedIds.has(e.id));
+                          const selWeight = selEls.reduce((s, e) => s + e.weight, 0);
+                          const selMaxLen = selEls.length > 0 ? Math.max(...selEls.map(e => e.length)) : 0;
+                          const selCat = getTransportCategory(selEls);
+                          const selCatInfo = TRANSPORT_CATEGORIES[selCat];
+                          return (
+                            <div className="flex flex-wrap items-center gap-1.5 mb-2 px-1">
+                              <Badge variant="secondary" className="text-[10px]"><Weight className="h-3 w-3 mr-0.5" />{selWeight.toFixed(2)} t</Badge>
+                              <Badge variant="secondary" className="text-[10px]"><Ruler className="h-3 w-3 mr-0.5" />{selMaxLen.toFixed(2)} m</Badge>
+                              <Badge className={`text-[10px] ${getCategoryColorClass(selCat)}`}>{selCatInfo.label}</Badge>
+                            </div>
+                          );
+                        })()}
                         {/* Badges grouped by product type */}
                         <div className="space-y-3">
                           {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([type, els]) => (
@@ -713,7 +783,8 @@ export default function TruckCompositionTab() {
           </div>
 
           {viewMode === 'month' ? (
-            <div className={`grid gap-px bg-border rounded-lg overflow-hidden flex-1`} style={{ gridTemplateColumns: `repeat(${gridCols}, 1fr)` }}>
+            <div className="flex-1 overflow-auto">
+            <div className={`grid gap-px bg-border rounded-lg overflow-hidden`} style={{ gridTemplateColumns: `repeat(${gridCols}, 1fr)` }}>
               {dayNames.map(d => (
                 <div key={d} className="bg-primary text-primary-foreground text-center text-xs font-medium py-2">{d}</div>
               ))}
@@ -742,6 +813,7 @@ export default function TruckCompositionTab() {
                   </div>
                 );
               })}
+            </div>
             </div>
           ) : viewMode === 'week' ? (
             <div className="flex-1 overflow-auto border rounded-lg">
@@ -828,6 +900,18 @@ export default function TruckCompositionTab() {
                           onDrop={e => {
                             e.preventDefault();
                             setDragOverTruckId(null);
+                            // Inter-truck element transfer
+                            const transferData = e.dataTransfer.getData('application/element-transfer');
+                            if (transferData) {
+                              try {
+                                const { sourceTruckId, elementId } = JSON.parse(transferData);
+                                if (sourceTruckId !== truck.id) {
+                                  removeElementFromTruck(sourceTruckId, elementId);
+                                  addElementsToTruck(truck.id, [elementId]);
+                                }
+                              } catch {}
+                              return;
+                            }
                             const type = e.dataTransfer.getData('text/plain');
                             if (type === 'trucks') {
                               onDropOnDay(e, dateStr);
@@ -837,17 +921,29 @@ export default function TruckCompositionTab() {
                             if (ids.length === 0) return;
                             checkAlertsAndAssign(truck.id, ids);
                           }}
-                          onClick={() => setDetailTruck(truck)}
-                          className={`cursor-pointer border-l-4 transition-all ${dragOverTruckId === truck.id ? 'ring-2 ring-accent bg-accent/5' : ''} ${isEmpty ? 'border-l-foreground' : cat === 'standard' ? 'border-l-transport-standard' : cat === 'cat1' ? 'border-l-transport-cat1' : cat === 'cat2' ? 'border-l-transport-cat2' : 'border-l-transport-cat3'}`}
+                          className={`border-l-4 transition-all ${dragOverTruckId === truck.id ? 'ring-2 ring-accent bg-accent/5' : ''} ${isEmpty ? 'border-l-foreground' : cat === 'standard' ? 'border-l-transport-standard' : cat === 'cat1' ? 'border-l-transport-cat1' : cat === 'cat2' ? 'border-l-transport-cat2' : 'border-l-transport-cat3'}`}
                         >
                           <CardContent className="pt-4 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <TruckIcon className="h-5 w-5 text-accent" />
-                                <span className="font-semibold text-lg">{truck.number}</span>
-                                <span className={`${getCategoryColorClass(cat)} px-2 py-0.5 rounded text-xs font-medium`}>{catInfo.label}</span>
-                              </div>
-                              <span className="text-sm text-muted-foreground">{truck.time}</span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <TruckIcon className="h-5 w-5 text-accent flex-shrink-0" />
+                              <Input
+                                defaultValue={truck.number}
+                                onBlur={e => { const v = e.target.value.trim(); if (v && v !== truck.number) updateTruck(truck.id, { number: v }); }}
+                                className="h-7 text-lg font-semibold w-24 border-transparent hover:border-input focus:border-input bg-transparent px-1"
+                              />
+                              <Input
+                                type="date"
+                                defaultValue={truck.date}
+                                onBlur={e => { const v = e.target.value; if (v && v !== truck.date) updateTruck(truck.id, { date: v }); }}
+                                className="h-7 text-sm w-36 border-transparent hover:border-input focus:border-input bg-transparent px-1"
+                              />
+                              <Input
+                                type="time"
+                                defaultValue={truck.time}
+                                onBlur={e => { const v = e.target.value; if (v && v !== truck.time) updateTruck(truck.id, { time: v }); }}
+                                className="h-7 text-sm w-24 border-transparent hover:border-input focus:border-input bg-transparent px-1"
+                              />
+                              <span className={`${getCategoryColorClass(cat)} px-2 py-0.5 rounded text-xs font-medium ml-auto`}>{catInfo.label}</span>
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                               <div className="flex items-center gap-1"><Factory className="h-4 w-4 text-muted-foreground" />{factories.length > 0 ? factories.map(f => <span key={f} className="text-white text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: getFactoryColor(f) }}>{f}</span>) : <span>—</span>}</div>
@@ -871,7 +967,16 @@ export default function TruckCompositionTab() {
                                   <p className="text-xs font-semibold text-muted-foreground">{type}</p>
                                   <div className="flex flex-wrap gap-1">
                                     {typeEls.map(el => (
-                                      <span key={el.id} className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-mono flex items-center gap-0.5">
+                                      <span
+                                        key={el.id}
+                                        draggable
+                                        onDragStart={e => {
+                                          e.stopPropagation();
+                                          e.dataTransfer.setData('application/element-transfer', JSON.stringify({ sourceTruckId: truck.id, elementId: el.id }));
+                                          e.dataTransfer.effectAllowed = 'move';
+                                        }}
+                                        className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-mono flex items-center gap-0.5 cursor-grab active:cursor-grabbing"
+                                      >
                                         {el.repere}
                                         <button
                                           onClick={(e) => { e.stopPropagation(); removeElementFromTruck(truck.id, el.id); }}
@@ -886,12 +991,12 @@ export default function TruckCompositionTab() {
                                 </div>
                               ))}
                             </div>
-                            {truck.comment?.trim() && (
-                              <div className="flex items-start gap-1.5 text-sm bg-amber-50 text-amber-800 border border-amber-200 rounded-md p-2">
-                                <MessageSquare className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                                <span>{truck.comment}</span>
-                              </div>
-                            )}
+                            <Textarea
+                              defaultValue={truck.comment || ''}
+                              onBlur={e => { const v = e.target.value; if (v !== (truck.comment || '')) updateTruck(truck.id, { comment: v }); }}
+                              placeholder="Commentaire..."
+                              className="min-h-[40px] text-sm resize-none"
+                            />
                           </CardContent>
                         </Card>
                       );
