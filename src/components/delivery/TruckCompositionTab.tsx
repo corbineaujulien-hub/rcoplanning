@@ -466,36 +466,74 @@ export default function TruckCompositionTab() {
                   <Filter className="h-4 w-4 text-accent" /> Repères disponibles
                 </CardTitle>
                 <div className="space-y-2 mt-2">
-                  <Select value={filterZone} onValueChange={setFilterZone}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Zone" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">Toutes les zones</SelectItem>
-                      {zones.map(z => <SelectItem key={z} value={z}>{z}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Select value={filterType} onValueChange={setFilterType}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">Tous les types</SelectItem>
-                      {productTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Select value={filterFactory} onValueChange={setFilterFactory}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Usine" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">Toutes les usines</SelectItem>
-                      {factoryList.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={`h-8 text-xs w-full justify-start ${filterZone.size > 0 ? 'border-primary text-primary' : ''}`}>
+                        <Filter className="h-3 w-3 mr-1" />
+                        {filterZone.size > 0 ? `Zone (${filterZone.size})` : 'Zone'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="start">
+                      <div className="space-y-1">
+                        {zones.map(z => (
+                          <label key={z} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                            <Checkbox checked={filterZone.has(z)} onCheckedChange={() => setFilterZone(prev => { const next = new Set(prev); next.has(z) ? next.delete(z) : next.add(z); return next; })} />
+                            <span className="truncate">{z || '(vide)'}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={`h-8 text-xs w-full justify-start ${filterType.size > 0 ? 'border-primary text-primary' : ''}`}>
+                        <Filter className="h-3 w-3 mr-1" />
+                        {filterType.size > 0 ? `Type (${filterType.size})` : 'Type'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="start">
+                      <div className="space-y-1">
+                        {productTypes.map(t => (
+                          <label key={t} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                            <Checkbox checked={filterType.has(t)} onCheckedChange={() => setFilterType(prev => { const next = new Set(prev); next.has(t) ? next.delete(t) : next.add(t); return next; })} />
+                            <span className="truncate">{t}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={`h-8 text-xs w-full justify-start ${filterFactory.size > 0 ? 'border-primary text-primary' : ''}`}>
+                        <Filter className="h-3 w-3 mr-1" />
+                        {filterFactory.size > 0 ? `Usine (${filterFactory.size})` : 'Usine'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="start">
+                      <div className="space-y-1">
+                        {factoryList.map(f => (
+                          <label key={f} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                            <Checkbox checked={filterFactory.has(f)} onCheckedChange={() => setFilterFactory(prev => { const next = new Set(prev); next.has(f) ? next.delete(f) : next.add(f); return next; })} />
+                            <span className="truncate">{f}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                   <Select value={filterStatus} onValueChange={v => setFilterStatus(v as any)}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className={`h-8 text-xs ${filterStatus !== 'all' ? 'border-primary text-primary' : ''}`}><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Tous</SelectItem>
                       <SelectItem value="unloaded">Non chargé</SelectItem>
                       <SelectItem value="loaded">Chargé</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => { setFilterRepere(''); setFilterZone(''); setFilterType(''); setFilterFactory(''); setFilterStatus('all'); }}>
+                  <Button
+                    variant={hasAnyFilter ? 'default' : 'outline'}
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => { setFilterRepere(''); setFilterZone(new Set()); setFilterType(new Set()); setFilterFactory(new Set()); setFilterStatus('all'); }}
+                  >
                     <X className="h-3 w-3 mr-1" /> Réinitialiser filtres
                   </Button>
                 </div>
