@@ -814,6 +814,7 @@ export default function TruckCompositionTab() {
                 );
               })}
             </div>
+            </div>
           ) : viewMode === 'week' ? (
             <div className="flex-1 overflow-auto border rounded-lg">
               <div className="gap-px bg-border min-w-[700px]" style={{ display: 'grid', gridTemplateColumns: `60px repeat(${gridCols}, 1fr)` }}>
