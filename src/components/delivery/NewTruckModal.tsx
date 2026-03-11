@@ -66,7 +66,6 @@ export default function NewTruckModal({ open, onClose, onConfirm, date, trucks =
 
   const handleClose = () => {
     setShowTimeConflict(false);
-    setNumber('');
     setTime('08:00');
     onClose();
   };
