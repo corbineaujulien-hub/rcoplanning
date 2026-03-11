@@ -104,7 +104,19 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <TruckIcon className="h-5 w-5 text-accent" />
-              Camion {truck.number}
+              {editingNumber ? (
+                <div className="flex items-center gap-1">
+                  <span>Camion</span>
+                  <Input value={editNumber} onChange={e => setEditNumber(e.target.value)} className="h-7 w-24 text-sm" autoFocus onKeyDown={e => e.key === 'Enter' && handleSaveNumber()} />
+                  <Button size="sm" variant="default" className="h-6 text-xs px-2" onClick={handleSaveNumber}>OK</Button>
+                  <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => setEditingNumber(false)}>Annuler</Button>
+                </div>
+              ) : (
+                <span className="flex items-center gap-1">
+                  Camion {truck.number}
+                  <button onClick={handleStartEditNumber} className="text-accent hover:text-accent/80"><Pencil className="h-3 w-3" /></button>
+                </span>
+              )}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
