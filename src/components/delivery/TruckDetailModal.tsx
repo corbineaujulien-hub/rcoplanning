@@ -120,7 +120,7 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
                 </div>
               ) : (
                 <span className="flex items-center gap-1">
-                  Camion {truck.number}
+                  Camion {liveTruck.number}
                   <button onClick={handleStartEditNumber} className="text-accent hover:text-accent/80"><Pencil className="h-3 w-3" /></button>
                 </span>
               )}
