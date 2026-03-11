@@ -256,7 +256,7 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer le camion {truck.number} ?</AlertDialogTitle>
+            <AlertDialogTitle>Supprimer le camion {liveTruck.number} ?</AlertDialogTitle>
             <AlertDialogDescription>
               Tous les repères seront libérés et pourront être affectés à d'autres camions.
             </AlertDialogDescription>
