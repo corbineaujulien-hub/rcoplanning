@@ -783,7 +783,8 @@ export default function TruckCompositionTab() {
           </div>
 
           {viewMode === 'month' ? (
-            <div className={`grid gap-px bg-border rounded-lg overflow-hidden flex-1`} style={{ gridTemplateColumns: `repeat(${gridCols}, 1fr)` }}>
+            <div className="flex-1 overflow-auto">
+            <div className={`grid gap-px bg-border rounded-lg overflow-hidden`} style={{ gridTemplateColumns: `repeat(${gridCols}, 1fr)` }}>
               {dayNames.map(d => (
                 <div key={d} className="bg-primary text-primary-foreground text-center text-xs font-medium py-2">{d}</div>
               ))}
