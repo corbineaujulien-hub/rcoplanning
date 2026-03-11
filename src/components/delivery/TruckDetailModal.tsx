@@ -19,7 +19,7 @@ interface TruckDetailModalProps {
 }
 
 export default function TruckDetailModal({ open, onClose, truck }: TruckDetailModalProps) {
-  const { getTruckElements, deleteTruck, removeElementFromTruck, updateTruck, teams } = useDelivery();
+  const { getTruckElements, deleteTruck, removeElementFromTruck, updateTruck, teams, trucks } = useDelivery();
   const hasMultipleTeams = teams.length > 1;
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editDate, setEditDate] = useState('');
@@ -32,7 +32,11 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
 
   if (!truck) return null;
 
-  const elements = getTruckElements(truck.id);
+  // Always use latest truck data from context for real-time refresh
+  const liveTruck = trucks.find(t => t.id === truck.id) || truck;
+
+  const elements = getTruckElements(liveTruck.id);
+  const isDuplicateNumber = editNumber.trim() !== '' && editNumber.trim().toLowerCase() !== liveTruck.number.toLowerCase() && trucks.some(t => t.id !== liveTruck.id && t.number.toLowerCase() === editNumber.trim().toLowerCase());
   const category = getTransportCategory(elements);
   const weight = getTruckWeight(elements);
   const maxLen = getTruckMaxLength(elements);
