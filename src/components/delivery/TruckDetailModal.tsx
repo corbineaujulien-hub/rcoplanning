@@ -111,8 +111,11 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
               {editingNumber ? (
                 <div className="flex items-center gap-1">
                   <span>Camion</span>
-                  <Input value={editNumber} onChange={e => setEditNumber(e.target.value)} className="h-7 w-24 text-sm" autoFocus onKeyDown={e => e.key === 'Enter' && handleSaveNumber()} />
-                  <Button size="sm" variant="default" className="h-6 text-xs px-2" onClick={handleSaveNumber}>OK</Button>
+                  <div>
+                    <Input value={editNumber} onChange={e => setEditNumber(e.target.value)} className={`h-7 w-24 text-sm ${isDuplicateNumber ? 'border-destructive' : ''}`} autoFocus onKeyDown={e => e.key === 'Enter' && handleSaveNumber()} />
+                    {isDuplicateNumber && <p className="text-xs text-destructive mt-0.5">Ce numéro existe déjà.</p>}
+                  </div>
+                  <Button size="sm" variant="default" className="h-6 text-xs px-2" onClick={handleSaveNumber} disabled={isDuplicateNumber}>OK</Button>
                   <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => setEditingNumber(false)}>Annuler</Button>
                 </div>
               ) : (
