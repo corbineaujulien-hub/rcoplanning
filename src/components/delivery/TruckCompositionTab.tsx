@@ -399,6 +399,7 @@ export default function TruckCompositionTab() {
     const els = getTruckElements(truck.id);
     const cat = getTransportCategory(els);
     const weight = getTruckWeight(els);
+    const zones = getTruckZones(els);
     const isSelected = selectedTruckIds.has(truck.id);
     const isEmpty = els.length === 0;
     const hasComment = !!truck.comment?.trim();
@@ -416,13 +417,21 @@ export default function TruckCompositionTab() {
             setDetailTruck(truck);
           }
         }}
-        className={`truck-badge ${colorClass} flex items-center gap-1 cursor-grab active:cursor-grabbing ${isSelected ? 'ring-2 ring-accent' : ''}`}
+        className={`truck-badge ${colorClass} flex flex-col gap-0.5 cursor-grab active:cursor-grabbing ${isSelected ? 'ring-2 ring-accent' : ''}`}
       >
-        <TruckIcon className="h-3 w-3 flex-shrink-0" />
-        <span className="truncate">{truck.number}</span>
-        {hasComment && <MessageSquare className="h-3 w-3 flex-shrink-0 opacity-70" />}
-        {showTime && <span className="text-[10px] opacity-80">{truck.time}</span>}
-        <span className="ml-auto text-[10px]">{weight.toFixed(1)}t</span>
+        <div className="flex items-center gap-1">
+          <TruckIcon className="h-3 w-3 flex-shrink-0" />
+          <span className="truncate">{truck.number}</span>
+          {hasComment && <MessageSquare className="h-3 w-3 flex-shrink-0 opacity-70" />}
+          {showTime && <span className="text-[10px] opacity-80">{truck.time}</span>}
+          <span className="ml-auto text-[10px]">{weight.toFixed(1)}t</span>
+        </div>
+        {zones.length > 0 && (
+          <div className="flex items-center gap-0.5 pl-4">
+            <MapPin className="h-2.5 w-2.5 flex-shrink-0 opacity-70" />
+            <span className="text-[9px] opacity-80 truncate">{zones.join(', ')}</span>
+          </div>
+        )}
       </div>
     );
   };

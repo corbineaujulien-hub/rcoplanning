@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import { BeamElement, TransportCategory, TRANSPORT_CATEGORIES, ProjectInfo } from '@/types/delivery';
-import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getFactoryColor } from '@/utils/transportUtils';
+import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getFactoryColor } from '@/utils/transportUtils';
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
