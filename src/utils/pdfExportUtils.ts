@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import { BeamElement, TransportCategory, TRANSPORT_CATEGORIES, ProjectInfo } from '@/types/delivery';
-import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getFactoryColor } from '@/utils/transportUtils';
+import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getFactoryColor } from '@/utils/transportUtils';
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -183,6 +183,7 @@ function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[]) {
   const weight = getTruckWeight(els);
   const maxLen = getTruckMaxLength(els);
   const factories = getTruckFactories(els);
+  const zones = getTruckZones(els);
   const borderColor = getCatBorderColor(cat);
 
   const cardHeight = estimateTruckHeight(els, !!truck.comment?.trim());
@@ -215,6 +216,15 @@ function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[]) {
     const fBadge = drawBadge(ctx, x, y, f, getFactoryColor(f), '#ffffff', 7);
     x += fBadge.w + 2;
   });
+
+  // Zone badges
+  if (zones.length > 0) {
+    x += 1;
+    zones.forEach(z => {
+      const zBadge = drawBadge(ctx, x, y, z, '#e2e8f0', '#334155', 6);
+      x += zBadge.w + 2;
+    });
+  }
 
   // Info items on the same line, right after factory badges
   x += 4;
