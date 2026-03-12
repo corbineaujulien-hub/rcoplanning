@@ -18,7 +18,7 @@ interface WeeklyPlanningTabProps {
 }
 
 export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPlanningTabProps) {
-  const { projectInfo, trucks, elements, getTruckElements, teams } = useDelivery();
+  const { projectInfo, trucks, elements, getTruckElements, teams, deleteTruck } = useDelivery();
 
   const weekTrucks = useMemo(() => {
     return trucks
