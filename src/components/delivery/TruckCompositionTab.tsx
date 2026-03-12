@@ -1026,6 +1026,25 @@ export default function TruckCompositionTab() {
                                 className="h-7 text-sm w-24 border-transparent hover:border-input focus:border-input bg-transparent px-1"
                               />
                               <span className={`${getCategoryColorClass(cat)} px-2 py-0.5 rounded text-xs font-medium ml-auto`}>{catInfo.label}</span>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7 p-0 flex-shrink-0">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Supprimer ce camion ?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Le camion {truck.number} et ses affectations seront supprimés.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => deleteTruck(truck.id)}>Supprimer</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                               <div className="flex items-center gap-1"><Factory className="h-4 w-4 text-muted-foreground" />{factories.length > 0 ? factories.map(f => <span key={f} className="text-white text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: getFactoryColor(f) }}>{f}</span>) : <span>—</span>}</div>
