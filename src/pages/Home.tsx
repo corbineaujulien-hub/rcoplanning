@@ -175,7 +175,7 @@ export default function Home() {
       .filter(p => {
         if (showArchived !== (p.archived ?? false)) return false;
         const searchLower = searchName.toLowerCase();
-        const matchesName = !searchName || (p.site_name || '').toLowerCase().includes(searchLower) || (p.otp_number || '').toLowerCase().includes(searchLower);
+        const matchesName = !searchName || (p.site_name || '').toLowerCase().includes(searchLower) || (p.otp_number || '').toLowerCase().includes(searchLower) || (p.client_name || '').toLowerCase().includes(searchLower);
         const matchesConductor = filterConductor === 'all' || p.conductor === filterConductor;
         const matchesSubcontractor = filterSubcontractor === 'all' || p.subcontractor === filterSubcontractor;
         return matchesName && matchesConductor && matchesSubcontractor;
