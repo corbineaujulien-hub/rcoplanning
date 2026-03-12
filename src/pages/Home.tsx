@@ -238,10 +238,21 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="bg-primary text-primary-foreground shadow-lg">
-        <div className="container py-4 flex items-center gap-3">
-          <img src="/logo.png" alt="Logo" className="h-8 object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-          <Truck className="h-7 w-7" />
-          <h1 className="text-lg font-bold tracking-tight">RECTOR – Planification des livraisons</h1>
+        <div className="container py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="Logo" className="h-8 object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <Truck className="h-7 w-7" />
+            <h1 className="text-lg font-bold tracking-tight">RECTOR – Planification des livraisons</h1>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={async () => { await signOut(); navigate('/login', { replace: true }); }}
+            className="text-primary-foreground hover:bg-primary-foreground/10"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Déconnexion
+          </Button>
         </div>
       </header>
 
