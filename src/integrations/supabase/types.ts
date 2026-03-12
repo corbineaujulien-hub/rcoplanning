@@ -139,6 +139,7 @@ export type Database = {
       }
       projects: {
         Row: {
+          archived: boolean
           client_name: string | null
           conductor: string | null
           contact_name: string | null
@@ -153,6 +154,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          archived?: boolean
           client_name?: string | null
           conductor?: string | null
           contact_name?: string | null
@@ -167,6 +169,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          archived?: boolean
           client_name?: string | null
           conductor?: string | null
           contact_name?: string | null
