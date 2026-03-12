@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Calendar } from 'lucide-react';
+import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Calendar, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
@@ -44,6 +45,7 @@ interface TruckElementInfo {
 
 export default function Home() {
   const navigate = useNavigate();
+  const { signOut } = useAuth();
   const [creating, setCreating] = useState(false);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [links, setLinks] = useState<ProjectLink[]>([]);
@@ -236,10 +238,21 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="bg-primary text-primary-foreground shadow-lg">
-        <div className="container py-4 flex items-center gap-3">
-          <img src="/logo.png" alt="Logo" className="h-8 object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-          <Truck className="h-7 w-7" />
-          <h1 className="text-lg font-bold tracking-tight">RECTOR – Planification des livraisons</h1>
+        <div className="container py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="Logo" className="h-8 object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <Truck className="h-7 w-7" />
+            <h1 className="text-lg font-bold tracking-tight">RECTOR – Planification des livraisons</h1>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={async () => { await signOut(); navigate('/login', { replace: true }); }}
+            className="text-primary-foreground hover:bg-primary-foreground/10"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Déconnexion
+          </Button>
         </div>
       </header>
 
