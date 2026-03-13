@@ -202,7 +202,12 @@ export default function TruckCompositionTab() {
     setCurrentDate(prev => {
       if (viewMode === 'month') return dir > 0 ? addMonths(prev, 1) : subMonths(prev, 1);
       if (viewMode === 'week') return dir > 0 ? addWeeks(prev, 1) : subWeeks(prev, 1);
-      return dir > 0 ? addDays(prev, 1) : subDays(prev, 1);
+      // Day view: skip Sundays always, Saturdays if disabled
+      let next = dir > 0 ? addDays(prev, 1) : subDays(prev, 1);
+      while (getDay(next) === 0 || (getDay(next) === 6 && !showSaturdays)) {
+        next = dir > 0 ? addDays(next, 1) : subDays(next, 1);
+      }
+      return next;
     });
   };
 
