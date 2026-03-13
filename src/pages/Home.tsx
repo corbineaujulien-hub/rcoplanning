@@ -363,7 +363,7 @@ export default function Home() {
                           <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-0.5 text-sm text-muted-foreground">
                             <div className="flex flex-wrap gap-x-3">
                               {project.client_name && <span>{project.client_name}</span>}
-                              {project.conductor && <span>Conducteur : {project.conductor}</span>}
+                              {project.conductor && <span>Conducteur : {project.conductor.split('–')[0].trim()}</span>}
                             </div>
                             <span className="flex items-center gap-1 whitespace-nowrap">
                               <User className="h-3 w-3" />
