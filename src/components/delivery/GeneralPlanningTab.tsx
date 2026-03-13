@@ -5,28 +5,39 @@ import { getTransportCategory, getTruckWeight, getCategoryColorClass } from '@/u
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ChevronLeft, ChevronRight, Truck as TruckIcon, FileSpreadsheet, Calendar, MessageSquare } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, isSameMonth, isToday } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, isSameMonth, isToday, getDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import TruckDetailModal from './TruckDetailModal';
 import * as XLSX from 'xlsx';
 
 export default function GeneralPlanningTab() {
-  const { trucks, getTruckElements } = useDelivery();
+  const { trucks, getTruckElements, projectInfo } = useDelivery();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [detailTruck, setDetailTruck] = useState<Truck | null>(null);
+
+  const showSaturdays = projectInfo.showSaturdays || false;
+
+  const filterWeekendDays = (days: Date[]): Date[] => {
+    return days.filter(day => {
+      const dow = getDay(day);
+      if (dow === 0) return false; // Always hide Sunday
+      if (dow === 6 && !showSaturdays) return false;
+      return true;
+    });
+  };
 
   const calendarDays = useMemo(() => {
     if (viewMode === 'month') {
       const start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 });
       const end = endOfWeek(endOfMonth(currentDate), { weekStartsOn: 1 });
-      return eachDayOfInterval({ start, end });
+      return filterWeekendDays(eachDayOfInterval({ start, end }));
     } else {
       const start = startOfWeek(currentDate, { weekStartsOn: 1 });
       const end = endOfWeek(currentDate, { weekStartsOn: 1 });
-      return eachDayOfInterval({ start, end });
+      return filterWeekendDays(eachDayOfInterval({ start, end }));
     }
-  }, [currentDate, viewMode]);
+  }, [currentDate, viewMode, showSaturdays]);
 
   const getTrucksForDate = (dateStr: string) =>
     trucks.filter(t => t.date === dateStr).sort((a, b) => a.time.localeCompare(b.time));
