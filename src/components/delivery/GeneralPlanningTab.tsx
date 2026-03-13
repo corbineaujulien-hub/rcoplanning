@@ -99,7 +99,7 @@ export default function GeneralPlanningTab() {
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
+      <div className={`grid gap-px bg-border rounded-lg overflow-hidden`} style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}>
         {dayNames.map(d => (
           <div key={d} className="bg-primary text-primary-foreground text-center text-xs font-medium py-2">{d}</div>
         ))}
