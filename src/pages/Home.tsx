@@ -377,7 +377,7 @@ export default function Home() {
 
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-2 text-xs">
-                              <span className="text-muted-foreground w-28 shrink-0">Planning</span>
+                              <span className="text-muted-foreground w-28 shrink-0">Planification</span>
                               <Progress value={planningPct} className="h-2 flex-1" />
                               <span className="font-medium w-10 text-right">{planningPct}%</span>
                             </div>
