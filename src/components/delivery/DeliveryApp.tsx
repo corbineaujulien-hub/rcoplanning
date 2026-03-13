@@ -98,6 +98,14 @@ export default function DeliveryApp() {
 
   const totalSiteWeight = useMemo(() => elements.reduce((s, e) => s + e.weight, 0), [elements]);
 
+  // Compute planning progress (loaded weight / total weight)
+  const loadedWeight = useMemo(() => {
+    const assignedIds = new Set(trucks.flatMap(t => t.elementIds));
+    return elements.filter(e => assignedIds.has(e.id)).reduce((s, e) => s + e.weight, 0);
+  }, [trucks, elements]);
+
+  const planningPct = totalSiteWeight > 0 ? Math.round((loadedWeight / totalSiteWeight) * 100) : 0;
+
   const handleExportAllWeeksPdf = async () => {
     await exportAllWeeksPdf(weeklyTabs, trucks, getTruckElements, projectInfo, totalSiteWeight, trucks);
   };
