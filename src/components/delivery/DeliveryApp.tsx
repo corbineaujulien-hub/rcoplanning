@@ -117,10 +117,19 @@ export default function DeliveryApp() {
         <div className="container py-3 flex items-center gap-3">
           <img src="/logo.png" alt="Logo" className="h-8 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           <TruckIcon className="h-7 w-7" />
-          <div className="flex-1">
-            <h1 className="text-lg font-bold tracking-tight">RECTOR – Planification des livraisons</h1>
-            {projectInfo.siteName && <p className="text-xs text-primary-foreground/70">{projectInfo.siteName} {projectInfo.otpNumber && `(${projectInfo.otpNumber})`}</p>}
-          </div>
+           <div className="flex-1 min-w-0">
+             <h1 className="text-lg font-bold tracking-tight">RECTOR – Planification des livraisons</h1>
+             {projectInfo.siteName && (
+               <div className="flex items-center gap-3">
+                 <p className="text-xs text-primary-foreground/70 shrink-0">{projectInfo.siteName} {projectInfo.otpNumber && `(${projectInfo.otpNumber})`}</p>
+                 <div className="flex items-center gap-2 flex-1 max-w-xs">
+                   <span className="text-xs text-primary-foreground/70 shrink-0">Planification</span>
+                   <Progress value={planningPct} className="h-2 flex-1 bg-primary-foreground/20" />
+                   <span className="text-xs font-medium text-primary-foreground/90 w-8 text-right">{planningPct}%</span>
+                 </div>
+               </div>
+             )}
+           </div>
           <Button variant="ghost" size="sm" className="text-primary-foreground/70 hover:text-primary-foreground" onClick={() => navigate('/')}>
             <Home className="h-4 w-4" />
           </Button>
