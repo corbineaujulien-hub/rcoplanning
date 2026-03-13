@@ -70,7 +70,12 @@ export default function GeneralPlanningTab() {
     window.print();
   };
 
-  const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+  const dayNames = useMemo(() => {
+    const all = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+    return showSaturdays ? all : all.slice(0, 5);
+  }, [showSaturdays]);
+
+  const gridCols = showSaturdays ? 6 : 5;
 
   return (
     <div className="space-y-4">
