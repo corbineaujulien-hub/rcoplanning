@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Progress } from '@/components/ui/progress';
 import { useNavigate } from 'react-router-dom';
 import { useDelivery } from '@/context/DeliveryContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
