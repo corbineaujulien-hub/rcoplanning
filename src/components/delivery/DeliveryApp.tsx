@@ -122,11 +122,11 @@ export default function DeliveryApp() {
              {projectInfo.siteName && (
                <div className="flex items-center gap-3">
                  <p className="text-xs text-primary-foreground/70 shrink-0">{projectInfo.siteName} {projectInfo.otpNumber && `(${projectInfo.otpNumber})`}</p>
-                 <div className="flex items-center gap-2 flex-1 max-w-xs">
-                   <span className="text-xs text-primary-foreground/70 shrink-0">Planification</span>
-                   <Progress value={planningPct} className="h-2 flex-1 bg-primary-foreground/20" />
-                   <span className="text-xs font-medium text-primary-foreground/90 w-8 text-right">{planningPct}%</span>
-                 </div>
+                  <div className="flex items-center gap-2 flex-1 max-w-xs bg-primary-foreground/15 rounded-full px-3 py-1">
+                    <span className="text-xs text-primary-foreground shrink-0">Planification</span>
+                    <Progress value={planningPct} className="h-2.5 flex-1 bg-primary-foreground/30 [&>div]:bg-accent" />
+                    <span className="text-xs font-bold text-primary-foreground w-8 text-right">{planningPct}%</span>
+                  </div>
                </div>
              )}
            </div>
