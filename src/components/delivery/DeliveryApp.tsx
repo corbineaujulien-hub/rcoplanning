@@ -13,7 +13,7 @@ import { format, parseISO } from 'date-fns';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories } from '@/utils/transportUtils';
 import { TRANSPORT_CATEGORIES } from '@/types/delivery';
 import * as XLSX from 'xlsx';
-import { exportAllWeeksPdf } from '@/utils/pdfExportUtils';
+import { exportAllWeeksPdf, exportAllWeeksPdf2 } from '@/utils/pdfExportUtils';
 
 export default function DeliveryApp() {
   const { trucks, projectInfo, elements, getTruckElements, teams } = useDelivery();
