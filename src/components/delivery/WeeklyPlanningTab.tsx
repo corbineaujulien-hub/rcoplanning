@@ -133,6 +133,9 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
               <Button variant="outline" size="sm" onClick={exportPdf}>
                 <Download className="h-4 w-4 mr-1" /> PDF
               </Button>
+              <Button variant="outline" size="sm" onClick={exportPdfV2}>
+                <Download className="h-4 w-4 mr-1" /> PDF v2
+              </Button>
             </div>
           </CardTitle>
         </CardHeader>
