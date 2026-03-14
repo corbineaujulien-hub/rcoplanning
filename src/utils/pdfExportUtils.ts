@@ -506,3 +506,339 @@ export async function exportAllWeeksPdf(
 
   pdf.save(`planning_toutes_semaines.pdf`);
 }
+
+// ===================== V2 – Portrait A4 compact =====================
+
+function drawHeader2(ctx: PdfContext, projectInfo: ProjectInfo, weekNumber: number, weekLabel: string) {
+  const { pdf, margin, usableWidth } = ctx;
+
+  // Line 1: logo left + title center + date right
+  const lineH = 8;
+  if (ctx.logoData) {
+    try {
+      pdf.addImage(ctx.logoData, 'PNG', margin, ctx.y, 36, 12);
+    } catch { /* ignore */ }
+  }
+
+  pdf.setFontSize(12);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(30, 58, 95);
+  const title = `RECTOR – Semaine ${weekNumber}`;
+  const titleW = pdf.getTextWidth(title);
+  pdf.text(title, margin + (usableWidth - titleW) / 2, ctx.y + 8);
+
+  pdf.setFontSize(7);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(100, 116, 139);
+  const dateStr = `Édité le ${format(new Date(), 'dd/MM/yyyy', { locale: fr })}`;
+  pdf.text(dateStr, margin + usableWidth - pdf.getTextWidth(dateStr), ctx.y + 8);
+
+  ctx.y += 13;
+
+  // Line 2: project info left | conductor+poseur right
+  pdf.setFontSize(7);
+  const leftParts: string[] = [];
+  if (projectInfo.otpNumber) leftParts.push(`OTP: ${projectInfo.otpNumber}`);
+  if (projectInfo.siteName) leftParts.push(projectInfo.siteName);
+  if (projectInfo.siteAddress) leftParts.push(projectInfo.siteAddress);
+  if (projectInfo.clientName) leftParts.push(`Client: ${projectInfo.clientName}`);
+
+  const rightParts: string[] = [];
+  if (projectInfo.conductor) rightParts.push(`Conducteur: ${projectInfo.conductor}`);
+  if (projectInfo.subcontractor) rightParts.push(`Poseur: ${projectInfo.subcontractor}`);
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(50, 50, 50);
+  const leftText = leftParts.join(' | ');
+  pdf.text(leftText, margin, ctx.y + 3, { maxWidth: usableWidth * 0.6 });
+
+  const rightText = rightParts.join(' | ');
+  const rtW = pdf.getTextWidth(rightText);
+  pdf.text(rightText, margin + usableWidth - rtW, ctx.y + 3);
+
+  ctx.y += 6;
+
+  // Separator
+  pdf.setDrawColor(30, 58, 95);
+  pdf.setLineWidth(0.4);
+  pdf.line(margin, ctx.y, margin + usableWidth, ctx.y);
+  ctx.y += 2;
+}
+
+function drawDayHeader2(ctx: PdfContext, date: string, truckCount: number) {
+  ensureSpace(ctx, 8);
+  const { pdf, margin, usableWidth } = ctx;
+  drawRoundedRect(pdf, margin, ctx.y, usableWidth, 6, 1, '#1e3a5f');
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(255, 255, 255);
+  const dayLabel = format(parseISO(date), 'EEEE dd MMMM yyyy', { locale: fr });
+  const capitalDay = dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1);
+  pdf.text(`${capitalDay} — ${truckCount} camion${truckCount > 1 ? 's' : ''}`, margin + 3, ctx.y + 4.2);
+  ctx.y += 7.5;
+}
+
+function estimateTruckHeight2(els: BeamElement[], hasComment: boolean): number {
+  // Line1 badges ~6, Line2 info ~5, Line3 repères ~6 (may wrap), Line4 comment ~5
+  const grouped = groupByType(els);
+  let repereLineCount = 0;
+  Object.values(grouped).forEach(typeEls => {
+    // Rough estimate: each repere ~8mm wide, usable ~188mm
+    repereLineCount += Math.ceil(typeEls.length / 20) || 1;
+  });
+  const typeHeaders = Object.keys(grouped).length;
+  return 6 + 5 + (typeHeaders * 3 + repereLineCount * 4) + (hasComment ? 5.5 : 0) + 3;
+}
+
+function drawTruckCard2(ctx: PdfContext, truck: TruckData, els: BeamElement[]) {
+  const { pdf, margin, usableWidth } = ctx;
+  const cat = getTransportCategory(els);
+  const catInfo = TRANSPORT_CATEGORIES[cat];
+  const weight = getTruckWeight(els);
+  const maxLen = getTruckMaxLength(els);
+  const factories = getTruckFactories(els);
+  const zones = getTruckZones(els);
+  const borderColor = getCatBorderColor(cat);
+
+  const cardHeight = estimateTruckHeight2(els, !!truck.comment?.trim());
+  ensureSpace(ctx, cardHeight);
+
+  const cardX = margin;
+  const cardW = usableWidth;
+  const cardY = ctx.y;
+  const borderW = 1;
+
+  // Card bg + border
+  drawRoundedRect(pdf, cardX, cardY, cardW, cardHeight, 1.5, '#ffffff', '#d1d5db');
+  pdf.setFillColor(...hexToRgb(borderColor));
+  pdf.rect(cardX, cardY + 0.8, borderW, cardHeight - 1.6, 'F');
+
+  let x = cardX + borderW + 2;
+  let y = cardY + 1.5;
+
+  // LINE 1: badges
+  const numBadge = drawBadge(ctx, x, y, `${truck.number} — ${truck.time}`, '#1e3a5f', '#ffffff', 7.5);
+  x += numBadge.w + 2;
+  const catBadge = drawBadge(ctx, x, y, catInfo.label, borderColor, '#ffffff', 6);
+  x += catBadge.w + 2;
+  factories.forEach(f => {
+    const fb = drawBadge(ctx, x, y, f, getFactoryColor(f), '#ffffff', 6);
+    x += fb.w + 1.5;
+  });
+  if (zones.length > 0) {
+    zones.forEach(z => {
+      const zb = drawBadge(ctx, x, y, z, '#e2e8f0', '#334155', 5.5);
+      x += zb.w + 1.5;
+    });
+  }
+  y += numBadge.h + 1;
+
+  // LINE 2: metrics inline
+  x = cardX + borderW + 2;
+  pdf.setFontSize(6.5);
+  const metrics = [
+    { label: '⚖', value: `${weight.toFixed(2)} t` },
+    { label: '↔', value: `${maxLen.toFixed(2)} m` },
+    { label: '📦', value: `${els.length} produits` },
+  ];
+  metrics.forEach((m, i) => {
+    if (i > 0) {
+      pdf.setTextColor(180, 180, 180);
+      pdf.text('|', x, y + 3.2);
+      x += 2.5;
+    }
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(m.label, x, y + 3.2);
+    x += pdf.getTextWidth(m.label) + 1;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(30, 41, 59);
+    pdf.text(m.value, x, y + 3.2);
+    x += pdf.getTextWidth(m.value) + 3;
+  });
+
+  // Product count badges on same line
+  x += 2;
+  const counts = els.reduce((acc: Record<string, number>, el) => { acc[el.productType] = (acc[el.productType] || 0) + 1; return acc; }, {});
+  Object.entries(counts).forEach(([type, count]) => {
+    const cb = drawBadge(ctx, x, y + 0.5, `${count}× ${type}`, '#e2e8f0', '#334155', 5.5);
+    x += cb.w + 1.5;
+  });
+  y += 5;
+
+  // LINE 3: repères grouped by type (compact)
+  const grouped = groupByType(els);
+  Object.entries(grouped).forEach(([type, typeEls]) => {
+    x = cardX + borderW + 2;
+    pdf.setFontSize(5.5);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(30, 58, 95);
+    pdf.text(`${type}:`, x, y + 3);
+    x += pdf.getTextWidth(`${type}:`) + 1.5;
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(30, 58, 95);
+    typeEls.forEach(el => {
+      const rw = pdf.getTextWidth(el.repere);
+      if (x + rw + 3 > cardX + cardW - 2) {
+        x = cardX + borderW + 2;
+        y += 3.5;
+      }
+      drawRoundedRect(pdf, x, y + 0.5, rw + 2, 3, 0.8, '#dbeafe');
+      pdf.setFontSize(5.5);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(30, 58, 95);
+      pdf.text(el.repere, x + 1, y + 2.8);
+      x += rw + 3;
+    });
+    y += 4;
+  });
+
+  // LINE 4: comment (optional)
+  if (truck.comment?.trim()) {
+    x = cardX + borderW + 2;
+    drawRoundedRect(pdf, x, y, cardW - borderW - 4, 4.5, 0.8, '#fffbeb', '#fde68a');
+    pdf.setFontSize(5.5);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(146, 64, 14);
+    pdf.text(truck.comment.trim(), x + 1.5, y + 3, { maxWidth: cardW - borderW - 8 });
+    y += 5.5;
+  }
+
+  ctx.y = cardY + cardHeight + 1.5;
+}
+
+export async function exportWeekPdf2(data: WeekExportData) {
+  const { weekNumber, year, trucks: weekTrucks, getTruckElements, projectInfo, totalSiteWeight, cumulativeWeight } = data;
+
+  const logoData = await loadLogoAsBase64();
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const ctx: PdfContext = {
+    pdf,
+    y: 8,
+    pageWidth: 210,
+    pageHeight: 297,
+    margin: 8,
+    usableWidth: 194,
+    logoData,
+  };
+
+  let weekLabel = `Semaine ${weekNumber}`;
+  if (weekTrucks.length > 0) {
+    const firstDate = parseISO(weekTrucks[0].date);
+    const ws = startOfWeek(firstDate, { weekStartsOn: 1 });
+    const we = endOfWeek(firstDate, { weekStartsOn: 1 });
+    weekLabel = `Semaine ${weekNumber} – du ${format(ws, 'dd/MM', { locale: fr })} au ${format(we, 'dd/MM/yyyy', { locale: fr })}`;
+  }
+
+  drawHeader2(ctx, projectInfo, weekNumber, weekLabel);
+
+  const grouped = new Map<string, TruckData[]>();
+  weekTrucks.forEach(t => {
+    if (!grouped.has(t.date)) grouped.set(t.date, []);
+    grouped.get(t.date)!.push(t);
+  });
+
+  let weekWeight = 0;
+  let totalProducts = 0;
+  const weekProductCounts: Record<string, number> = {};
+
+  Array.from(grouped.entries()).forEach(([date, dayTrucks]) => {
+    drawDayHeader2(ctx, date, dayTrucks.length);
+    dayTrucks.forEach(truck => {
+      const els = getTruckElements(truck.id);
+      drawTruckCard2(ctx, truck, els);
+      weekWeight += getTruckWeight(els);
+      els.forEach(el => {
+        totalProducts++;
+        weekProductCounts[el.productType] = (weekProductCounts[el.productType] || 0) + 1;
+      });
+    });
+  });
+
+  drawSummary(ctx, weekNumber, weekTrucks.length, totalProducts, weekProductCounts, weekWeight, totalSiteWeight, cumulativeWeight);
+
+  pdf.save(`planning_v2_S${weekNumber}_${year}.pdf`);
+}
+
+export async function exportAllWeeksPdf2(
+  weeklyTabs: { weekNumber: number; year: number }[],
+  allTrucks: TruckData[],
+  getTruckElements: (id: string) => BeamElement[],
+  projectInfo: ProjectInfo,
+  totalSiteWeight: number,
+  allTrucksCumulative: TruckData[]
+) {
+  const logoData = await loadLogoAsBase64();
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const ctx: PdfContext = {
+    pdf,
+    y: 8,
+    pageWidth: 210,
+    pageHeight: 297,
+    margin: 8,
+    usableWidth: 194,
+    logoData,
+  };
+
+  weeklyTabs.forEach((w, idx) => {
+    const weekTrucks = allTrucks
+      .filter(t => {
+        const d = parseISO(t.date);
+        return parseInt(format(d, 'II')) === w.weekNumber && d.getFullYear() === w.year;
+      })
+      .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+
+    if (weekTrucks.length === 0) return;
+
+    if (idx > 0) {
+      ctx.pdf.addPage();
+      ctx.y = ctx.margin;
+    }
+
+    const firstDate = parseISO(weekTrucks[0].date);
+    const ws = startOfWeek(firstDate, { weekStartsOn: 1 });
+    const we = endOfWeek(firstDate, { weekStartsOn: 1 });
+    const weekLabel = `Semaine ${w.weekNumber} – du ${format(ws, 'dd/MM', { locale: fr })} au ${format(we, 'dd/MM/yyyy', { locale: fr })}`;
+
+    drawHeader2(ctx, projectInfo, w.weekNumber, weekLabel);
+
+    const grouped = new Map<string, TruckData[]>();
+    weekTrucks.forEach(t => {
+      if (!grouped.has(t.date)) grouped.set(t.date, []);
+      grouped.get(t.date)!.push(t);
+    });
+
+    let weekWeight = 0;
+    let totalProducts = 0;
+    const weekProductCounts: Record<string, number> = {};
+
+    const cumulativeWeight = allTrucksCumulative
+      .filter(t => {
+        const d = parseISO(t.date);
+        const wn = parseInt(format(d, 'II'));
+        const y = d.getFullYear();
+        return (y < w.year) || (y === w.year && wn <= w.weekNumber);
+      })
+      .reduce((sum, t) => sum + getTruckWeight(getTruckElements(t.id)), 0);
+
+    Array.from(grouped.entries()).forEach(([date, dayTrucks]) => {
+      drawDayHeader2(ctx, date, dayTrucks.length);
+      dayTrucks.forEach(truck => {
+        const els = getTruckElements(truck.id);
+        drawTruckCard2(ctx, truck, els);
+        weekWeight += getTruckWeight(els);
+        els.forEach(el => {
+          totalProducts++;
+          weekProductCounts[el.productType] = (weekProductCounts[el.productType] || 0) + 1;
+        });
+      });
+    });
+
+    drawSummary(ctx, w.weekNumber, weekTrucks.length, totalProducts, weekProductCounts, weekWeight, totalSiteWeight, cumulativeWeight);
+  });
+
+  pdf.save(`planning_v2_toutes_semaines.pdf`);
+}

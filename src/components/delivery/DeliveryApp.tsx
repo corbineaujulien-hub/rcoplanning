@@ -13,7 +13,7 @@ import { format, parseISO } from 'date-fns';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories } from '@/utils/transportUtils';
 import { TRANSPORT_CATEGORIES } from '@/types/delivery';
 import * as XLSX from 'xlsx';
-import { exportAllWeeksPdf } from '@/utils/pdfExportUtils';
+import { exportAllWeeksPdf, exportAllWeeksPdf2 } from '@/utils/pdfExportUtils';
 
 export default function DeliveryApp() {
   const { trucks, projectInfo, elements, getTruckElements, teams } = useDelivery();
@@ -111,6 +111,10 @@ export default function DeliveryApp() {
     await exportAllWeeksPdf(weeklyTabs, trucks, getTruckElements, projectInfo, totalSiteWeight, trucks);
   };
 
+  const handleExportAllWeeksPdf2 = async () => {
+    await exportAllWeeksPdf2(weeklyTabs, trucks, getTruckElements, projectInfo, totalSiteWeight, trucks);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-primary text-primary-foreground shadow-lg">
@@ -168,6 +172,9 @@ export default function DeliveryApp() {
                 </Button>
                 <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleExportAllWeeksPdf}>
                   <Calendar className="h-3.5 w-3.5 mr-1" /> Tout PDF
+                </Button>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleExportAllWeeksPdf2}>
+                  <Calendar className="h-3.5 w-3.5 mr-1" /> Tout PDF v2
                 </Button>
               </div>
             )}
