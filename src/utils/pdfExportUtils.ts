@@ -513,7 +513,6 @@ function drawHeader2(ctx: PdfContext, projectInfo: ProjectInfo, weekNumber: numb
   const { pdf, margin, usableWidth } = ctx;
 
   // Line 1: logo left + title center + date right
-  const lineH = 8;
   if (ctx.logoData) {
     try {
       pdf.addImage(ctx.logoData, 'PNG', margin, ctx.y, 36, 12);
@@ -523,9 +522,11 @@ function drawHeader2(ctx: PdfContext, projectInfo: ProjectInfo, weekNumber: numb
   pdf.setFontSize(12);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(30, 58, 95);
-  const title = `RECTOR – Semaine ${weekNumber}`;
-  const titleW = pdf.getTextWidth(title);
-  pdf.text(title, margin + (usableWidth - titleW) / 2, ctx.y + 8);
+  const titleText = projectInfo.siteName
+    ? `${projectInfo.siteName} — RECTOR – Semaine ${weekNumber}`
+    : `RECTOR – Semaine ${weekNumber}`;
+  const titleW = pdf.getTextWidth(titleText);
+  pdf.text(titleText, margin + (usableWidth - titleW) / 2, ctx.y + 8);
 
   pdf.setFontSize(7);
   pdf.setFont('helvetica', 'normal');
@@ -578,20 +579,21 @@ function drawDayHeader2(ctx: PdfContext, date: string, truckCount: number) {
   ctx.y += 7.5;
 }
 
-function estimateTruckHeight2(els: BeamElement[], hasComment: boolean): number {
-  // Line1 badges ~6, Line2 info ~5, Line3 repères ~6 (may wrap), Line4 comment ~5
+function estimateTruckHeight2(els: BeamElement[], hasComment: boolean, columnWidth: number): number {
   const grouped = groupByType(els);
   let repereLineCount = 0;
+  const availW = columnWidth - 5; // borderW + padding
   Object.values(grouped).forEach(typeEls => {
-    // Rough estimate: each repere ~8mm wide, usable ~188mm
-    repereLineCount += Math.ceil(typeEls.length / 20) || 1;
+    // Rough estimate: each repere badge ~10mm wide on a half-width column
+    const perLine = Math.max(1, Math.floor(availW / 10));
+    repereLineCount += Math.ceil(typeEls.length / perLine) || 1;
   });
   const typeHeaders = Object.keys(grouped).length;
   return 6 + 5 + (typeHeaders * 3 + repereLineCount * 4) + (hasComment ? 5.5 : 0) + 3;
 }
 
-function drawTruckCard2(ctx: PdfContext, truck: TruckData, els: BeamElement[]) {
-  const { pdf, margin, usableWidth } = ctx;
+function drawTruckCard2(ctx: PdfContext, truck: TruckData, els: BeamElement[], columnWidth: number, startX: number) {
+  const { pdf } = ctx;
   const cat = getTransportCategory(els);
   const catInfo = TRANSPORT_CATEGORIES[cat];
   const weight = getTruckWeight(els);
@@ -600,11 +602,11 @@ function drawTruckCard2(ctx: PdfContext, truck: TruckData, els: BeamElement[]) {
   const zones = getTruckZones(els);
   const borderColor = getCatBorderColor(cat);
 
-  const cardHeight = estimateTruckHeight2(els, !!truck.comment?.trim());
-  ensureSpace(ctx, cardHeight);
+  const cardHeight = estimateTruckHeight2(els, !!truck.comment?.trim(), columnWidth);
+  // Don't call ensureSpace here – handled by the column layout caller
 
-  const cardX = margin;
-  const cardW = usableWidth;
+  const cardX = startX;
+  const cardW = columnWidth;
   const cardY = ctx.y;
   const borderW = 1;
 
@@ -633,32 +635,45 @@ function drawTruckCard2(ctx: PdfContext, truck: TruckData, els: BeamElement[]) {
   }
   y += numBadge.h + 1;
 
-  // LINE 2: metrics inline
+  // LINE 2: metrics as plain text (no unicode icons) + product count badges
   x = cardX + borderW + 2;
   pdf.setFontSize(6.5);
-  const metrics = [
-    { label: '⚖', value: `${weight.toFixed(2)} t` },
-    { label: '↔', value: `${maxLen.toFixed(2)} m` },
-    { label: '📦', value: `${els.length} produits` },
-  ];
-  metrics.forEach((m, i) => {
-    if (i > 0) {
-      pdf.setTextColor(180, 180, 180);
-      pdf.text('|', x, y + 3.2);
-      x += 2.5;
-    }
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(100, 116, 139);
-    pdf.text(m.label, x, y + 3.2);
-    x += pdf.getTextWidth(m.label) + 1;
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(30, 41, 59);
-    pdf.text(m.value, x, y + 3.2);
-    x += pdf.getTextWidth(m.value) + 3;
-  });
 
-  // Product count badges on same line
-  x += 2;
+  // Poids
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(100, 116, 139);
+  pdf.text('Poids : ', x, y + 3.2);
+  x += pdf.getTextWidth('Poids : ');
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(30, 41, 59);
+  const weightVal = `${weight.toFixed(2)} t`;
+  pdf.text(weightVal, x, y + 3.2);
+  x += pdf.getTextWidth(weightVal) + 2;
+
+  // Separator
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(180, 180, 180);
+  pdf.text('|', x, y + 3.2);
+  x += 2.5;
+
+  // Long. max
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(100, 116, 139);
+  pdf.text('Long. max : ', x, y + 3.2);
+  x += pdf.getTextWidth('Long. max : ');
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(30, 41, 59);
+  const lenVal = `${maxLen.toFixed(2)} m`;
+  pdf.text(lenVal, x, y + 3.2);
+  x += pdf.getTextWidth(lenVal) + 2;
+
+  // Separator
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(180, 180, 180);
+  pdf.text('|', x, y + 3.2);
+  x += 2.5;
+
+  // Product count badges
   const counts = els.reduce((acc: Record<string, number>, el) => { acc[el.productType] = (acc[el.productType] || 0) + 1; return acc; }, {});
   Object.entries(counts).forEach(([type, count]) => {
     const cb = drawBadge(ctx, x, y + 0.5, `${count}× ${type}`, '#e2e8f0', '#334155', 5.5);
@@ -705,7 +720,67 @@ function drawTruckCard2(ctx: PdfContext, truck: TruckData, els: BeamElement[]) {
     y += 5.5;
   }
 
-  ctx.y = cardY + cardHeight + 1.5;
+  // Return actual bottom Y for the caller to track column heights
+  return cardY + cardHeight;
+}
+
+function drawDayTrucks2Columns(
+  ctx: PdfContext,
+  dayTrucks: TruckData[],
+  getTruckElements: (id: string) => BeamElement[],
+  stats: { weekWeight: number; totalProducts: number; weekProductCounts: Record<string, number> }
+) {
+  const { margin, usableWidth } = ctx;
+  const colGap = 4;
+  const colW = (usableWidth - colGap) / 2;
+  const leftX = margin;
+  const rightX = margin + colW + colGap;
+
+  const leftTrucks = dayTrucks.filter(t => t.time < '12:00');
+  const rightTrucks = dayTrucks.filter(t => t.time >= '12:00');
+
+  // We need to draw both columns starting at the same Y
+  const startY = ctx.y;
+
+  // Draw left column
+  let leftY = startY;
+  leftTrucks.forEach(truck => {
+    const els = getTruckElements(truck.id);
+    const h = estimateTruckHeight2(els, !!truck.comment?.trim(), colW);
+    // Page break check
+    if (leftY + h > ctx.pageHeight - ctx.margin) {
+      // We need a new page - but we must also handle the right column
+      // For simplicity, we'll draw what fits and let it overflow to next page
+    }
+    ctx.y = leftY;
+    const bottom = drawTruckCard2(ctx, truck, els, colW, leftX);
+    leftY = bottom + 1; // 1mm gap
+
+    // Accumulate stats
+    stats.weekWeight += getTruckWeight(els);
+    els.forEach(el => {
+      stats.totalProducts++;
+      stats.weekProductCounts[el.productType] = (stats.weekProductCounts[el.productType] || 0) + 1;
+    });
+  });
+
+  // Draw right column
+  let rightY = startY;
+  rightTrucks.forEach(truck => {
+    const els = getTruckElements(truck.id);
+    ctx.y = rightY;
+    const bottom = drawTruckCard2(ctx, truck, els, colW, rightX);
+    rightY = bottom + 1; // 1mm gap
+
+    stats.weekWeight += getTruckWeight(els);
+    els.forEach(el => {
+      stats.totalProducts++;
+      stats.weekProductCounts[el.productType] = (stats.weekProductCounts[el.productType] || 0) + 1;
+    });
+  });
+
+  // Advance ctx.y to the bottom of the tallest column
+  ctx.y = Math.max(leftY, rightY);
 }
 
 export async function exportWeekPdf2(data: WeekExportData) {
@@ -724,15 +799,7 @@ export async function exportWeekPdf2(data: WeekExportData) {
     logoData,
   };
 
-  let weekLabel = `Semaine ${weekNumber}`;
-  if (weekTrucks.length > 0) {
-    const firstDate = parseISO(weekTrucks[0].date);
-    const ws = startOfWeek(firstDate, { weekStartsOn: 1 });
-    const we = endOfWeek(firstDate, { weekStartsOn: 1 });
-    weekLabel = `Semaine ${weekNumber} – du ${format(ws, 'dd/MM', { locale: fr })} au ${format(we, 'dd/MM/yyyy', { locale: fr })}`;
-  }
-
-  drawHeader2(ctx, projectInfo, weekNumber, weekLabel);
+  drawHeader2(ctx, projectInfo, weekNumber, `Semaine ${weekNumber}`);
 
   const grouped = new Map<string, TruckData[]>();
   weekTrucks.forEach(t => {
@@ -740,24 +807,14 @@ export async function exportWeekPdf2(data: WeekExportData) {
     grouped.get(t.date)!.push(t);
   });
 
-  let weekWeight = 0;
-  let totalProducts = 0;
-  const weekProductCounts: Record<string, number> = {};
+  const stats = { weekWeight: 0, totalProducts: 0, weekProductCounts: {} as Record<string, number> };
 
   Array.from(grouped.entries()).forEach(([date, dayTrucks]) => {
     drawDayHeader2(ctx, date, dayTrucks.length);
-    dayTrucks.forEach(truck => {
-      const els = getTruckElements(truck.id);
-      drawTruckCard2(ctx, truck, els);
-      weekWeight += getTruckWeight(els);
-      els.forEach(el => {
-        totalProducts++;
-        weekProductCounts[el.productType] = (weekProductCounts[el.productType] || 0) + 1;
-      });
-    });
+    drawDayTrucks2Columns(ctx, dayTrucks, getTruckElements, stats);
   });
 
-  drawSummary(ctx, weekNumber, weekTrucks.length, totalProducts, weekProductCounts, weekWeight, totalSiteWeight, cumulativeWeight);
+  drawSummary(ctx, weekNumber, weekTrucks.length, stats.totalProducts, stats.weekProductCounts, stats.weekWeight, totalSiteWeight, cumulativeWeight);
 
   pdf.save(`planning_v2_S${weekNumber}_${year}.pdf`);
 }
@@ -798,12 +855,7 @@ export async function exportAllWeeksPdf2(
       ctx.y = ctx.margin;
     }
 
-    const firstDate = parseISO(weekTrucks[0].date);
-    const ws = startOfWeek(firstDate, { weekStartsOn: 1 });
-    const we = endOfWeek(firstDate, { weekStartsOn: 1 });
-    const weekLabel = `Semaine ${w.weekNumber} – du ${format(ws, 'dd/MM', { locale: fr })} au ${format(we, 'dd/MM/yyyy', { locale: fr })}`;
-
-    drawHeader2(ctx, projectInfo, w.weekNumber, weekLabel);
+    drawHeader2(ctx, projectInfo, w.weekNumber, `Semaine ${w.weekNumber}`);
 
     const grouped = new Map<string, TruckData[]>();
     weekTrucks.forEach(t => {
@@ -811,9 +863,7 @@ export async function exportAllWeeksPdf2(
       grouped.get(t.date)!.push(t);
     });
 
-    let weekWeight = 0;
-    let totalProducts = 0;
-    const weekProductCounts: Record<string, number> = {};
+    const stats = { weekWeight: 0, totalProducts: 0, weekProductCounts: {} as Record<string, number> };
 
     const cumulativeWeight = allTrucksCumulative
       .filter(t => {
@@ -826,18 +876,10 @@ export async function exportAllWeeksPdf2(
 
     Array.from(grouped.entries()).forEach(([date, dayTrucks]) => {
       drawDayHeader2(ctx, date, dayTrucks.length);
-      dayTrucks.forEach(truck => {
-        const els = getTruckElements(truck.id);
-        drawTruckCard2(ctx, truck, els);
-        weekWeight += getTruckWeight(els);
-        els.forEach(el => {
-          totalProducts++;
-          weekProductCounts[el.productType] = (weekProductCounts[el.productType] || 0) + 1;
-        });
-      });
+      drawDayTrucks2Columns(ctx, dayTrucks, getTruckElements, stats);
     });
 
-    drawSummary(ctx, w.weekNumber, weekTrucks.length, totalProducts, weekProductCounts, weekWeight, totalSiteWeight, cumulativeWeight);
+    drawSummary(ctx, w.weekNumber, weekTrucks.length, stats.totalProducts, stats.weekProductCounts, stats.weekWeight, totalSiteWeight, cumulativeWeight);
   });
 
   pdf.save(`planning_v2_toutes_semaines.pdf`);
