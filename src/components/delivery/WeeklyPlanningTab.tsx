@@ -8,7 +8,7 @@ import { Truck as TruckIcon, Weight, Ruler, Factory, Package, FileSpreadsheet, D
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
-import { exportWeekPdf, exportWeekPdf2, exportWeekPdf3 } from '@/utils/pdfExportUtils';
+import { exportWeekPdf } from '@/utils/pdfExportUtils';
 
 interface WeeklyPlanningTabProps {
   weekNumber: number;
@@ -104,30 +104,6 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
     });
   };
 
-  const exportPdfV2 = async () => {
-    await exportWeekPdf2({
-      weekNumber,
-      year,
-      trucks: weekTrucks,
-      getTruckElements,
-      projectInfo,
-      totalSiteWeight,
-      cumulativeWeight,
-    });
-  };
-
-  const exportPdfV3 = async () => {
-    await exportWeekPdf3({
-      weekNumber,
-      year,
-      trucks: weekTrucks,
-      getTruckElements,
-      projectInfo,
-      totalSiteWeight,
-      cumulativeWeight,
-    });
-  };
-
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
       {/* Header */}
@@ -143,13 +119,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
                 <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
               </Button>
               <Button variant="outline" size="sm" onClick={exportPdf}>
-                <Download className="h-4 w-4 mr-1" /> PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={exportPdfV2}>
-                <Download className="h-4 w-4 mr-1" /> PDF v2
-              </Button>
-              <Button variant="outline" size="sm" onClick={exportPdfV3}>
-                <Download className="h-4 w-4 mr-1" /> PDF v3
+                <Download className="h-4 w-4 mr-1" /> Export PDF
               </Button>
             </div>
           </CardTitle>
