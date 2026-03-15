@@ -1043,9 +1043,20 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return result;
 }
 
+function drawDayBannerRecall(ctx: PdfContext, dayLabel: string) {
+  const { pdf, margin, usableWidth } = ctx;
+  drawRoundedRect(pdf, margin, ctx.y, usableWidth, 6, 1, '#e5e7eb');
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'italic');
+  pdf.setTextColor(...hexToRgb('#6b7280'));
+  pdf.text(`${dayLabel} — Rappel`, margin + 3, ctx.y + 4.2);
+  ctx.y += 7.5;
+}
+
 function drawDayTrucks3Columns(
   ctx: PdfContext,
   dayTrucks: TruckData[],
+  dayLabel: string,
   getTruckElements: (id: string) => BeamElement[],
   stats: { weekWeight: number; totalProducts: number; weekProductCounts: Record<string, number> }
 ) {
@@ -1054,18 +1065,20 @@ function drawDayTrucks3Columns(
   const colW = (usableWidth - 2 * colGap) / 3;
 
   const lines = chunk(dayTrucks, 3);
+  let isFirstRowOfDay = true;
 
   lines.forEach(line => {
-    // Calculate row height = max of all trucks in this line
     const rowHeight = Math.max(...line.map(truck => {
       const els = getTruckElements(truck.id);
       return estimateTruckHeight3(els, !!truck.comment?.trim(), colW);
     })) + 1;
 
-    // Page break for entire row
     if (ctx.y + rowHeight > ctx.pageHeight - ctx.margin) {
       ctx.pdf.addPage();
       ctx.y = ctx.margin;
+      if (!isFirstRowOfDay) {
+        drawDayBannerRecall(ctx, dayLabel);
+      }
     }
 
     // Draw each truck in the row
@@ -1074,7 +1087,6 @@ function drawDayTrucks3Columns(
       const els = getTruckElements(truck.id);
       drawTruckCard3(ctx, truck, els, colW, x, ctx.y);
 
-      // Accumulate stats
       stats.weekWeight += getTruckWeight(els);
       els.forEach(el => {
         stats.totalProducts++;
@@ -1083,9 +1095,10 @@ function drawDayTrucks3Columns(
     });
 
     ctx.y += rowHeight;
+    isFirstRowOfDay = false;
   });
 
-  ctx.y += 2; // gap between days
+  ctx.y += 2;
 }
 
 export async function exportWeekPdf3(data: WeekExportData) {
