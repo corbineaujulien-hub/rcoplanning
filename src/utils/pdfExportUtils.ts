@@ -584,12 +584,12 @@ function estimateTruckHeight2(els: BeamElement[], hasComment: boolean, columnWid
   let repereLineCount = 0;
   const availW = columnWidth - 5; // borderW + padding
   Object.values(grouped).forEach(typeEls => {
-    // Rough estimate: each repere badge ~10mm wide on a half-width column
     const perLine = Math.max(1, Math.floor(availW / 10));
     repereLineCount += Math.ceil(typeEls.length / perLine) || 1;
   });
   const typeHeaders = Object.keys(grouped).length;
-  return 6 + 5 + (typeHeaders * 3 + repereLineCount * 4) + (hasComment ? 5.5 : 0) + 3;
+  // +3mm safety margin to avoid any overflow
+  return 6 + 5 + (typeHeaders * 3 + repereLineCount * 4) + (hasComment ? 5.5 : 0) + 3 + 3;
 }
 
 function drawTruckCard2(ctx: PdfContext, truck: TruckData, els: BeamElement[], columnWidth: number, startX: number) {
