@@ -116,6 +116,18 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
     });
   };
 
+  const exportPdfV3 = async () => {
+    await exportWeekPdf3({
+      weekNumber,
+      year,
+      trucks: weekTrucks,
+      getTruckElements,
+      projectInfo,
+      totalSiteWeight,
+      cumulativeWeight,
+    });
+  };
+
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
       {/* Header */}
