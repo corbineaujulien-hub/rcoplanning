@@ -115,6 +115,10 @@ export default function DeliveryApp() {
     await exportAllWeeksPdf2(weeklyTabs, trucks, getTruckElements, projectInfo, totalSiteWeight, trucks);
   };
 
+  const handleExportAllWeeksPdf3 = async () => {
+    await exportAllWeeksPdf3(weeklyTabs, trucks, getTruckElements, projectInfo, totalSiteWeight, trucks);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-primary text-primary-foreground shadow-lg">
