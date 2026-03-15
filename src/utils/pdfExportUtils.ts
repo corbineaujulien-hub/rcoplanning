@@ -736,51 +736,59 @@ function drawDayTrucks2Columns(
   const leftX = margin;
   const rightX = margin + colW + colGap;
 
-  const leftTrucks = dayTrucks.filter(t => t.time < '12:00');
-  const rightTrucks = dayTrucks.filter(t => t.time >= '12:00');
+  // Balanced distribution: first half left, second half right (chronological order)
+  const leftCount = Math.ceil(dayTrucks.length / 2);
+  const leftTrucks = dayTrucks.slice(0, leftCount);
+  const rightTrucks = dayTrucks.slice(leftCount);
 
-  // We need to draw both columns starting at the same Y
-  const startY = ctx.y;
+  // Accumulate stats for all trucks
+  const accumulateStats = (truck: TruckData) => {
+    const els = getTruckElements(truck.id);
+    stats.weekWeight += getTruckWeight(els);
+    els.forEach(el => {
+      stats.totalProducts++;
+      stats.weekProductCounts[el.productType] = (stats.weekProductCounts[el.productType] || 0) + 1;
+    });
+  };
 
-  // Draw left column
-  let leftY = startY;
+  // Draw left column first, then right column, with page-break sync
+  let yLeft = ctx.y;
+  let yRight = ctx.y;
+
+  // --- Left column ---
   leftTrucks.forEach(truck => {
     const els = getTruckElements(truck.id);
     const h = estimateTruckHeight2(els, !!truck.comment?.trim(), colW);
-    // Page break check
-    if (leftY + h > ctx.pageHeight - ctx.margin) {
-      // We need a new page - but we must also handle the right column
-      // For simplicity, we'll draw what fits and let it overflow to next page
+    if (yLeft + h > ctx.pageHeight - ctx.margin) {
+      ctx.pdf.addPage();
+      yLeft = ctx.margin;
+      yRight = ctx.margin; // sync right column to new page
     }
-    ctx.y = leftY;
+    ctx.y = yLeft;
     const bottom = drawTruckCard2(ctx, truck, els, colW, leftX);
-    leftY = bottom + 1; // 1mm gap
-
-    // Accumulate stats
-    stats.weekWeight += getTruckWeight(els);
-    els.forEach(el => {
-      stats.totalProducts++;
-      stats.weekProductCounts[el.productType] = (stats.weekProductCounts[el.productType] || 0) + 1;
-    });
+    yLeft = bottom + 1; // 1mm gap
+    accumulateStats(truck);
   });
 
-  // Draw right column
-  let rightY = startY;
+  // --- Right column ---
   rightTrucks.forEach(truck => {
     const els = getTruckElements(truck.id);
-    ctx.y = rightY;
+    const h = estimateTruckHeight2(els, !!truck.comment?.trim(), colW);
+    if (yRight + h > ctx.pageHeight - ctx.margin) {
+      // Only add page if not already at top
+      if (yRight > ctx.margin + 1) {
+        ctx.pdf.addPage();
+        yRight = ctx.margin;
+      }
+    }
+    ctx.y = yRight;
     const bottom = drawTruckCard2(ctx, truck, els, colW, rightX);
-    rightY = bottom + 1; // 1mm gap
-
-    stats.weekWeight += getTruckWeight(els);
-    els.forEach(el => {
-      stats.totalProducts++;
-      stats.weekProductCounts[el.productType] = (stats.weekProductCounts[el.productType] || 0) + 1;
-    });
+    yRight = bottom + 1; // 1mm gap
+    accumulateStats(truck);
   });
 
-  // Advance ctx.y to the bottom of the tallest column
-  ctx.y = Math.max(leftY, rightY);
+  // Advance to bottom of tallest column + 2mm spacing
+  ctx.y = Math.max(yLeft, yRight) + 2;
 }
 
 export async function exportWeekPdf2(data: WeekExportData) {
