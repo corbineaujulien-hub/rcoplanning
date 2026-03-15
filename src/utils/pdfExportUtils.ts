@@ -1207,8 +1207,22 @@ export async function exportAllWeeksPdf3(
       .reduce((sum, t) => sum + getTruckWeight(getTruckElements(t.id)), 0);
 
     Array.from(grouped.entries()).forEach(([date, dayTrucks]) => {
+      const colGap = 4;
+      const colW = (ctx.usableWidth - 2 * colGap) / 3;
+      const dayLabel = format(parseISO(date), 'EEEE dd MMMM yyyy', { locale: fr });
+      const capitalDay = dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1);
+      const firstLine = dayTrucks.slice(0, 3);
+      const firstRowHeight = Math.max(...firstLine.map(t => {
+        const els = getTruckElements(t.id);
+        return estimateTruckHeight3(els, !!t.comment?.trim(), colW);
+      })) + 1;
+      const dayBannerHeight = 7.5;
+      if (ctx.y + dayBannerHeight + firstRowHeight > ctx.pageHeight - ctx.margin) {
+        ctx.pdf.addPage();
+        ctx.y = ctx.margin;
+      }
       drawDayHeader2(ctx, date, dayTrucks.length);
-      drawDayTrucks3Columns(ctx, dayTrucks, getTruckElements, stats);
+      drawDayTrucks3Columns(ctx, dayTrucks, capitalDay, getTruckElements, stats);
     });
 
     drawSummary(ctx, w.weekNumber, weekTrucks.length, stats.totalProducts, stats.weekProductCounts, stats.weekWeight, totalSiteWeight, cumulativeWeight);
