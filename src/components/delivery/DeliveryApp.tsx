@@ -180,6 +180,9 @@ export default function DeliveryApp() {
                 <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleExportAllWeeksPdf2}>
                   <Calendar className="h-3.5 w-3.5 mr-1" /> Tout PDF v2
                 </Button>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleExportAllWeeksPdf3}>
+                  <Calendar className="h-3.5 w-3.5 mr-1" /> Tout PDF v3
+                </Button>
               </div>
             )}
           </TabsList>
