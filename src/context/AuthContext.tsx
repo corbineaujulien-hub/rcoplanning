@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+// TEMPORAIRE : Auth neutralisée le temps de résoudre le problème CORS
+// TODO: Réactiver l'authentification une fois le CORS corrigé
+import { createContext, useContext, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
   session: Session | null;
@@ -9,39 +10,41 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
+// Session fictive pour éviter les erreurs dans les composants dépendants
+const fakeUser = {
+  id: 'temp-user',
+  email: 'utilisateur@temp.local',
+  aud: 'authenticated',
+  role: 'authenticated',
+  app_metadata: {},
+  user_metadata: {},
+  created_at: new Date().toISOString(),
+} as unknown as User;
+
+const fakeSession = {
+  access_token: 'temp-token',
+  refresh_token: 'temp-refresh',
+  expires_in: 999999,
+  token_type: 'bearer',
+  user: fakeUser,
+} as unknown as Session;
+
 const AuthContext = createContext<AuthContextType>({
-  session: null,
-  user: null,
-  loading: true,
+  session: fakeSession,
+  user: fakeUser,
+  loading: false,
   signOut: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Désactivé temporairement
   };
 
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, loading, signOut }}>
+    <AuthContext.Provider value={{ session: fakeSession, user: fakeUser, loading: false, signOut }}>
       {children}
     </AuthContext.Provider>
   );
