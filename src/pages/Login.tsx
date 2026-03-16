@@ -47,7 +47,7 @@ export default function Login() {
           <div className="flex justify-center">
             <Truck className="h-10 w-10 text-primary" />
           </div>
-          <CardTitle className="text-2xl">RECTOR – Planification</CardTitle>
+          <CardTitle className="text-2xl">Connexion</CardTitle>
           <CardDescription>Connectez-vous pour accéder à l'application</CardDescription>
         </CardHeader>
         <CardContent>
