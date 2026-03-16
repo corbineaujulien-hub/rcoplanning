@@ -45,7 +45,7 @@ interface TruckElementInfo {
 
 export default function Home() {
   const navigate = useNavigate();
-  
+  const { signOut } = useAuth();
   const [creating, setCreating] = useState(false);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [links, setLinks] = useState<ProjectLink[]>([]);
