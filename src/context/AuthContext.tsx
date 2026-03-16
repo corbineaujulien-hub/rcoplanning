@@ -1,7 +1,8 @@
 // TEMPORAIRE : Auth neutralisée le temps de résoudre le problème CORS
 // TODO: Réactiver l'authentification une fois le CORS corrigé
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
   session: Session | null;
@@ -10,7 +11,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
-// Session fictive pour éviter les erreurs dans les composants dépendants
+// Session fictive pour les composants qui dépendent du contexte
 const fakeUser = {
   id: 'temp-user',
   email: 'utilisateur@temp.local',
@@ -39,12 +40,24 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const signOut = async () => {
-    // Désactivé temporairement
-  };
+  const [ready, setReady] = useState(false);
+
+  // Nettoyer toute session Supabase persistée pour que les requêtes
+  // utilisent uniquement la anon key (sans JWT invalide)
+  useEffect(() => {
+    supabase.auth.signOut().finally(() => setReady(true));
+  }, []);
+
+  if (!ready) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-muted-foreground">Chargement...</div>
+      </div>
+    );
+  }
 
   return (
-    <AuthContext.Provider value={{ session: fakeSession, user: fakeUser, loading: false, signOut }}>
+    <AuthContext.Provider value={{ session: fakeSession, user: fakeUser, loading: false, signOut: async () => {} }}>
       {children}
     </AuthContext.Provider>
   );
