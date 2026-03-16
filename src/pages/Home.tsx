@@ -244,17 +244,6 @@ export default function Home() {
             <Truck className="h-7 w-7" />
             <h1 className="text-lg font-bold tracking-tight">RECTOR – Planification des livraisons</h1>
           </div>
-          {/* TEMPORAIRE : bouton déconnexion masqué
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={async () => { await signOut(); navigate('/login', { replace: true }); }}
-            className="text-primary-foreground hover:bg-primary-foreground/10"
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Déconnexion
-          </Button>
-          */}
         </div>
       </header>
 
