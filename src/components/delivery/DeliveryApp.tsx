@@ -17,7 +17,7 @@ import * as XLSX from 'xlsx';
 import { exportAllWeeksPdf } from '@/utils/pdfExportUtils';
 
 export default function DeliveryApp() {
-  const { trucks, projectInfo, elements, getTruckElements, teams } = useDelivery();
+  const { trucks, projectInfo, elements, getTruckElements, teams, projectId } = useDelivery();
   const navigate = useNavigate();
 
   const hasMultipleTeams = teams.length > 1;
