@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Users } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface PresenceUser {
   odisplayName: string;
@@ -10,9 +16,17 @@ interface PresenceUser {
   joinedAt: string;
 }
 
+function formatUserName(email: string): string {
+  const localPart = email.split('@')[0];
+  const parts = localPart.split('.');
+  return parts
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
 function getDisplayName(user: { email?: string | null } | null): string {
   if (!user) return 'Anonyme';
-  if (user.email) return user.email.split('@')[0];
+  if (user.email) return formatUserName(user.email);
   return 'Anonyme';
 }
 
@@ -28,6 +42,7 @@ function getVisitorId(): string {
 export default function ActiveUsersNotification({ projectId }: { projectId: string }) {
   const { user } = useAuth();
   const [otherUsers, setOtherUsers] = useState<string[]>([]);
+  const isMobile = useIsMobile();
 
   const myId = user?.id ?? getVisitorId();
   const myName = getDisplayName(user);
@@ -64,22 +79,41 @@ export default function ActiveUsersNotification({ projectId }: { projectId: stri
     };
   }, [projectId, myId, myName]);
 
-  return (
-    <AnimatePresence>
-      {otherUsers.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.3 }}
-          className="mx-4 mt-2 flex items-center gap-2 rounded-lg border border-accent bg-accent/10 px-4 py-2 text-sm text-accent-foreground"
-        >
-          <Users className="h-4 w-4 shrink-0" />
-          <span>
-            Également sur ce chantier : <strong>{otherUsers.join(', ')}</strong>
-          </span>
-        </motion.div>
+  if (otherUsers.length === 0) return null;
+
+  const maxVisible = 3;
+  const visibleNames = otherUsers.slice(0, maxVisible);
+  const remaining = otherUsers.length - maxVisible;
+
+  const content = isMobile ? (
+    <span className="text-xs font-medium text-primary-foreground">{otherUsers.length}</span>
+  ) : (
+    <span className="text-xs text-primary-foreground/90">
+      {visibleNames.join(', ')}
+      {remaining > 0 && (
+        <span className="ml-1 inline-flex items-center justify-center rounded-full bg-primary-foreground/20 px-1.5 text-[10px] font-bold text-primary-foreground">
+          +{remaining}
+        </span>
       )}
-    </AnimatePresence>
+    </span>
+  );
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-1.5 cursor-default">
+            <Users className="h-4 w-4 text-primary-foreground/70 shrink-0" />
+            {content}
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          <p className="text-xs font-medium mb-1">Utilisateurs connectés :</p>
+          {otherUsers.map((name, i) => (
+            <p key={i} className="text-xs">{name}</p>
+          ))}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

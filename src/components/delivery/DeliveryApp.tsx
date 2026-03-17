@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import ActiveUsersNotification from '@/components/ActiveUsersNotification';
 import { Progress } from '@/components/ui/progress';
 import { useNavigate } from 'react-router-dom';
 import { useDelivery } from '@/context/DeliveryContext';
@@ -16,7 +17,7 @@ import * as XLSX from 'xlsx';
 import { exportAllWeeksPdf } from '@/utils/pdfExportUtils';
 
 export default function DeliveryApp() {
-  const { trucks, projectInfo, elements, getTruckElements, teams } = useDelivery();
+  const { trucks, projectInfo, elements, getTruckElements, teams, projectId } = useDelivery();
   const navigate = useNavigate();
 
   const hasMultipleTeams = teams.length > 1;
@@ -130,6 +131,7 @@ export default function DeliveryApp() {
                </div>
              )}
            </div>
+          <ActiveUsersNotification projectId={projectId} />
           <Button variant="ghost" size="sm" className="text-primary-foreground/70 hover:text-primary-foreground" onClick={() => navigate('/')}>
             <Home className="h-4 w-4" />
           </Button>

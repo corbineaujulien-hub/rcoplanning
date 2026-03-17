@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { DeliveryProvider } from '@/context/DeliveryContext';
 import DeliveryApp from '@/components/delivery/DeliveryApp';
 import { toast } from 'sonner';
-import ActiveUsersNotification from '@/components/ActiveUsersNotification';
+
 
 export default function Project() {
   const { token } = useParams<{ token: string }>();
@@ -43,7 +43,6 @@ export default function Project() {
 
   return (
     <DeliveryProvider projectId={projectId!} token={token!}>
-      <ActiveUsersNotification projectId={projectId!} />
       <DeliveryApp />
     </DeliveryProvider>
   );
