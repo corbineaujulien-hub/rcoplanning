@@ -42,6 +42,7 @@ export default function Project() {
 
   return (
     <DeliveryProvider projectId={projectId!} token={token!}>
+      <ActiveUsersNotification projectId={projectId!} />
       <DeliveryApp />
     </DeliveryProvider>
   );
