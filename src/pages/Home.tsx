@@ -63,7 +63,7 @@ export default function Home() {
     let page = 0;
     let hasMore = true;
     while (hasMore) {
-      const { data } = await supabase.from(table).select(columns).range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      const { data } = await (supabase.from as any)(table).select(columns).range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
       if (!data || data.length === 0) { hasMore = false; } else {
         all = [...all, ...data];
         page++;
