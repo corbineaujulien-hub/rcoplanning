@@ -66,9 +66,21 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           });
         }
 
-        const { data: elems } = await supabase.from('beam_elements').select('*').eq('project_id', projectId);
-        if (elems) {
-          setElementsState(elems.map(e => ({
+        // Paginated fetch to support up to 5000 elements
+        const PAGE_SIZE = 1000;
+        let allElems: any[] = [];
+        let page = 0;
+        let hasMore = true;
+        while (hasMore) {
+          const { data: batch } = await supabase.from('beam_elements').select('*').eq('project_id', projectId).range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+          if (!batch || batch.length === 0) { hasMore = false; } else {
+            allElems = [...allElems, ...batch];
+            page++;
+            if (allElems.length >= 5000) hasMore = false;
+          }
+        }
+        if (allElems.length > 0) {
+          setElementsState(allElems.map(e => ({
             id: e.id, repere: e.repere || '', zone: e.zone || '', productType: e.product_type || '',
             section: e.section || '', length: Number(e.length) || 0, weight: Number(e.weight) || 0, factory: e.factory || '',
           })));
