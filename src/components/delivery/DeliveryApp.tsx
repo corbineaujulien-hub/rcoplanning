@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import ActiveUsersNotification from '@/components/ActiveUsersNotification';
 import { Progress } from '@/components/ui/progress';
 import { useNavigate } from 'react-router-dom';
 import { useDelivery } from '@/context/DeliveryContext';
