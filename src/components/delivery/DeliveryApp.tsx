@@ -130,6 +130,7 @@ export default function DeliveryApp() {
                </div>
              )}
            </div>
+          <ActiveUsersNotification projectId={projectInfo.projectId || ''} />
           <Button variant="ghost" size="sm" className="text-primary-foreground/70 hover:text-primary-foreground" onClick={() => navigate('/')}>
             <Home className="h-4 w-4" />
           </Button>
