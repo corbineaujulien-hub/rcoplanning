@@ -57,18 +57,34 @@ export default function Home() {
   const [filterSubcontractor, setFilterSubcontractor] = useState('all');
   const [showArchived, setShowArchived] = useState(false);
 
+  const fetchAllPaginated = async (table: string, columns: string) => {
+    const PAGE_SIZE = 1000;
+    let all: any[] = [];
+    let page = 0;
+    let hasMore = true;
+    while (hasMore) {
+      const { data } = await supabase.from(table).select(columns).range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      if (!data || data.length === 0) { hasMore = false; } else {
+        all = [...all, ...data];
+        page++;
+        if (all.length >= 5000) hasMore = false;
+      }
+    }
+    return all;
+  };
+
   const fetchProjects = async () => {
     setLoading(true);
-    const [{ data: pData }, { data: lData }, { data: tData }, { data: eData }] = await Promise.all([
+    const [{ data: pData }, { data: lData }, tData, eData] = await Promise.all([
       supabase.from('projects').select('id, site_name, client_name, conductor, subcontractor, otp_number, created_at, archived').order('created_at', { ascending: false }),
       supabase.from('project_access_links').select('project_id, token'),
-      supabase.from('trucks').select('project_id, date, element_ids'),
-      supabase.from('beam_elements').select('project_id, weight'),
+      fetchAllPaginated('trucks', 'project_id, date, element_ids'),
+      fetchAllPaginated('beam_elements', 'project_id, weight'),
     ]);
     setProjects(pData as ProjectRow[] || []);
     setLinks(lData || []);
-    setAllTrucks((tData || []).map(t => ({ project_id: t.project_id, element_ids: (t.element_ids as string[]) || [], date: t.date })));
-    setAllElements((eData || []).map(e => ({ project_id: e.project_id, weight: Number(e.weight) || 0 })));
+    setAllTrucks((tData || []).map((t: any) => ({ project_id: t.project_id, element_ids: (t.element_ids as string[]) || [], date: t.date })));
+    setAllElements((eData || []).map((e: any) => ({ project_id: e.project_id, weight: Number(e.weight) || 0 })));
     setLoading(false);
   };
 
