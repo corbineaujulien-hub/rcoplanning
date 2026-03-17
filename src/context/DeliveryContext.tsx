@@ -306,25 +306,29 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
   }, [projectId]);
 
   const addElementsToTruck = useCallback(async (truckId: string, elementIds: string[]) => {
+    let newElementIds: string[] = [];
     setTrucksState(prev => {
       const updated = prev.map(t =>
         t.id === truckId ? { ...t, elementIds: [...new Set([...t.elementIds, ...elementIds])] } : t
       );
       const truck = updated.find(t => t.id === truckId);
-      if (truck) supabase.from('trucks').update({ element_ids: truck.elementIds }).eq('id', truckId);
+      if (truck) newElementIds = truck.elementIds;
       return updated;
     });
+    await supabase.from('trucks').update({ element_ids: newElementIds }).eq('id', truckId);
   }, []);
 
   const removeElementFromTruck = useCallback(async (truckId: string, elementId: string) => {
+    let newElementIds: string[] = [];
     setTrucksState(prev => {
       const updated = prev.map(t =>
         t.id === truckId ? { ...t, elementIds: t.elementIds.filter(eid => eid !== elementId) } : t
       );
       const truck = updated.find(t => t.id === truckId);
-      if (truck) supabase.from('trucks').update({ element_ids: truck.elementIds }).eq('id', truckId);
+      if (truck) newElementIds = truck.elementIds;
       return updated;
     });
+    await supabase.from('trucks').update({ element_ids: newElementIds }).eq('id', truckId);
   }, []);
 
   const getElementById = useCallback((id: string) => elements.find(el => el.id === id), [elements]);
