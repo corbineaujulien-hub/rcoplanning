@@ -66,9 +66,21 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           });
         }
 
-        const { data: elems } = await supabase.from('beam_elements').select('*').eq('project_id', projectId);
-        if (elems) {
-          setElementsState(elems.map(e => ({
+        // Paginated fetch to support up to 5000 elements
+        const PAGE_SIZE = 1000;
+        let allElems: any[] = [];
+        let page = 0;
+        let hasMore = true;
+        while (hasMore) {
+          const { data: batch } = await supabase.from('beam_elements').select('*').eq('project_id', projectId).range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+          if (!batch || batch.length === 0) { hasMore = false; } else {
+            allElems = [...allElems, ...batch];
+            page++;
+            if (allElems.length >= 5000) hasMore = false;
+          }
+        }
+        if (allElems.length > 0) {
+          setElementsState(allElems.map(e => ({
             id: e.id, repere: e.repere || '', zone: e.zone || '', productType: e.product_type || '',
             section: e.section || '', length: Number(e.length) || 0, weight: Number(e.weight) || 0, factory: e.factory || '',
           })));
@@ -226,25 +238,29 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
     setElementsState(newElements);
     await supabase.from('beam_elements').delete().eq('project_id', projectId);
     if (newElements.length > 0) {
-      await supabase.from('beam_elements').insert(
-        newElements.map(e => ({
-          id: e.id, project_id: projectId, repere: e.repere, zone: e.zone,
-          product_type: e.productType, section: e.section, length: e.length,
-          weight: e.weight, factory: e.factory,
-        }))
-      );
+      const rows = newElements.map(e => ({
+        id: e.id, project_id: projectId, repere: e.repere, zone: e.zone,
+        product_type: e.productType, section: e.section, length: e.length,
+        weight: e.weight, factory: e.factory,
+      }));
+      const BATCH_SIZE = 500;
+      for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+        await supabase.from('beam_elements').insert(rows.slice(i, i + BATCH_SIZE));
+      }
     }
   }, [projectId]);
 
   const addElements = useCallback(async (newElements: BeamElement[]) => {
     setElementsState(prev => [...prev, ...newElements]);
-    await supabase.from('beam_elements').insert(
-      newElements.map(e => ({
-        id: e.id, project_id: projectId, repere: e.repere, zone: e.zone,
-        product_type: e.productType, section: e.section, length: e.length,
-        weight: e.weight, factory: e.factory,
-      }))
-    );
+    const rows = newElements.map(e => ({
+      id: e.id, project_id: projectId, repere: e.repere, zone: e.zone,
+      product_type: e.productType, section: e.section, length: e.length,
+      weight: e.weight, factory: e.factory,
+    }));
+    const BATCH_SIZE = 500;
+    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+      await supabase.from('beam_elements').insert(rows.slice(i, i + BATCH_SIZE));
+    }
   }, [projectId]);
 
   const updateElement = useCallback(async (id: string, updates: Partial<BeamElement>) => {
