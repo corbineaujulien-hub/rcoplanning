@@ -143,12 +143,10 @@ export default function Home() {
 
   useEffect(() => {
     const fetchElementDetails = async () => {
-      const { data } = await supabase.from('beam_elements').select('id, weight, project_id');
-      if (data) {
-        const map = new Map<string, number>();
-        data.forEach(e => map.set(e.id, Number(e.weight) || 0));
-        setElementDetailsMap(map);
-      }
+      const all = await fetchAllPaginated('beam_elements', 'id, weight, project_id');
+      const map = new Map<string, number>();
+      all.forEach((e: any) => map.set(e.id, Number(e.weight) || 0));
+      setElementDetailsMap(map);
     };
     fetchElementDetails();
   }, []);
