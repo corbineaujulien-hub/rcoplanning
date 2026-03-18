@@ -579,7 +579,28 @@ export async function exportAllWeeksPdf(
       drawDayTrucks3Columns(ctx, dayTrucks, capitalDay, getTruckElements, stats);
     });
 
-    drawSummary(ctx, w.weekNumber, weekTrucks.length, stats.totalProducts, stats.weekProductCounts, stats.weekWeight, totalSiteWeight, cumulativeWeight);
+    // Compute cumulative by type for this week
+    const cumByType: Record<string, number> = {};
+    allTrucksCumulative
+      .filter(t => {
+        const d = parseISO(t.date);
+        const wn = parseInt(format(d, 'II'));
+        const y = d.getFullYear();
+        return (y < w.year) || (y === w.year && wn <= w.weekNumber);
+      })
+      .forEach(t => {
+        getTruckElements(t.id).forEach(el => {
+          cumByType[el.productType] = (cumByType[el.productType] || 0) + el.weight;
+        });
+      });
+    const totByType: Record<string, number> = {};
+    if (allElements) {
+      allElements.forEach(el => {
+        totByType[el.productType] = (totByType[el.productType] || 0) + el.weight;
+      });
+    }
+
+    drawSummary(ctx, w.weekNumber, weekTrucks.length, stats.totalProducts, stats.weekProductCounts, stats.weekWeight, totalSiteWeight, cumulativeWeight, cumByType, allElements ? totByType : undefined);
   });
 
   const nomChantier = getNomChantier(projectInfo);
