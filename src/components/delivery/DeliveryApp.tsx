@@ -109,7 +109,7 @@ export default function DeliveryApp() {
   const planningPct = totalSiteWeight > 0 ? Math.round((loadedWeight / totalSiteWeight) * 100) : 0;
 
   const handleExportAllWeeksPdf = async () => {
-    await exportAllWeeksPdf(weeklyTabs, trucks, getTruckElements, projectInfo, totalSiteWeight, trucks);
+    await exportAllWeeksPdf(weeklyTabs, trucks, getTruckElements, projectInfo, totalSiteWeight, trucks, elements);
   };
 
   return (
