@@ -128,6 +128,8 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
       projectInfo,
       totalSiteWeight,
       cumulativeWeight,
+      cumulativeByType,
+      totalByType,
     });
   };
 
