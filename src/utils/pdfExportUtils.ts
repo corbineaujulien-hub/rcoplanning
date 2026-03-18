@@ -510,7 +510,8 @@ export async function exportAllWeeksPdf(
   getTruckElements: (id: string) => BeamElement[],
   projectInfo: ProjectInfo,
   totalSiteWeight: number,
-  allTrucksCumulative: TruckData[]
+  allTrucksCumulative: TruckData[],
+  allElements?: BeamElement[]
 ) {
   const logoData = await loadLogoAsBase64();
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
