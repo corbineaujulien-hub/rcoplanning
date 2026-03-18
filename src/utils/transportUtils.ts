@@ -10,8 +10,8 @@ export function getTransportCategory(elements: BeamElement[]): TransportCategory
   const hasExtendedType = elements.some(el => EXTENDED_LENGTH_TYPES.includes(el.productType));
   const effectiveStandardMax = hasExtendedType ? 14.5 : 13.5;
 
-  if (maxLength <= effectiveStandardMax && totalWeight <= 27) return 'standard';
-  if (maxLength <= 16.5 && totalWeight <= 27) return 'cat1';
+  if (maxLength <= effectiveStandardMax && totalWeight <= 28) return 'standard';
+  if (maxLength <= 16.5 && totalWeight <= 28) return 'cat1';
   if (maxLength <= 21.5 && totalWeight <= 42) return 'cat2';
   return 'cat3';
 }
