@@ -149,10 +149,14 @@ function drawSummary(
   weekProductCounts: Record<string, number>,
   weekWeight: number,
   totalSiteWeight: number,
-  cumulativeWeight: number
+  cumulativeWeight: number,
+  cumulativeByType?: Record<string, number>,
+  totalByType?: Record<string, number>
 ) {
   const productTypeCount = Object.keys(weekProductCounts).length;
-  const productSubHeight = productTypeCount * 3.5;
+  const cumulativeTypeCount = cumulativeByType ? Object.keys(cumulativeByType).length : 0;
+  const maxSubLines = Math.max(productTypeCount, cumulativeTypeCount);
+  const productSubHeight = maxSubLines * 3.5;
   const boxH = Math.max(14, 12 + productSubHeight);
   const totalH = 8 + boxH + 4;
 
@@ -195,6 +199,19 @@ function drawSummary(
       pdf.setTextColor(80, 80, 80);
       Object.entries(weekProductCounts).forEach(([type, count]) => {
         pdf.text(`${count}× ${type}`, cx + 2, subY);
+        subY += 3.5;
+      });
+    }
+
+    if (i === 4 && cumulativeByType && totalByType) {
+      let subY = colY + 13;
+      pdf.setFontSize(5.5);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(80, 80, 80);
+      Object.entries(cumulativeByType).forEach(([type, cumW]) => {
+        const total = totalByType[type] || 0;
+        const pct = total > 0 ? Math.round((cumW / total) * 100) : 0;
+        pdf.text(`${type} : ${pct}% (${Math.round(cumW)} t)`, cx + 2, subY);
         subY += 3.5;
       });
     }

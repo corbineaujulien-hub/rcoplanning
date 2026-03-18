@@ -292,6 +292,15 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
               <div className="bg-muted rounded-lg p-3">
                 <p className="text-muted-foreground">Avancement cumulé</p>
                 <p className="text-xl font-bold">{totalSiteWeight > 0 ? ((cumulativeWeight / totalSiteWeight) * 100).toFixed(1) : 0} %</p>
+                <div className="mt-1 space-y-0.5">
+                  {Object.entries(cumulativeByType).map(([type, cumWeight]) => {
+                    const total = totalByType[type] || 0;
+                    const pct = total > 0 ? Math.round((cumWeight / total) * 100) : 0;
+                    return (
+                      <p key={type} className="text-xs">{type} : {pct}% ({Math.round(cumWeight)} t)</p>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </CardContent>
