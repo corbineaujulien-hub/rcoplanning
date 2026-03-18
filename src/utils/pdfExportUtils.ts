@@ -211,7 +211,7 @@ function drawSummary(
       Object.entries(cumulativeByType).forEach(([type, cumW]) => {
         const total = totalByType[type] || 0;
         const pct = total > 0 ? Math.round((cumW / total) * 100) : 0;
-        pdf.text(`${type} : ${pct}% (${Math.round(cumW)} t)`, cx + 2, subY);
+        pdf.text(`${type} : ${pct}%`, cx + 2, subY);
         subY += 3.5;
       });
     }
