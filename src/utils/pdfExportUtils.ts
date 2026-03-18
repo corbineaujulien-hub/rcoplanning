@@ -149,10 +149,14 @@ function drawSummary(
   weekProductCounts: Record<string, number>,
   weekWeight: number,
   totalSiteWeight: number,
-  cumulativeWeight: number
+  cumulativeWeight: number,
+  cumulativeByType?: Record<string, number>,
+  totalByType?: Record<string, number>
 ) {
   const productTypeCount = Object.keys(weekProductCounts).length;
-  const productSubHeight = productTypeCount * 3.5;
+  const cumulativeTypeCount = cumulativeByType ? Object.keys(cumulativeByType).length : 0;
+  const maxSubLines = Math.max(productTypeCount, cumulativeTypeCount);
+  const productSubHeight = maxSubLines * 3.5;
   const boxH = Math.max(14, 12 + productSubHeight);
   const totalH = 8 + boxH + 4;
 
@@ -198,6 +202,19 @@ function drawSummary(
         subY += 3.5;
       });
     }
+
+    if (i === 4 && cumulativeByType && totalByType) {
+      let subY = colY + 13;
+      pdf.setFontSize(5.5);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(80, 80, 80);
+      Object.entries(cumulativeByType).forEach(([type, cumW]) => {
+        const total = totalByType[type] || 0;
+        const pct = total > 0 ? Math.round((cumW / total) * 100) : 0;
+        pdf.text(`${type} : ${pct}% (${Math.round(cumW)} t)`, cx + 2, subY);
+        subY += 3.5;
+      });
+    }
   });
 
   ctx.y += totalH + 2;
@@ -227,6 +244,8 @@ export interface WeekExportData {
   projectInfo: ProjectInfo;
   totalSiteWeight: number;
   cumulativeWeight: number;
+  cumulativeByType?: Record<string, number>;
+  totalByType?: Record<string, number>;
 }
 
 function estimateTruckHeight(els: BeamElement[], hasComment: boolean, columnWidth: number): number {
@@ -479,7 +498,7 @@ export async function exportWeekPdf(data: WeekExportData) {
     drawDayTrucks3Columns(ctx, dayTrucks, capitalDay, getTruckElements, stats);
   });
 
-  drawSummary(ctx, weekNumber, weekTrucks.length, stats.totalProducts, stats.weekProductCounts, stats.weekWeight, totalSiteWeight, cumulativeWeight);
+  drawSummary(ctx, weekNumber, weekTrucks.length, stats.totalProducts, stats.weekProductCounts, stats.weekWeight, totalSiteWeight, cumulativeWeight, data.cumulativeByType, data.totalByType);
 
   const nomChantier = getNomChantier(projectInfo);
   pdf.save(`planning_${nomChantier}_S${String(weekNumber).padStart(2, '0')}_${year}.pdf`);
@@ -491,7 +510,8 @@ export async function exportAllWeeksPdf(
   getTruckElements: (id: string) => BeamElement[],
   projectInfo: ProjectInfo,
   totalSiteWeight: number,
-  allTrucksCumulative: TruckData[]
+  allTrucksCumulative: TruckData[],
+  allElements?: BeamElement[]
 ) {
   const logoData = await loadLogoAsBase64();
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -559,7 +579,28 @@ export async function exportAllWeeksPdf(
       drawDayTrucks3Columns(ctx, dayTrucks, capitalDay, getTruckElements, stats);
     });
 
-    drawSummary(ctx, w.weekNumber, weekTrucks.length, stats.totalProducts, stats.weekProductCounts, stats.weekWeight, totalSiteWeight, cumulativeWeight);
+    // Compute cumulative by type for this week
+    const cumByType: Record<string, number> = {};
+    allTrucksCumulative
+      .filter(t => {
+        const d = parseISO(t.date);
+        const wn = parseInt(format(d, 'II'));
+        const y = d.getFullYear();
+        return (y < w.year) || (y === w.year && wn <= w.weekNumber);
+      })
+      .forEach(t => {
+        getTruckElements(t.id).forEach(el => {
+          cumByType[el.productType] = (cumByType[el.productType] || 0) + el.weight;
+        });
+      });
+    const totByType: Record<string, number> = {};
+    if (allElements) {
+      allElements.forEach(el => {
+        totByType[el.productType] = (totByType[el.productType] || 0) + el.weight;
+      });
+    }
+
+    drawSummary(ctx, w.weekNumber, weekTrucks.length, stats.totalProducts, stats.weekProductCounts, stats.weekWeight, totalSiteWeight, cumulativeWeight, cumByType, allElements ? totByType : undefined);
   });
 
   const nomChantier = getNomChantier(projectInfo);
