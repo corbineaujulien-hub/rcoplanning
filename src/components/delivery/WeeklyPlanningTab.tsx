@@ -59,6 +59,33 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
     return allWeeksBefore.reduce((sum, t) => sum + getTruckWeight(getTruckElements(t.id)), 0);
   }, [trucks, weekNumber, year, getTruckElements]);
 
+  // Cumulative weight by product type (all weeks up to current)
+  const cumulativeByType = useMemo(() => {
+    const counts: Record<string, number> = {};
+    trucks
+      .filter(t => {
+        const d = parseISO(t.date);
+        const wn = parseInt(format(d, 'II'));
+        const y = d.getFullYear();
+        return (y < year) || (y === year && wn <= weekNumber);
+      })
+      .forEach(t => {
+        getTruckElements(t.id).forEach(el => {
+          counts[el.productType] = (counts[el.productType] || 0) + el.weight;
+        });
+      });
+    return counts;
+  }, [trucks, weekNumber, year, getTruckElements]);
+
+  // Total weight by product type (all elements in DB)
+  const totalByType = useMemo(() => {
+    const counts: Record<string, number> = {};
+    elements.forEach(el => {
+      counts[el.productType] = (counts[el.productType] || 0) + el.weight;
+    });
+    return counts;
+  }, [elements]);
+
   const weekProductCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     weekTrucks.forEach(t => {
