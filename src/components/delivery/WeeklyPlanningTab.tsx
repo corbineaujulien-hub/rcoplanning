@@ -299,7 +299,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
                     const total = totalByType[type] || 0;
                     const pct = total > 0 ? Math.round((cumWeight / total) * 100) : 0;
                     return (
-                      <p key={type} className="text-xs">{type} : {pct}% ({Math.round(cumWeight)} t)</p>
+                      <p key={type} className="text-xs">{type} : {pct}%</p>
                     );
                   })}
                 </div>
