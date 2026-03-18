@@ -244,6 +244,8 @@ export interface WeekExportData {
   projectInfo: ProjectInfo;
   totalSiteWeight: number;
   cumulativeWeight: number;
+  cumulativeByType?: Record<string, number>;
+  totalByType?: Record<string, number>;
 }
 
 function estimateTruckHeight(els: BeamElement[], hasComment: boolean, columnWidth: number): number {
