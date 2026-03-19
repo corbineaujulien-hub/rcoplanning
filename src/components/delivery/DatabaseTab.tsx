@@ -13,9 +13,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw, FileText, X, Loader2 } from 'lucide-react';
+import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw, FileText, X, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import { format, parse } from 'date-fns';
 
 function findColumn(row: Record<string, unknown>, aliases: string[]): unknown {
   for (const alias of aliases) {
