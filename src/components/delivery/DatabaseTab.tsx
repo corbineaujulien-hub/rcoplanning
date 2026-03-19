@@ -534,6 +534,11 @@ export default function DatabaseTab() {
                 <Plus className="h-4 w-4 mr-1" /> Ajouter ligne manuellement
               </Button>
               {elements.length > 0 && (
+                <Button variant="outline" onClick={handleExportExcel}>
+                  <Download className="h-4 w-4 mr-1" /> Exporter Excel
+                </Button>
+              )}
+              {elements.length > 0 && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="destructive">
