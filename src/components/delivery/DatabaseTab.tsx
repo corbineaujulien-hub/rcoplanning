@@ -13,9 +13,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw, FileText, X, Loader2 } from 'lucide-react';
+import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw, FileText, X, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import { format, parse } from 'date-fns';
 
 function findColumn(row: Record<string, unknown>, aliases: string[]): unknown {
   for (const alias of aliases) {
@@ -52,14 +53,15 @@ function mapRow(row: Record<string, unknown>, index: number): BeamElement {
 
 type FilterState = Record<string, Set<string>>;
 
-function ColumnFilter({ column, values, filters, setFilters }: {
+function ColumnFilter({ column, values, filters, setFilters, labelFn }: {
   column: string;
   values: string[];
   filters: FilterState;
   setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
+  labelFn?: (val: string) => string;
 }) {
   const active = filters[column];
-  const sorted = [...new Set(values)].sort();
+  const sorted = [...new Set(values)];
   const isFiltered = active && active.size > 0;
 
   const toggle = (val: string) => {
@@ -72,6 +74,11 @@ function ColumnFilter({ column, values, filters, setFilters }: {
 
   const clearFilter = () => {
     setFilters(prev => ({ ...prev, [column]: new Set<string>() }));
+  };
+
+  const getLabel = (val: string) => {
+    if (labelFn) return labelFn(val);
+    return val || '(vide)';
   };
 
   return (
@@ -94,7 +101,7 @@ function ColumnFilter({ column, values, filters, setFilters }: {
           ) : sorted.map(val => (
             <label key={val} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
               <Checkbox checked={active?.has(val) || false} onCheckedChange={() => toggle(val)} />
-              <span className="truncate">{val || '(vide)'}</span>
+              <span className="truncate">{getLabel(val)}</span>
             </label>
           ))}
         </div>
@@ -104,7 +111,7 @@ function ColumnFilter({ column, values, filters, setFilters }: {
 }
 
 export default function DatabaseTab() {
-  const { elements, setElements, addElements, updateElement, deleteElement, plans, addPlan, updatePlan, deletePlan } = useDelivery();
+  const { elements, setElements, addElements, updateElement, deleteElement, plans, addPlan, updatePlan, deletePlan, trucks, projectInfo } = useDelivery();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [importMode, setImportMode] = useState<'overwrite' | 'update' | null>(null);
@@ -143,6 +150,39 @@ export default function DatabaseTab() {
 
   const availableZones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))].sort(), [elements]);
   const availableProductTypes = useMemo(() => [...new Set(elements.map(e => e.productType).filter(Boolean))].sort(), [elements]);
+
+  // Map element ID → truck info
+  const elementTruckMap = useMemo(() => {
+    const map = new Map<string, { number: string; date: string }>();
+    trucks.forEach(truck => {
+      const ids = Array.isArray(truck.elementIds) ? truck.elementIds : [];
+      ids.forEach(eid => {
+        map.set(eid, { number: truck.number, date: truck.date });
+      });
+    });
+    return map;
+  }, [trucks]);
+
+  const formatTruckDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const d = parse(dateStr, 'yyyy-MM-dd', new Date());
+      return format(d, 'dd-MM-yyyy');
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const getMonthLabel = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const d = parse(dateStr, 'yyyy-MM-dd', new Date());
+      const m = format(d, 'MM/yyyy');
+      return m;
+    } catch {
+      return '';
+    }
+  };
 
   const parseExcel = (data: Uint8Array): BeamElement[] => {
     const workbook = XLSX.read(data, { type: 'array' });
@@ -363,12 +403,32 @@ export default function DatabaseTab() {
     return elements.filter(el => {
       for (const [col, vals] of Object.entries(filters)) {
         if (vals.size === 0) continue;
-        const elVal = el[col as keyof BeamElement];
-        if (!vals.has(String(elVal ?? ''))) return false;
+        if (col === 'truckNumber') {
+          const info = elementTruckMap.get(el.id);
+          const elVal = info ? info.number : '__none__';
+          if (!vals.has(elVal)) return false;
+        } else if (col === 'truckDate') {
+          const info = elementTruckMap.get(el.id);
+          if (vals.has('__none__') && !info) continue;
+          if (!info) return false;
+          const dateFormatted = formatTruckDate(info.date);
+          const monthLabel = getMonthLabel(info.date);
+          // Check if any selected value matches (exact date, month, or __none__)
+          let match = false;
+          for (const v of vals) {
+            if (v === '__none__' && !info) { match = true; break; }
+            if (v === dateFormatted) { match = true; break; }
+            if (v.startsWith('month:') && v.slice(6) === monthLabel) { match = true; break; }
+          }
+          if (!match) return false;
+        } else {
+          const elVal = el[col as keyof BeamElement];
+          if (!vals.has(String(elVal ?? ''))) return false;
+        }
       }
       return true;
     });
-  }, [elements, filters]);
+  }, [elements, filters, elementTruckMap]);
 
   const filterValues = useMemo(() => ({
     zone: elements.map(el => el.zone),
@@ -377,10 +437,72 @@ export default function DatabaseTab() {
     factory: elements.map(el => el.factory),
   }), [elements]);
 
+  // Truck number filter values
+  const truckNumberFilterValues = useMemo(() => {
+    const vals: string[] = [];
+    const hasUnloaded = elements.some(el => !elementTruckMap.has(el.id));
+    if (hasUnloaded) vals.push('__none__');
+    const numbers = new Set<string>();
+    elements.forEach(el => {
+      const info = elementTruckMap.get(el.id);
+      if (info) numbers.add(info.number);
+    });
+    return [...vals, ...[...numbers].sort()];
+  }, [elements, elementTruckMap]);
+
+  // Truck date filter values (dates + months + "Non programmé")
+  const truckDateFilterValues = useMemo(() => {
+    const vals: string[] = [];
+    const hasUnscheduled = elements.some(el => !elementTruckMap.has(el.id));
+    if (hasUnscheduled) vals.push('__none__');
+    const dates = new Set<string>();
+    const months = new Set<string>();
+    elements.forEach(el => {
+      const info = elementTruckMap.get(el.id);
+      if (info) {
+        dates.add(formatTruckDate(info.date));
+        const m = getMonthLabel(info.date);
+        if (m) months.add(m);
+      }
+    });
+    const sortedMonths = [...months].sort().map(m => `month:${m}`);
+    const sortedDates = [...dates].sort((a, b) => {
+      const [da, ma, ya] = a.split('-').map(Number);
+      const [db, mb, yb] = b.split('-').map(Number);
+      return (ya - yb) || (ma - mb) || (da - db);
+    });
+    return [...vals, ...sortedMonths, ...sortedDates];
+  }, [elements, elementTruckMap]);
+
   const hasActiveFilters = useMemo(() => Object.values(filters).some(s => s.size > 0), [filters]);
 
   const totalLength = filteredElements.reduce((s, el) => s + el.length, 0);
   const totalWeight = filteredElements.reduce((s, el) => s + el.weight, 0);
+
+  // Excel export
+  const handleExportExcel = () => {
+    const data = filteredElements.map(el => {
+      const info = elementTruckMap.get(el.id);
+      return {
+        'N° Repère': el.repere,
+        'Zone': el.zone,
+        'Type de produit': el.productType,
+        'Section': el.section,
+        'Longueur (m)': el.length,
+        'Poids (t)': el.weight,
+        'Usine': el.factory,
+        'Numéro camion': info ? info.number : '',
+        'Date camion': info ? formatTruckDate(info.date) : '',
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Base de données');
+    const siteName = (projectInfo.siteName || 'projet').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ_-]/g, '_');
+    const today = format(new Date(), 'dd-MM-yyyy');
+    XLSX.writeFile(wb, `base_donnees_${siteName}_${today}.xlsx`);
+    toast.success('Export Excel téléchargé');
+  };
 
   // Count matched elements for a plan (dynamic matching by zones/productTypes)
   const getPlanElementCount = (plan: Plan) => {
@@ -417,6 +539,11 @@ export default function DatabaseTab() {
               <Button variant="outline" onClick={() => setAddDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-1" /> Ajouter ligne manuellement
               </Button>
+              {elements.length > 0 && (
+                <Button variant="outline" onClick={handleExportExcel}>
+                  <Download className="h-4 w-4 mr-1" /> Exporter Excel
+                </Button>
+              )}
               {elements.length > 0 && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -455,7 +582,10 @@ export default function DatabaseTab() {
                 <RefreshCw className="h-3 w-3 mr-1" /> Réinitialiser les filtres
               </Button>
               <span className="text-xs text-muted-foreground">
-                {Object.entries(filters).filter(([, s]) => s.size > 0).map(([col, s]) => `${col === 'zone' ? 'Zone' : col === 'productType' ? 'Type' : col === 'section' ? 'Section' : 'Usine'} (${s.size})`).join(', ')}
+                {Object.entries(filters).filter(([, s]) => s.size > 0).map(([col, s]) => {
+                  const label = col === 'zone' ? 'Zone' : col === 'productType' ? 'Type' : col === 'section' ? 'Section' : col === 'factory' ? 'Usine' : col === 'truckNumber' ? 'N° Camion' : col === 'truckDate' ? 'Date Camion' : col;
+                  return `${label} (${s.size})`;
+                }).join(', ')}
               </span>
             </div>
           )}
@@ -478,20 +608,28 @@ export default function DatabaseTab() {
                   <TableHead className="w-32">
                     <span className="flex items-center">Usine <ColumnFilter column="factory" values={filterValues.factory} filters={filters} setFilters={setFilters} /></span>
                   </TableHead>
+                  <TableHead className="w-28 bg-muted/30">
+                    <span className="flex items-center">N° Camion <ColumnFilter column="truckNumber" values={truckNumberFilterValues} filters={filters} setFilters={setFilters} labelFn={v => v === '__none__' ? 'Non chargé' : v} /></span>
+                  </TableHead>
+                  <TableHead className="w-32 bg-muted/30">
+                    <span className="flex items-center">Date Camion <ColumnFilter column="truckDate" values={truckDateFilterValues} filters={filters} setFilters={setFilters} labelFn={v => v === '__none__' ? 'Non programmé' : v.startsWith('month:') ? `📅 ${v.slice(6)}` : v} /></span>
+                  </TableHead>
                   <TableHead className="w-16"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredElements.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-12">
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-12">
                       {elements.length === 0 
                         ? "Aucun élément. Importez un fichier Excel ou ajoutez des lignes manuellement."
                         : "Aucun élément ne correspond aux filtres appliqués."}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredElements.map(el => (
+                  filteredElements.map(el => {
+                    const truckInfo = elementTruckMap.get(el.id);
+                    return (
                     <TableRow key={el.id} className="hover:bg-muted/50">
                       <TableCell>
                         <Input value={el.repere} onChange={e => updateElement(el.id, { repere: e.target.value })} className="h-8 text-sm" />
@@ -521,13 +659,20 @@ export default function DatabaseTab() {
                       <TableCell>
                         <Input value={el.factory} onChange={e => updateElement(el.id, { factory: e.target.value })} className="h-8 text-sm" />
                       </TableCell>
+                      <TableCell className="bg-muted/20">
+                        <span className="text-sm text-muted-foreground">{truckInfo?.number ?? ''}</span>
+                      </TableCell>
+                      <TableCell className="bg-muted/20">
+                        <span className="text-sm text-muted-foreground">{truckInfo ? formatTruckDate(truckInfo.date) : ''}</span>
+                      </TableCell>
                       <TableCell>
                         <Button variant="ghost" size="icon" onClick={() => deleteElement(el.id)} className="h-8 w-8 text-destructive hover:text-destructive">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
