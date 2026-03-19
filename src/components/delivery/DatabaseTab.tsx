@@ -608,20 +608,28 @@ export default function DatabaseTab() {
                   <TableHead className="w-32">
                     <span className="flex items-center">Usine <ColumnFilter column="factory" values={filterValues.factory} filters={filters} setFilters={setFilters} /></span>
                   </TableHead>
+                  <TableHead className="w-28 bg-muted/30">
+                    <span className="flex items-center">N° Camion <ColumnFilter column="truckNumber" values={truckNumberFilterValues} filters={filters} setFilters={setFilters} labelFn={v => v === '__none__' ? 'Non chargé' : v} /></span>
+                  </TableHead>
+                  <TableHead className="w-32 bg-muted/30">
+                    <span className="flex items-center">Date Camion <ColumnFilter column="truckDate" values={truckDateFilterValues} filters={filters} setFilters={setFilters} labelFn={v => v === '__none__' ? 'Non programmé' : v.startsWith('month:') ? `📅 ${v.slice(6)}` : v} /></span>
+                  </TableHead>
                   <TableHead className="w-16"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredElements.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-12">
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-12">
                       {elements.length === 0 
                         ? "Aucun élément. Importez un fichier Excel ou ajoutez des lignes manuellement."
                         : "Aucun élément ne correspond aux filtres appliqués."}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredElements.map(el => (
+                  filteredElements.map(el => {
+                    const truckInfo = elementTruckMap.get(el.id);
+                    return (
                     <TableRow key={el.id} className="hover:bg-muted/50">
                       <TableCell>
                         <Input value={el.repere} onChange={e => updateElement(el.id, { repere: e.target.value })} className="h-8 text-sm" />
@@ -651,13 +659,20 @@ export default function DatabaseTab() {
                       <TableCell>
                         <Input value={el.factory} onChange={e => updateElement(el.id, { factory: e.target.value })} className="h-8 text-sm" />
                       </TableCell>
+                      <TableCell className="bg-muted/20">
+                        <span className="text-sm text-muted-foreground">{truckInfo?.number ?? ''}</span>
+                      </TableCell>
+                      <TableCell className="bg-muted/20">
+                        <span className="text-sm text-muted-foreground">{truckInfo ? formatTruckDate(truckInfo.date) : ''}</span>
+                      </TableCell>
                       <TableCell>
                         <Button variant="ghost" size="icon" onClick={() => deleteElement(el.id)} className="h-8 w-8 text-destructive hover:text-destructive">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
