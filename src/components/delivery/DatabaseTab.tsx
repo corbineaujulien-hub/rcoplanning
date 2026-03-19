@@ -53,14 +53,15 @@ function mapRow(row: Record<string, unknown>, index: number): BeamElement {
 
 type FilterState = Record<string, Set<string>>;
 
-function ColumnFilter({ column, values, filters, setFilters }: {
+function ColumnFilter({ column, values, filters, setFilters, labelFn }: {
   column: string;
   values: string[];
   filters: FilterState;
   setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
+  labelFn?: (val: string) => string;
 }) {
   const active = filters[column];
-  const sorted = [...new Set(values)].sort();
+  const sorted = [...new Set(values)];
   const isFiltered = active && active.size > 0;
 
   const toggle = (val: string) => {
@@ -73,6 +74,11 @@ function ColumnFilter({ column, values, filters, setFilters }: {
 
   const clearFilter = () => {
     setFilters(prev => ({ ...prev, [column]: new Set<string>() }));
+  };
+
+  const getLabel = (val: string) => {
+    if (labelFn) return labelFn(val);
+    return val || '(vide)';
   };
 
   return (
@@ -95,7 +101,7 @@ function ColumnFilter({ column, values, filters, setFilters }: {
           ) : sorted.map(val => (
             <label key={val} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
               <Checkbox checked={active?.has(val) || false} onCheckedChange={() => toggle(val)} />
-              <span className="truncate">{val || '(vide)'}</span>
+              <span className="truncate">{getLabel(val)}</span>
             </label>
           ))}
         </div>
