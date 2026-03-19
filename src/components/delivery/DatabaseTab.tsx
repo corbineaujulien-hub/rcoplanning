@@ -105,7 +105,7 @@ function ColumnFilter({ column, values, filters, setFilters }: {
 }
 
 export default function DatabaseTab() {
-  const { elements, setElements, addElements, updateElement, deleteElement, plans, addPlan, updatePlan, deletePlan } = useDelivery();
+  const { elements, setElements, addElements, updateElement, deleteElement, plans, addPlan, updatePlan, deletePlan, trucks, projectInfo } = useDelivery();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [importMode, setImportMode] = useState<'overwrite' | 'update' | null>(null);
