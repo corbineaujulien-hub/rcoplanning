@@ -397,12 +397,32 @@ export default function DatabaseTab() {
     return elements.filter(el => {
       for (const [col, vals] of Object.entries(filters)) {
         if (vals.size === 0) continue;
-        const elVal = el[col as keyof BeamElement];
-        if (!vals.has(String(elVal ?? ''))) return false;
+        if (col === 'truckNumber') {
+          const info = elementTruckMap.get(el.id);
+          const elVal = info ? info.number : '__none__';
+          if (!vals.has(elVal)) return false;
+        } else if (col === 'truckDate') {
+          const info = elementTruckMap.get(el.id);
+          if (vals.has('__none__') && !info) continue;
+          if (!info) return false;
+          const dateFormatted = formatTruckDate(info.date);
+          const monthLabel = getMonthLabel(info.date);
+          // Check if any selected value matches (exact date, month, or __none__)
+          let match = false;
+          for (const v of vals) {
+            if (v === '__none__' && !info) { match = true; break; }
+            if (v === dateFormatted) { match = true; break; }
+            if (v.startsWith('month:') && v.slice(6) === monthLabel) { match = true; break; }
+          }
+          if (!match) return false;
+        } else {
+          const elVal = el[col as keyof BeamElement];
+          if (!vals.has(String(elVal ?? ''))) return false;
+        }
       }
       return true;
     });
-  }, [elements, filters]);
+  }, [elements, filters, elementTruckMap]);
 
   const filterValues = useMemo(() => ({
     zone: elements.map(el => el.zone),
@@ -411,10 +431,72 @@ export default function DatabaseTab() {
     factory: elements.map(el => el.factory),
   }), [elements]);
 
+  // Truck number filter values
+  const truckNumberFilterValues = useMemo(() => {
+    const vals: string[] = [];
+    const hasUnloaded = elements.some(el => !elementTruckMap.has(el.id));
+    if (hasUnloaded) vals.push('__none__');
+    const numbers = new Set<string>();
+    elements.forEach(el => {
+      const info = elementTruckMap.get(el.id);
+      if (info) numbers.add(info.number);
+    });
+    return [...vals, ...[...numbers].sort()];
+  }, [elements, elementTruckMap]);
+
+  // Truck date filter values (dates + months + "Non programmé")
+  const truckDateFilterValues = useMemo(() => {
+    const vals: string[] = [];
+    const hasUnscheduled = elements.some(el => !elementTruckMap.has(el.id));
+    if (hasUnscheduled) vals.push('__none__');
+    const dates = new Set<string>();
+    const months = new Set<string>();
+    elements.forEach(el => {
+      const info = elementTruckMap.get(el.id);
+      if (info) {
+        dates.add(formatTruckDate(info.date));
+        const m = getMonthLabel(info.date);
+        if (m) months.add(m);
+      }
+    });
+    const sortedMonths = [...months].sort().map(m => `month:${m}`);
+    const sortedDates = [...dates].sort((a, b) => {
+      const [da, ma, ya] = a.split('-').map(Number);
+      const [db, mb, yb] = b.split('-').map(Number);
+      return (ya - yb) || (ma - mb) || (da - db);
+    });
+    return [...vals, ...sortedMonths, ...sortedDates];
+  }, [elements, elementTruckMap]);
+
   const hasActiveFilters = useMemo(() => Object.values(filters).some(s => s.size > 0), [filters]);
 
   const totalLength = filteredElements.reduce((s, el) => s + el.length, 0);
   const totalWeight = filteredElements.reduce((s, el) => s + el.weight, 0);
+
+  // Excel export
+  const handleExportExcel = () => {
+    const data = filteredElements.map(el => {
+      const info = elementTruckMap.get(el.id);
+      return {
+        'N° Repère': el.repere,
+        'Zone': el.zone,
+        'Type de produit': el.productType,
+        'Section': el.section,
+        'Longueur (m)': el.length,
+        'Poids (t)': el.weight,
+        'Usine': el.factory,
+        'Numéro camion': info ? info.number : '',
+        'Date camion': info ? formatTruckDate(info.date) : '',
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Base de données');
+    const siteName = (projectInfo.siteName || 'projet').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ_-]/g, '_');
+    const today = format(new Date(), 'dd-MM-yyyy');
+    XLSX.writeFile(wb, `base_donnees_${siteName}_${today}.xlsx`);
+    toast.success('Export Excel téléchargé');
+  };
 
   // Count matched elements for a plan (dynamic matching by zones/productTypes)
   const getPlanElementCount = (plan: Plan) => {
