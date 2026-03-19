@@ -576,7 +576,10 @@ export default function DatabaseTab() {
                 <RefreshCw className="h-3 w-3 mr-1" /> Réinitialiser les filtres
               </Button>
               <span className="text-xs text-muted-foreground">
-                {Object.entries(filters).filter(([, s]) => s.size > 0).map(([col, s]) => `${col === 'zone' ? 'Zone' : col === 'productType' ? 'Type' : col === 'section' ? 'Section' : 'Usine'} (${s.size})`).join(', ')}
+                {Object.entries(filters).filter(([, s]) => s.size > 0).map(([col, s]) => {
+                  const label = col === 'zone' ? 'Zone' : col === 'productType' ? 'Type' : col === 'section' ? 'Section' : col === 'factory' ? 'Usine' : col === 'truckNumber' ? 'N° Camion' : col === 'truckDate' ? 'Date Camion' : col;
+                  return `${label} (${s.size})`;
+                }).join(', ')}
               </span>
             </div>
           )}
