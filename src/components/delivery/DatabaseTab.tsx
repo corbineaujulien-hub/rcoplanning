@@ -145,6 +145,39 @@ export default function DatabaseTab() {
   const availableZones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))].sort(), [elements]);
   const availableProductTypes = useMemo(() => [...new Set(elements.map(e => e.productType).filter(Boolean))].sort(), [elements]);
 
+  // Map element ID → truck info
+  const elementTruckMap = useMemo(() => {
+    const map = new Map<string, { number: string; date: string }>();
+    trucks.forEach(truck => {
+      const ids = Array.isArray(truck.elementIds) ? truck.elementIds : [];
+      ids.forEach(eid => {
+        map.set(eid, { number: truck.number, date: truck.date });
+      });
+    });
+    return map;
+  }, [trucks]);
+
+  const formatTruckDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const d = parse(dateStr, 'yyyy-MM-dd', new Date());
+      return format(d, 'dd-MM-yyyy');
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const getMonthLabel = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const d = parse(dateStr, 'yyyy-MM-dd', new Date());
+      const m = format(d, 'MM/yyyy');
+      return m;
+    } catch {
+      return '';
+    }
+  };
+
   const parseExcel = (data: Uint8Array): BeamElement[] => {
     const workbook = XLSX.read(data, { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
