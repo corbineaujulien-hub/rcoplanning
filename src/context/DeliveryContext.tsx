@@ -297,6 +297,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
       id: truck.id, project_id: projectId, number: truck.number,
       date: truck.date, time: truck.time, element_ids: truck.elementIds,
       comment: truck.comment || '', team_id: truck.teamId || null,
+      transporter: truck.transporter || '',
     } as any);
   }, [projectId]);
 
