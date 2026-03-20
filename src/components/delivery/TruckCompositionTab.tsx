@@ -99,6 +99,24 @@ export default function TruckCompositionTab() {
   const factoryList = useMemo(() => [...new Set(elements.map(e => e.factory).filter(Boolean))], [elements]);
   const productTypes = useMemo(() => [...new Set(elements.map(e => e.productType).filter(Boolean))].sort(), [elements]);
 
+  // All factories present in trucks (for calendar factory filter)
+  const truckFactoryList = useMemo(() => {
+    const facs = new Set<string>();
+    trucks.forEach(t => {
+      const els = getTruckElements(t.id);
+      getTruckFactories(els).forEach(f => facs.add(f));
+    });
+    return [...facs].sort();
+  }, [trucks, getTruckElements]);
+
+  // Helper: does a truck pass the calendar factory filter?
+  const truckPassesFactoryFilter = useCallback((truckId: string): boolean => {
+    if (calendarFactoryFilter.size === 0) return true;
+    const els = getTruckElements(truckId);
+    const facs = getTruckFactories(els);
+    return facs.some(f => calendarFactoryFilter.has(f));
+  }, [calendarFactoryFilter, getTruckElements]);
+
   const filteredElements = useMemo(() => {
     return elements.filter(el => {
       if (filterRepere && !el.repere.toLowerCase().includes(filterRepere.toLowerCase())) return false;
