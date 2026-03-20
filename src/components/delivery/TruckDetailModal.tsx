@@ -98,6 +98,13 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
     setCommentDirty(false);
   };
 
+  const handleTransporterBlur = () => {
+    if (transporter !== (liveTruck.transporter || '')) {
+      updateTruck(liveTruck.id, { transporter });
+    }
+    setTransporterDirty(false);
+  };
+
   const handleClose = () => {
     // Save comment on close if dirty
     if (commentDirty && comment !== (liveTruck.comment || '')) {
