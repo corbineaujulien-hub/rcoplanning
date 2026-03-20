@@ -309,7 +309,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
         });
       })()}
 
-      {weekTrucks.length === 0 && (
+      {displayTrucks.length === 0 && (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             Aucune livraison planifiée pour cette semaine.
