@@ -252,6 +252,9 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
                           <span className="font-semibold text-lg">{truck.number}</span>
                           <span className="text-sm text-muted-foreground">— {truck.time}</span>
                           <span className={`${getCategoryColorClass(cat)} px-2 py-0.5 rounded text-xs font-medium`}>{catInfo.label}</span>
+                          {truck.transporter?.trim() && (
+                            <span className="text-sm font-medium text-orange-500">{truck.transporter}</span>
+                          )}
                         </div>
                       </div>
 
