@@ -1072,8 +1072,11 @@ export default function TruckCompositionTab() {
                                 type="time"
                                 defaultValue={truck.time}
                                 onBlur={e => { const v = e.target.value; if (v && v !== truck.time) updateTruck(truck.id, { time: v }); }}
-                                className="h-7 text-sm w-24 border-transparent hover:border-input focus:border-input bg-transparent px-1"
+                              className="h-7 text-sm w-24 border-transparent hover:border-input focus:border-input bg-transparent px-1"
                               />
+                              {truck.transporter?.trim() && (
+                                <span className="text-sm font-medium text-orange-500 truncate max-w-[150px]">{truck.transporter}</span>
+                              )}
                               <span className={`${getCategoryColorClass(cat)} px-2 py-0.5 rounded text-xs font-medium ml-auto`}>{catInfo.label}</span>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
