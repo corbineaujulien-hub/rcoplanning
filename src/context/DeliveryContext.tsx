@@ -92,6 +92,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
             id: t.id, number: t.number || '', date: t.date || '', time: t.time || '',
             elementIds: (t.element_ids as string[]) || [], comment: t.comment || '',
             teamId: (t as any).team_id || undefined,
+            transporter: (t as any).transporter || undefined,
           })));
         }
 
