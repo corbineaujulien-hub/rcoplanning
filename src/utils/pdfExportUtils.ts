@@ -432,7 +432,7 @@ function drawDayTrucks3Columns(
   lines.forEach(line => {
     const rowHeight = Math.max(...line.map(truck => {
       const els = getTruckElements(truck.id);
-      return estimateTruckHeight(els, !!truck.comment?.trim(), colW);
+      return estimateTruckHeight(els, !!truck.comment?.trim(), colW, !!truck.transporter?.trim());
     })) + 1;
 
     if (ctx.y + rowHeight > ctx.pageHeight - ctx.margin) {
