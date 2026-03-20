@@ -20,6 +20,7 @@ interface WeeklyPlanningTabProps {
 
 export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPlanningTabProps) {
   const { projectInfo, trucks, elements, getTruckElements, teams } = useDelivery();
+  const [factoryFilter, setFactoryFilter] = useState<Set<string>>(new Set());
 
   const weekTrucks = useMemo(() => {
     return trucks
@@ -33,6 +34,24 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
       })
       .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
   }, [trucks, weekNumber, year, teamId]);
+
+  // Factories available in this week's trucks
+  const weekFactoryList = useMemo(() => {
+    const facs = new Set<string>();
+    weekTrucks.forEach(t => {
+      getTruckFactories(getTruckElements(t.id)).forEach(f => facs.add(f));
+    });
+    return [...facs].sort();
+  }, [weekTrucks, getTruckElements]);
+
+  // Filtered trucks based on factory filter
+  const displayTrucks = useMemo(() => {
+    if (factoryFilter.size === 0) return weekTrucks;
+    return weekTrucks.filter(t => {
+      const facs = getTruckFactories(getTruckElements(t.id));
+      return facs.some(f => factoryFilter.has(f));
+    });
+  }, [weekTrucks, factoryFilter, getTruckElements]);
 
   const weekStart = useMemo(() => {
     if (weekTrucks.length === 0) return null;
