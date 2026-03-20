@@ -1155,12 +1155,6 @@ export default function TruckCompositionTab() {
                                 </div>
                               ))}
                             </div>
-                            <Input
-                              defaultValue={truck.transporter || ''}
-                              onBlur={e => { const v = e.target.value; if (v !== (truck.transporter || '')) updateTruck(truck.id, { transporter: v }); }}
-                              placeholder="Transporteur..."
-                              className="h-8 text-sm text-orange-500 border-transparent hover:border-input focus:border-input bg-transparent px-1"
-                            />
                             <Textarea
                               defaultValue={truck.comment || ''}
                               onBlur={e => { const v = e.target.value; if (v !== (truck.comment || '')) updateTruck(truck.id, { comment: v }); }}

@@ -212,10 +212,12 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
               </div>
             )}
 
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm text-muted-foreground">Catégorie :</span>
-              <span className={`${getCategoryColorClass(category)} px-2 py-1 rounded text-sm font-medium`}>{catInfo.label}</span>
-              <div className="flex items-center gap-2 ml-auto">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-muted-foreground">Catégorie :</span>
+                <span className={`${getCategoryColorClass(category)} px-2 py-1 rounded text-sm font-medium`}>{catInfo.label}</span>
+              </div>
+              <div className="flex items-center gap-2">
                 <Label className="text-sm text-muted-foreground flex items-center gap-1">
                   <TruckIcon className="h-3 w-3" /> Transporteur
                 </Label>
@@ -224,7 +226,7 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
                   onChange={e => { setTransporter(e.target.value); setTransporterDirty(true); }}
                   onBlur={handleTransporterBlur}
                   placeholder="Nom du transporteur..."
-                  className="text-sm h-8 w-44"
+                  className="text-sm h-8 flex-1"
                 />
               </div>
             </div>
