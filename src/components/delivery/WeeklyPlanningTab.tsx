@@ -217,8 +217,8 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
 
       {/* Truck blocks grouped by day */}
       {(() => {
-        const grouped = new Map<string, typeof weekTrucks>();
-        weekTrucks.forEach(t => {
+        const grouped = new Map<string, typeof displayTrucks>();
+        displayTrucks.forEach(t => {
           const key = t.date;
           if (!grouped.has(key)) grouped.set(key, []);
           grouped.get(key)!.push(t);
