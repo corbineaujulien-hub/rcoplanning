@@ -1,0 +1,1 @@
+ALTER TABLE public.trucks ADD COLUMN transporter text NULL DEFAULT ''::text;
