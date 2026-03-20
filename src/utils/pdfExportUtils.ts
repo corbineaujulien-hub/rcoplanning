@@ -272,7 +272,7 @@ function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[], co
   const zones = getTruckZones(els);
   const borderColor = getCatBorderColor(cat);
 
-  const cardHeight = estimateTruckHeight(els, !!truck.comment?.trim(), columnWidth);
+  const cardHeight = estimateTruckHeight(els, !!truck.comment?.trim(), columnWidth, !!truck.transporter?.trim());
 
   const cardX = startX;
   const cardW = columnWidth;
