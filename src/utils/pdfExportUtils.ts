@@ -502,7 +502,8 @@ export async function exportWeekPdf(data: WeekExportData) {
   drawSummary(ctx, weekNumber, weekTrucks.length, stats.totalProducts, stats.weekProductCounts, stats.weekWeight, totalSiteWeight, cumulativeWeight, data.cumulativeByType, data.totalByType);
 
   const nomChantier = getNomChantier(projectInfo);
-  pdf.save(`planning_${nomChantier}_S${String(weekNumber).padStart(2, '0')}_${year}.pdf`);
+  const suffix = data.factorySuffix || '';
+  pdf.save(`planning_${nomChantier}_S${String(weekNumber).padStart(2, '0')}_${year}${suffix}.pdf`);
 }
 
 export async function exportAllWeeksPdf(
