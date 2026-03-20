@@ -502,7 +502,7 @@ export async function exportWeekPdf(data: WeekExportData) {
     const firstLine = dayTrucks.slice(0, 3);
     const firstRowHeight = Math.max(...firstLine.map(t => {
       const els = getTruckElements(t.id);
-      return estimateTruckHeight(els, !!t.comment?.trim(), colW);
+      return estimateTruckHeight(els, !!t.comment?.trim(), colW, !!t.transporter?.trim());
     })) + 1;
     const dayBannerHeight = 7.5;
     if (ctx.y + dayBannerHeight + firstRowHeight > ctx.pageHeight - ctx.margin) {
