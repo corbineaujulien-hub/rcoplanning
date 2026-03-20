@@ -10,6 +10,7 @@ interface TruckData {
   date: string;
   time: string;
   comment?: string;
+  transporter?: string;
 }
 
 interface PdfContext {
