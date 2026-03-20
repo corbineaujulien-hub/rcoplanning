@@ -310,6 +310,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
     if (updates.elementIds !== undefined) dbUpdates.element_ids = updates.elementIds;
     if (updates.comment !== undefined) dbUpdates.comment = updates.comment;
     if (updates.teamId !== undefined) dbUpdates.team_id = updates.teamId;
+    if (updates.transporter !== undefined) dbUpdates.transporter = updates.transporter;
     await supabase.from('trucks').update(dbUpdates).eq('id', id);
   }, []);
 

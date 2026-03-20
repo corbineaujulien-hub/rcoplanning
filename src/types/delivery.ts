@@ -29,6 +29,7 @@ export interface Truck {
   elementIds: string[];
   comment?: string;
   teamId?: string;
+  transporter?: string;
 }
 
 export interface Team {
