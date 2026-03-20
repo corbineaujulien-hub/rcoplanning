@@ -178,7 +178,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           const t = payload.new as any;
           setTrucksState(prev => {
             if (prev.some(tr => tr.id === t.id)) return prev;
-            return [...prev, { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined }];
+            return [...prev, { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined, transporter: (t as any).transporter || undefined }];
           });
         } else if (payload.eventType === 'UPDATE') {
           const t = payload.new as any;
