@@ -270,19 +270,6 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
               </div>
             </div>
 
-            {/* Transporter section */}
-            <div>
-              <Label className="text-sm text-muted-foreground flex items-center gap-1 mb-1">
-                <TruckIcon className="h-3 w-3" /> Transporteur
-              </Label>
-              <Input
-                value={transporter}
-                onChange={e => { setTransporter(e.target.value); setTransporterDirty(true); }}
-                onBlur={handleTransporterBlur}
-                placeholder="Nom du transporteur..."
-                className="text-sm"
-              />
-            </div>
 
             {/* Comment section */}
             <div>
