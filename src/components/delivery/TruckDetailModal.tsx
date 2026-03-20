@@ -51,6 +51,10 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
   if (!commentDirty && comment !== (liveTruck.comment || '')) {
     setComment(liveTruck.comment || '');
   }
+  // Sync transporter state when truck changes
+  if (!transporterDirty && transporter !== (liveTruck.transporter || '')) {
+    setTransporter(liveTruck.transporter || '');
+  }
 
   const handleStartEdit = () => {
     setEditDate(liveTruck.date);
