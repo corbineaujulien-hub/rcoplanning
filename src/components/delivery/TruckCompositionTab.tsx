@@ -110,6 +110,14 @@ export default function TruckCompositionTab() {
     return dayTrucks;
   }, [getTrucksForDate, hasMultipleTeams, activeTeamId, calendarFactoryFilter, truckPassesFactoryFilter]);
 
+  // State for drag highlight on day view trucks
+  const [dragOverTruckId, setDragOverTruckId] = useState<string | null>(null);
+  const [dragOverNewZone, setDragOverNewZone] = useState(false);
+
+  const zones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))], [elements]);
+  const factoryList = useMemo(() => [...new Set(elements.map(e => e.factory).filter(Boolean))], [elements]);
+  const productTypes = useMemo(() => [...new Set(elements.map(e => e.productType).filter(Boolean))].sort(), [elements]);
+
   const filteredElements = useMemo(() => {
     return elements.filter(el => {
       if (filterRepere && !el.repere.toLowerCase().includes(filterRepere.toLowerCase())) return false;
