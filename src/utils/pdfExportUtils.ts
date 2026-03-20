@@ -259,7 +259,7 @@ function estimateTruckHeight(els: BeamElement[], hasComment: boolean, columnWidt
     repereLineCount += Math.ceil(typeEls.length / perLine) || 1;
   });
   const typeHeaders = Object.keys(grouped).length;
-  return 6 + 5 + (typeHeaders * 3 + repereLineCount * 4) + (hasComment ? 5.5 : 0) + (hasTransporter ? 5 : 0) + 3 + 3;
+  return 6 + 5 + (typeHeaders * 3 + repereLineCount * 4) + (hasComment ? 5.5 : 0) + 3 + 3;
 }
 
 function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[], columnWidth: number, startX: number, startY: number): number {
@@ -343,6 +343,17 @@ function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[], co
     const cb = drawBadge(ctx, x, y + 0.5, `${count}× ${type}`, '#e2e8f0', '#334155', 5);
     x += cb.w + 1.5;
   });
+  if (truck.transporter?.trim()) {
+    if (x + 20 > cardX + cardW - 2) { x = cardX + borderW + 2; y += 4; }
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(180, 180, 180);
+    pdf.text('|', x, y + 3.2);
+    x += 2;
+    pdf.setFontSize(5.5);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(249, 115, 22);
+    pdf.text(truck.transporter.trim(), x, y + 3.2, { maxWidth: cardX + cardW - x - 2 });
+  }
   y += 5;
 
   const grouped = groupByType(els);
@@ -372,18 +383,6 @@ function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[], co
     y += 4;
   });
 
-  if (truck.transporter?.trim()) {
-    x = cardX + borderW + 2;
-    pdf.setFontSize(5.5);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(100, 116, 139);
-    pdf.text('Transporteur : ', x, y + 3);
-    x += pdf.getTextWidth('Transporteur : ');
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(30, 41, 59);
-    pdf.text(truck.transporter.trim(), x, y + 3, { maxWidth: cardW - borderW - 8 });
-    y += 4.5;
-  }
 
   if (truck.comment?.trim()) {
     x = cardX + borderW + 2;

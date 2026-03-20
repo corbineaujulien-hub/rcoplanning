@@ -252,6 +252,9 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
                           <span className="font-semibold text-lg">{truck.number}</span>
                           <span className="text-sm text-muted-foreground">— {truck.time}</span>
                           <span className={`${getCategoryColorClass(cat)} px-2 py-0.5 rounded text-xs font-medium`}>{catInfo.label}</span>
+                          {truck.transporter?.trim() && (
+                            <span className="text-sm font-medium text-orange-500">{truck.transporter}</span>
+                          )}
                         </div>
                       </div>
 
@@ -294,12 +297,6 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
                         ));
                       })()}
 
-                      {truck.transporter?.trim() && (
-                        <div className="flex items-start gap-1.5 text-sm">
-                          <TruckIcon className="h-4 w-4 flex-shrink-0 mt-0.5 text-muted-foreground" />
-                          <span>{truck.transporter}</span>
-                        </div>
-                      )}
 
                       {truck.comment?.trim() && (
                         <div className="flex items-start gap-1.5 text-sm bg-amber-50 text-amber-800 border border-amber-200 rounded-md p-2">
