@@ -109,18 +109,25 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
 
   const weekProductCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    weekTrucks.forEach(t => {
+    displayTrucks.forEach(t => {
       getTruckElements(t.id).forEach(el => {
         counts[el.productType] = (counts[el.productType] || 0) + 1;
       });
     });
     return counts;
-  }, [weekTrucks, getTruckElements]);
+  }, [displayTrucks, getTruckElements]);
 
   const totalProducts = Object.values(weekProductCounts).reduce((s, c) => s + c, 0);
 
+  // Factory filter suffix for filenames
+  const factorySuffix = useMemo(() => {
+    if (factoryFilter.size === 0) return '';
+    if (factoryFilter.size === 1) return `_${[...factoryFilter][0].replace(/\s+/g, '_').replace(/[^A-Za-z0-9_]/g, '')}`;
+    return '_MultiUsines';
+  }, [factoryFilter]);
+
   const exportExcel = () => {
-    const data = weekTrucks.map(t => {
+    const data = displayTrucks.map(t => {
       const els = getTruckElements(t.id);
       return {
         'Date': t.date,
@@ -137,20 +144,21 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `S${weekNumber}`);
-    XLSX.writeFile(wb, `planning_S${weekNumber}.xlsx`);
+    XLSX.writeFile(wb, `planning_S${weekNumber}${factorySuffix}.xlsx`);
   };
 
   const exportPdf = async () => {
     await exportWeekPdf({
       weekNumber,
       year,
-      trucks: weekTrucks,
+      trucks: displayTrucks,
       getTruckElements,
       projectInfo,
       totalSiteWeight,
       cumulativeWeight,
       cumulativeByType,
       totalByType,
+      factorySuffix,
     });
   };
 
