@@ -259,7 +259,7 @@ function estimateTruckHeight(els: BeamElement[], hasComment: boolean, columnWidt
     repereLineCount += Math.ceil(typeEls.length / perLine) || 1;
   });
   const typeHeaders = Object.keys(grouped).length;
-  return 6 + 5 + (typeHeaders * 3 + repereLineCount * 4) + (hasComment ? 5.5 : 0) + (hasTransporter ? 5 : 0) + 3 + 3;
+  return 6 + 5 + (typeHeaders * 3 + repereLineCount * 4) + (hasComment ? 5.5 : 0) + 3 + 3;
 }
 
 function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[], columnWidth: number, startX: number, startY: number): number {

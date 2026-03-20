@@ -493,6 +493,7 @@ export default function DatabaseTab() {
         'Usine': el.factory,
         'Numéro camion': info ? info.number : '',
         'Date camion': info ? formatTruckDate(info.date) : '',
+        'Transporteur': info ? (trucks.find(t => t.number === info.number)?.transporter || '') : '',
       };
     });
     const ws = XLSX.utils.json_to_sheet(data);
