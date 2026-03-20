@@ -92,6 +92,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
             id: t.id, number: t.number || '', date: t.date || '', time: t.time || '',
             elementIds: (t.element_ids as string[]) || [], comment: t.comment || '',
             teamId: (t as any).team_id || undefined,
+            transporter: (t as any).transporter || undefined,
           })));
         }
 
@@ -177,11 +178,11 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           const t = payload.new as any;
           setTrucksState(prev => {
             if (prev.some(tr => tr.id === t.id)) return prev;
-            return [...prev, { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined }];
+            return [...prev, { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined, transporter: (t as any).transporter || undefined }];
           });
         } else if (payload.eventType === 'UPDATE') {
           const t = payload.new as any;
-          setTrucksState(prev => prev.map(tr => tr.id === t.id ? { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined } : tr));
+          setTrucksState(prev => prev.map(tr => tr.id === t.id ? { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined, transporter: (t as any).transporter || undefined } : tr));
         } else if (payload.eventType === 'DELETE') {
           const t = payload.old as any;
           setTrucksState(prev => prev.filter(tr => tr.id !== t.id));
@@ -296,6 +297,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
       id: truck.id, project_id: projectId, number: truck.number,
       date: truck.date, time: truck.time, element_ids: truck.elementIds,
       comment: truck.comment || '', team_id: truck.teamId || null,
+      transporter: truck.transporter || '',
     } as any);
   }, [projectId]);
 
@@ -308,6 +310,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
     if (updates.elementIds !== undefined) dbUpdates.element_ids = updates.elementIds;
     if (updates.comment !== undefined) dbUpdates.comment = updates.comment;
     if (updates.teamId !== undefined) dbUpdates.team_id = updates.teamId;
+    if (updates.transporter !== undefined) dbUpdates.transporter = updates.transporter;
     await supabase.from('trucks').update(dbUpdates).eq('id', id);
   }, []);
 

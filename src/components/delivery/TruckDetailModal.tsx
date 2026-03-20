@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useDelivery } from '@/context/DeliveryContext';
 import { Truck, TRANSPORT_CATEGORIES } from '@/types/delivery';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getProductCountsByType, getCategoryColorClass, getFactoryColor } from '@/utils/transportUtils';
-import { Truck as TruckIcon, Weight, Ruler, Factory, Package, Trash2, X, Pencil, MessageSquare, Users, MapPin } from 'lucide-react';
+import { Truck as TruckIcon, Weight, Ruler, Factory, Package, Trash2, X, Pencil, MessageSquare, Users, MapPin, TruckIcon as TransporterIcon } from 'lucide-react';
 
 interface TruckDetailModalProps {
   open: boolean;
@@ -29,6 +29,8 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
   const [editNumber, setEditNumber] = useState('');
   const [comment, setComment] = useState('');
   const [commentDirty, setCommentDirty] = useState(false);
+  const [transporter, setTransporter] = useState('');
+  const [transporterDirty, setTransporterDirty] = useState(false);
 
   if (!truck) return null;
 
@@ -48,6 +50,10 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
   // Sync comment state when truck changes
   if (!commentDirty && comment !== (liveTruck.comment || '')) {
     setComment(liveTruck.comment || '');
+  }
+  // Sync transporter state when truck changes
+  if (!transporterDirty && transporter !== (liveTruck.transporter || '')) {
+    setTransporter(liveTruck.transporter || '');
   }
 
   const handleStartEdit = () => {
@@ -92,12 +98,22 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
     setCommentDirty(false);
   };
 
+  const handleTransporterBlur = () => {
+    if (transporter !== (liveTruck.transporter || '')) {
+      updateTruck(liveTruck.id, { transporter });
+    }
+    setTransporterDirty(false);
+  };
+
   const handleClose = () => {
-    // Save comment on close if dirty
     if (commentDirty && comment !== (liveTruck.comment || '')) {
       updateTruck(liveTruck.id, { comment });
     }
+    if (transporterDirty && transporter !== (liveTruck.transporter || '')) {
+      updateTruck(liveTruck.id, { transporter });
+    }
     setCommentDirty(false);
+    setTransporterDirty(false);
     setEditing(false);
     onClose();
   };
@@ -240,6 +256,20 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Transporter section */}
+            <div>
+              <Label className="text-sm text-muted-foreground flex items-center gap-1 mb-1">
+                <TruckIcon className="h-3 w-3" /> Transporteur
+              </Label>
+              <Input
+                value={transporter}
+                onChange={e => { setTransporter(e.target.value); setTransporterDirty(true); }}
+                onBlur={handleTransporterBlur}
+                placeholder="Nom du transporteur..."
+                className="text-sm"
+              />
             </div>
 
             {/* Comment section */}

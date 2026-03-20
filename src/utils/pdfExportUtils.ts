@@ -10,6 +10,7 @@ interface TruckData {
   date: string;
   time: string;
   comment?: string;
+  transporter?: string;
 }
 
 interface PdfContext {
@@ -249,7 +250,7 @@ export interface WeekExportData {
   factorySuffix?: string;
 }
 
-function estimateTruckHeight(els: BeamElement[], hasComment: boolean, columnWidth: number): number {
+function estimateTruckHeight(els: BeamElement[], hasComment: boolean, columnWidth: number, hasTransporter: boolean = false): number {
   const grouped = groupByType(els);
   let repereLineCount = 0;
   const availW = columnWidth - 5;
@@ -258,7 +259,7 @@ function estimateTruckHeight(els: BeamElement[], hasComment: boolean, columnWidt
     repereLineCount += Math.ceil(typeEls.length / perLine) || 1;
   });
   const typeHeaders = Object.keys(grouped).length;
-  return 6 + 5 + (typeHeaders * 3 + repereLineCount * 4) + (hasComment ? 5.5 : 0) + 3 + 3;
+  return 6 + 5 + (typeHeaders * 3 + repereLineCount * 4) + (hasComment ? 5.5 : 0) + (hasTransporter ? 5 : 0) + 3 + 3;
 }
 
 function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[], columnWidth: number, startX: number, startY: number): number {
@@ -271,7 +272,7 @@ function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[], co
   const zones = getTruckZones(els);
   const borderColor = getCatBorderColor(cat);
 
-  const cardHeight = estimateTruckHeight(els, !!truck.comment?.trim(), columnWidth);
+  const cardHeight = estimateTruckHeight(els, !!truck.comment?.trim(), columnWidth, !!truck.transporter?.trim());
 
   const cardX = startX;
   const cardW = columnWidth;
@@ -371,6 +372,19 @@ function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[], co
     y += 4;
   });
 
+  if (truck.transporter?.trim()) {
+    x = cardX + borderW + 2;
+    pdf.setFontSize(5.5);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 116, 139);
+    pdf.text('Transporteur : ', x, y + 3);
+    x += pdf.getTextWidth('Transporteur : ');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(30, 41, 59);
+    pdf.text(truck.transporter.trim(), x, y + 3, { maxWidth: cardW - borderW - 8 });
+    y += 4.5;
+  }
+
   if (truck.comment?.trim()) {
     x = cardX + borderW + 2;
     drawRoundedRect(pdf, x, y, cardW - borderW - 4, 4.5, 0.8, '#fffbeb', '#fde68a');
@@ -418,7 +432,7 @@ function drawDayTrucks3Columns(
   lines.forEach(line => {
     const rowHeight = Math.max(...line.map(truck => {
       const els = getTruckElements(truck.id);
-      return estimateTruckHeight(els, !!truck.comment?.trim(), colW);
+      return estimateTruckHeight(els, !!truck.comment?.trim(), colW, !!truck.transporter?.trim());
     })) + 1;
 
     if (ctx.y + rowHeight > ctx.pageHeight - ctx.margin) {
@@ -488,7 +502,7 @@ export async function exportWeekPdf(data: WeekExportData) {
     const firstLine = dayTrucks.slice(0, 3);
     const firstRowHeight = Math.max(...firstLine.map(t => {
       const els = getTruckElements(t.id);
-      return estimateTruckHeight(els, !!t.comment?.trim(), colW);
+      return estimateTruckHeight(els, !!t.comment?.trim(), colW, !!t.transporter?.trim());
     })) + 1;
     const dayBannerHeight = 7.5;
     if (ctx.y + dayBannerHeight + firstRowHeight > ctx.pageHeight - ctx.margin) {
@@ -570,7 +584,7 @@ export async function exportAllWeeksPdf(
       const firstLine = dayTrucks.slice(0, 3);
       const firstRowHeight = Math.max(...firstLine.map(t => {
         const els = getTruckElements(t.id);
-        return estimateTruckHeight(els, !!t.comment?.trim(), colW);
+        return estimateTruckHeight(els, !!t.comment?.trim(), colW, !!t.transporter?.trim());
       })) + 1;
       const dayBannerHeight = 7.5;
       if (ctx.y + dayBannerHeight + firstRowHeight > ctx.pageHeight - ctx.margin) {

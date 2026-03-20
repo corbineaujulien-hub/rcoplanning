@@ -228,6 +228,7 @@ export type Database = {
           project_id: string
           team_id: string | null
           time: string
+          transporter: string | null
         }
         Insert: {
           comment?: string | null
@@ -239,6 +240,7 @@ export type Database = {
           project_id: string
           team_id?: string | null
           time?: string
+          transporter?: string | null
         }
         Update: {
           comment?: string | null
@@ -250,6 +252,7 @@ export type Database = {
           project_id?: string
           team_id?: string | null
           time?: string
+          transporter?: string | null
         }
         Relationships: [
           {

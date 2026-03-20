@@ -294,6 +294,13 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
                         ));
                       })()}
 
+                      {truck.transporter?.trim() && (
+                        <div className="flex items-start gap-1.5 text-sm">
+                          <TruckIcon className="h-4 w-4 flex-shrink-0 mt-0.5 text-muted-foreground" />
+                          <span>{truck.transporter}</span>
+                        </div>
+                      )}
+
                       {truck.comment?.trim() && (
                         <div className="flex items-start gap-1.5 text-sm bg-amber-50 text-amber-800 border border-amber-200 rounded-md p-2">
                           <MessageSquare className="h-4 w-4 flex-shrink-0 mt-0.5" />
