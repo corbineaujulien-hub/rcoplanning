@@ -66,8 +66,8 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
 
   const totalSiteWeight = useMemo(() => elements.reduce((s, e) => s + e.weight, 0), [elements]);
   const weekWeight = useMemo(() => {
-    return weekTrucks.reduce((sum, t) => sum + getTruckWeight(getTruckElements(t.id)), 0);
-  }, [weekTrucks, getTruckElements]);
+    return displayTrucks.reduce((sum, t) => sum + getTruckWeight(getTruckElements(t.id)), 0);
+  }, [displayTrucks, getTruckElements]);
 
   const cumulativeWeight = useMemo(() => {
     const allWeeksBefore = trucks
