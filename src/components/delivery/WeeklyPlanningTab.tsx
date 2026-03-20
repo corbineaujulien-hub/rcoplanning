@@ -318,14 +318,14 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
       )}
 
       {/* Footer */}
-      {weekTrucks.length > 0 && (
+      {displayTrucks.length > 0 && (
         <Card>
           <CardContent className="pt-4">
             <h3 className="font-semibold mb-3">Récapitulatif semaine {weekNumber}</h3>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
               <div className="bg-muted rounded-lg p-3">
                 <p className="text-muted-foreground">Camions livrés</p>
-                <p className="text-xl font-bold">{weekTrucks.length}</p>
+                <p className="text-xl font-bold">{displayTrucks.length}</p>
               </div>
               <div className="bg-muted rounded-lg p-3">
                 <p className="text-muted-foreground">Produits livrés</p>
