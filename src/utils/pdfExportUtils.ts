@@ -343,6 +343,17 @@ function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[], co
     const cb = drawBadge(ctx, x, y + 0.5, `${count}× ${type}`, '#e2e8f0', '#334155', 5);
     x += cb.w + 1.5;
   });
+  if (truck.transporter?.trim()) {
+    if (x + 20 > cardX + cardW - 2) { x = cardX + borderW + 2; y += 4; }
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(180, 180, 180);
+    pdf.text('|', x, y + 3.2);
+    x += 2;
+    pdf.setFontSize(5.5);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(249, 115, 22);
+    pdf.text(truck.transporter.trim(), x, y + 3.2, { maxWidth: cardX + cardW - x - 2 });
+  }
   y += 5;
 
   const grouped = groupByType(els);
