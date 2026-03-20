@@ -1,10 +1,12 @@
-import { useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getProductCountsByType, getCategoryColorClass, getFactoryColor } from '@/utils/transportUtils';
 import { TRANSPORT_CATEGORIES, BeamElement } from '@/types/delivery';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Truck as TruckIcon, Weight, Ruler, Factory, Package, FileSpreadsheet, Download, MessageSquare, MapPin } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Truck as TruckIcon, Weight, Ruler, Factory, Package, FileSpreadsheet, Download, MessageSquare, MapPin, X } from 'lucide-react';
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
@@ -18,6 +20,7 @@ interface WeeklyPlanningTabProps {
 
 export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPlanningTabProps) {
   const { projectInfo, trucks, elements, getTruckElements, teams } = useDelivery();
+  const [factoryFilter, setFactoryFilter] = useState<Set<string>>(new Set());
 
   const weekTrucks = useMemo(() => {
     return trucks
@@ -32,6 +35,24 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
       .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
   }, [trucks, weekNumber, year, teamId]);
 
+  // Factories available in this week's trucks
+  const weekFactoryList = useMemo(() => {
+    const facs = new Set<string>();
+    weekTrucks.forEach(t => {
+      getTruckFactories(getTruckElements(t.id)).forEach(f => facs.add(f));
+    });
+    return [...facs].sort();
+  }, [weekTrucks, getTruckElements]);
+
+  // Filtered trucks based on factory filter
+  const displayTrucks = useMemo(() => {
+    if (factoryFilter.size === 0) return weekTrucks;
+    return weekTrucks.filter(t => {
+      const facs = getTruckFactories(getTruckElements(t.id));
+      return facs.some(f => factoryFilter.has(f));
+    });
+  }, [weekTrucks, factoryFilter, getTruckElements]);
+
   const weekStart = useMemo(() => {
     if (weekTrucks.length === 0) return null;
     const firstDate = parseISO(weekTrucks[0].date);
@@ -45,8 +66,8 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
 
   const totalSiteWeight = useMemo(() => elements.reduce((s, e) => s + e.weight, 0), [elements]);
   const weekWeight = useMemo(() => {
-    return weekTrucks.reduce((sum, t) => sum + getTruckWeight(getTruckElements(t.id)), 0);
-  }, [weekTrucks, getTruckElements]);
+    return displayTrucks.reduce((sum, t) => sum + getTruckWeight(getTruckElements(t.id)), 0);
+  }, [displayTrucks, getTruckElements]);
 
   const cumulativeWeight = useMemo(() => {
     const allWeeksBefore = trucks
@@ -88,18 +109,25 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
 
   const weekProductCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    weekTrucks.forEach(t => {
+    displayTrucks.forEach(t => {
       getTruckElements(t.id).forEach(el => {
         counts[el.productType] = (counts[el.productType] || 0) + 1;
       });
     });
     return counts;
-  }, [weekTrucks, getTruckElements]);
+  }, [displayTrucks, getTruckElements]);
 
   const totalProducts = Object.values(weekProductCounts).reduce((s, c) => s + c, 0);
 
+  // Factory filter suffix for filenames
+  const factorySuffix = useMemo(() => {
+    if (factoryFilter.size === 0) return '';
+    if (factoryFilter.size === 1) return `_${[...factoryFilter][0].replace(/\s+/g, '_').replace(/[^A-Za-z0-9_]/g, '')}`;
+    return '_MultiUsines';
+  }, [factoryFilter]);
+
   const exportExcel = () => {
-    const data = weekTrucks.map(t => {
+    const data = displayTrucks.map(t => {
       const els = getTruckElements(t.id);
       return {
         'Date': t.date,
@@ -116,20 +144,21 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `S${weekNumber}`);
-    XLSX.writeFile(wb, `planning_S${weekNumber}.xlsx`);
+    XLSX.writeFile(wb, `planning_S${weekNumber}${factorySuffix}.xlsx`);
   };
 
   const exportPdf = async () => {
     await exportWeekPdf({
       weekNumber,
       year,
-      trucks: weekTrucks,
+      trucks: displayTrucks,
       getTruckElements,
       projectInfo,
       totalSiteWeight,
       cumulativeWeight,
       cumulativeByType,
       totalByType,
+      factorySuffix,
     });
   };
 
@@ -143,7 +172,31 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
               Semaine {weekNumber}
               {weekStart && weekEnd && ` – du ${format(weekStart, 'dd/MM', { locale: fr })} au ${format(weekEnd, 'dd/MM/yyyy', { locale: fr })}`}
             </span>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              {weekFactoryList.length > 0 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant={factoryFilter.size > 0 ? 'default' : 'outline'} size="sm">
+                      <Factory className="h-4 w-4 mr-1" /> {factoryFilter.size > 0 ? `Usine (${factoryFilter.size})` : 'Usine'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="end">
+                    <div className="space-y-1">
+                      {weekFactoryList.map(f => (
+                        <label key={f} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                          <Checkbox checked={factoryFilter.has(f)} onCheckedChange={() => setFactoryFilter(prev => { const next = new Set(prev); next.has(f) ? next.delete(f) : next.add(f); return next; })} />
+                          <span className="text-white text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: getFactoryColor(f) }}>{f}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {factoryFilter.size > 0 && (
+                      <Button variant="default" size="sm" className="w-full text-xs h-6 mt-2" onClick={() => setFactoryFilter(new Set())}>
+                        <X className="h-3 w-3 mr-1" /> Réinitialiser
+                      </Button>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              )}
               <Button variant="outline" size="sm" onClick={exportExcel}>
                 <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
               </Button>
@@ -164,8 +217,8 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
 
       {/* Truck blocks grouped by day */}
       {(() => {
-        const grouped = new Map<string, typeof weekTrucks>();
-        weekTrucks.forEach(t => {
+        const grouped = new Map<string, typeof displayTrucks>();
+        displayTrucks.forEach(t => {
           const key = t.date;
           if (!grouped.has(key)) grouped.set(key, []);
           grouped.get(key)!.push(t);
@@ -256,7 +309,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
         });
       })()}
 
-      {weekTrucks.length === 0 && (
+      {displayTrucks.length === 0 && (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             Aucune livraison planifiée pour cette semaine.
@@ -265,14 +318,14 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
       )}
 
       {/* Footer */}
-      {weekTrucks.length > 0 && (
+      {displayTrucks.length > 0 && (
         <Card>
           <CardContent className="pt-4">
             <h3 className="font-semibold mb-3">Récapitulatif semaine {weekNumber}</h3>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
               <div className="bg-muted rounded-lg p-3">
                 <p className="text-muted-foreground">Camions livrés</p>
-                <p className="text-xl font-bold">{weekTrucks.length}</p>
+                <p className="text-xl font-bold">{displayTrucks.length}</p>
               </div>
               <div className="bg-muted rounded-lg p-3">
                 <p className="text-muted-foreground">Produits livrés</p>

@@ -61,6 +61,7 @@ export default function TruckCompositionTab() {
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
   const [selectionMode, setSelectionMode] = useState<'list' | 'plans'>('list');
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [calendarFactoryFilter, setCalendarFactoryFilter] = useState<Set<string>>(new Set());
 
   // Plan filter states
   const [planFilterRepere, setPlanFilterRepere] = useState('');
@@ -83,12 +84,31 @@ export default function TruckCompositionTab() {
     return trucks.find(t => t.elementIds.includes(elementId));
   };
 
-  // Helper: get trucks for a date, filtered by team if multi-team
+  // All factories present in trucks (for calendar factory filter)
+  const truckFactoryList = useMemo(() => {
+    const facs = new Set<string>();
+    trucks.forEach(t => {
+      const els = getTruckElements(t.id);
+      getTruckFactories(els).forEach(f => facs.add(f));
+    });
+    return [...facs].sort();
+  }, [trucks, getTruckElements]);
+
+  // Helper: does a truck pass the calendar factory filter?
+  const truckPassesFactoryFilter = useCallback((truckId: string): boolean => {
+    if (calendarFactoryFilter.size === 0) return true;
+    const els = getTruckElements(truckId);
+    const facs = getTruckFactories(els);
+    return facs.some(f => calendarFactoryFilter.has(f));
+  }, [calendarFactoryFilter, getTruckElements]);
+
+  // Helper: get trucks for a date, filtered by team if multi-team and by factory
   const getTeamTrucksForDate = useCallback((dateStr: string) => {
-    const dayTrucks = getTrucksForDate(dateStr);
-    if (!hasMultipleTeams || !activeTeamId) return dayTrucks;
-    return dayTrucks.filter(t => t.teamId === activeTeamId);
-  }, [getTrucksForDate, hasMultipleTeams, activeTeamId]);
+    let dayTrucks = getTrucksForDate(dateStr);
+    if (hasMultipleTeams && activeTeamId) dayTrucks = dayTrucks.filter(t => t.teamId === activeTeamId);
+    if (calendarFactoryFilter.size > 0) dayTrucks = dayTrucks.filter(t => truckPassesFactoryFilter(t.id));
+    return dayTrucks;
+  }, [getTrucksForDate, hasMultipleTeams, activeTeamId, calendarFactoryFilter, truckPassesFactoryFilter]);
 
   // State for drag highlight on day view trucks
   const [dragOverTruckId, setDragOverTruckId] = useState<string | null>(null);
@@ -804,6 +824,30 @@ export default function TruckCompositionTab() {
                 }
                 setViewMode('day');
               }}>Jour</Button>
+              {truckFactoryList.length > 0 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant={calendarFactoryFilter.size > 0 ? 'default' : 'outline'} size="sm">
+                      <Factory className="h-4 w-4 mr-1" /> {calendarFactoryFilter.size > 0 ? `Usine (${calendarFactoryFilter.size})` : 'Usine'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="end">
+                    <div className="space-y-1">
+                      {truckFactoryList.map(f => (
+                        <label key={f} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                          <Checkbox checked={calendarFactoryFilter.has(f)} onCheckedChange={() => setCalendarFactoryFilter(prev => { const next = new Set(prev); next.has(f) ? next.delete(f) : next.add(f); return next; })} />
+                          <span className="text-white text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: getFactoryColor(f) }}>{f}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {calendarFactoryFilter.size > 0 && (
+                      <Button variant="default" size="sm" className="w-full text-xs h-6 mt-2" onClick={() => setCalendarFactoryFilter(new Set())}>
+                        <X className="h-3 w-3 mr-1" /> Réinitialiser
+                      </Button>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              )}
               {trucks.length > 0 && (
                 <>
                   {hasMultipleTeams && (
