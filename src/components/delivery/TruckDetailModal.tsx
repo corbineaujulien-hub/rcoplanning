@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useDelivery } from '@/context/DeliveryContext';
 import { Truck, TRANSPORT_CATEGORIES } from '@/types/delivery';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getProductCountsByType, getCategoryColorClass, getFactoryColor } from '@/utils/transportUtils';
-import { Truck as TruckIcon, Weight, Ruler, Factory, Package, Trash2, X, Pencil, MessageSquare, Users, MapPin } from 'lucide-react';
+import { Truck as TruckIcon, Weight, Ruler, Factory, Package, Trash2, X, Pencil, MessageSquare, Users, MapPin, TruckIcon as TransporterIcon } from 'lucide-react';
 
 interface TruckDetailModalProps {
   open: boolean;
