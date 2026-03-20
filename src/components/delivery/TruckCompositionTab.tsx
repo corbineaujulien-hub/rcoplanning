@@ -84,22 +84,6 @@ export default function TruckCompositionTab() {
     return trucks.find(t => t.elementIds.includes(elementId));
   };
 
-  // Helper: get trucks for a date, filtered by team if multi-team
-  const getTeamTrucksForDate = useCallback((dateStr: string) => {
-    let dayTrucks = getTrucksForDate(dateStr);
-    if (hasMultipleTeams && activeTeamId) dayTrucks = dayTrucks.filter(t => t.teamId === activeTeamId);
-    if (calendarFactoryFilter.size > 0) dayTrucks = dayTrucks.filter(t => truckPassesFactoryFilter(t.id));
-    return dayTrucks;
-  }, [getTrucksForDate, hasMultipleTeams, activeTeamId, calendarFactoryFilter, truckPassesFactoryFilter]);
-
-  // State for drag highlight on day view trucks
-  const [dragOverTruckId, setDragOverTruckId] = useState<string | null>(null);
-  const [dragOverNewZone, setDragOverNewZone] = useState(false);
-
-  const zones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))], [elements]);
-  const factoryList = useMemo(() => [...new Set(elements.map(e => e.factory).filter(Boolean))], [elements]);
-  const productTypes = useMemo(() => [...new Set(elements.map(e => e.productType).filter(Boolean))].sort(), [elements]);
-
   // All factories present in trucks (for calendar factory filter)
   const truckFactoryList = useMemo(() => {
     const facs = new Set<string>();
@@ -117,6 +101,14 @@ export default function TruckCompositionTab() {
     const facs = getTruckFactories(els);
     return facs.some(f => calendarFactoryFilter.has(f));
   }, [calendarFactoryFilter, getTruckElements]);
+
+  // Helper: get trucks for a date, filtered by team if multi-team and by factory
+  const getTeamTrucksForDate = useCallback((dateStr: string) => {
+    let dayTrucks = getTrucksForDate(dateStr);
+    if (hasMultipleTeams && activeTeamId) dayTrucks = dayTrucks.filter(t => t.teamId === activeTeamId);
+    if (calendarFactoryFilter.size > 0) dayTrucks = dayTrucks.filter(t => truckPassesFactoryFilter(t.id));
+    return dayTrucks;
+  }, [getTrucksForDate, hasMultipleTeams, activeTeamId, calendarFactoryFilter, truckPassesFactoryFilter]);
 
   const filteredElements = useMemo(() => {
     return elements.filter(el => {
