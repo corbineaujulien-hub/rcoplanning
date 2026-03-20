@@ -250,18 +250,6 @@ export interface WeekExportData {
   factorySuffix?: string;
 }
 
-function estimateTruckHeight(els: BeamElement[], hasComment: boolean, columnWidth: number): number {
-  const grouped = groupByType(els);
-  let repereLineCount = 0;
-  const availW = columnWidth - 5;
-  Object.values(grouped).forEach(typeEls => {
-    const perLine = Math.max(1, Math.floor(availW / 10));
-    repereLineCount += Math.ceil(typeEls.length / perLine) || 1;
-  });
-  const typeHeaders = Object.keys(grouped).length;
-  return 6 + 5 + (typeHeaders * 3 + repereLineCount * 4) + (hasComment ? 5.5 : 0) + (hasTransporter ? 5 : 0) + 3 + 3;
-}
-
 function estimateTruckHeight(els: BeamElement[], hasComment: boolean, columnWidth: number, hasTransporter: boolean = false): number {
   const grouped = groupByType(els);
   let repereLineCount = 0;
@@ -272,6 +260,7 @@ function estimateTruckHeight(els: BeamElement[], hasComment: boolean, columnWidt
   });
   const typeHeaders = Object.keys(grouped).length;
   return 6 + 5 + (typeHeaders * 3 + repereLineCount * 4) + (hasComment ? 5.5 : 0) + (hasTransporter ? 5 : 0) + 3 + 3;
+}
 
 function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[], columnWidth: number, startX: number, startY: number): number {
   const { pdf } = ctx;
