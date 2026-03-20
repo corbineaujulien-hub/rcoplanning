@@ -383,18 +383,6 @@ function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[], co
     y += 4;
   });
 
-  if (truck.transporter?.trim()) {
-    x = cardX + borderW + 2;
-    pdf.setFontSize(5.5);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(100, 116, 139);
-    pdf.text('Transporteur : ', x, y + 3);
-    x += pdf.getTextWidth('Transporteur : ');
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(30, 41, 59);
-    pdf.text(truck.transporter.trim(), x, y + 3, { maxWidth: cardW - borderW - 8 });
-    y += 4.5;
-  }
 
   if (truck.comment?.trim()) {
     x = cardX + borderW + 2;
