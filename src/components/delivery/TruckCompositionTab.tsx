@@ -824,6 +824,30 @@ export default function TruckCompositionTab() {
                 }
                 setViewMode('day');
               }}>Jour</Button>
+              {truckFactoryList.length > 0 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant={calendarFactoryFilter.size > 0 ? 'default' : 'outline'} size="sm">
+                      <Factory className="h-4 w-4 mr-1" /> {calendarFactoryFilter.size > 0 ? `Usine (${calendarFactoryFilter.size})` : 'Usine'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="end">
+                    <div className="space-y-1">
+                      {truckFactoryList.map(f => (
+                        <label key={f} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                          <Checkbox checked={calendarFactoryFilter.has(f)} onCheckedChange={() => setCalendarFactoryFilter(prev => { const next = new Set(prev); next.has(f) ? next.delete(f) : next.add(f); return next; })} />
+                          <span className="text-white text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: getFactoryColor(f) }}>{f}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {calendarFactoryFilter.size > 0 && (
+                      <Button variant="default" size="sm" className="w-full text-xs h-6 mt-2" onClick={() => setCalendarFactoryFilter(new Set())}>
+                        <X className="h-3 w-3 mr-1" /> Réinitialiser
+                      </Button>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              )}
               {trucks.length > 0 && (
                 <>
                   {hasMultipleTeams && (
