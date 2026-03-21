@@ -7,8 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Calendar, LogOut } from 'lucide-react';
+import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Users, Calendar, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
+import { useProjectsPresence } from '@/hooks/useProjectsPresence';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 interface ProjectRow {
@@ -249,6 +256,9 @@ export default function Home() {
   const activeCount = projects.filter(p => !p.archived).length;
   const archivedCount = projects.filter(p => p.archived).length;
 
+  const projectIds = useMemo(() => filteredProjects.map(p => p.id), [filteredProjects]);
+  const presenceMap = useProjectsPresence(projectIds);
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="bg-primary text-primary-foreground shadow-lg">
@@ -401,6 +411,41 @@ export default function Home() {
                               <span className="font-medium w-10 text-right">{deliveryPct}%</span>
                             </div>
                           </div>
+                          {(() => {
+                            const users = presenceMap.get(project.id) || [];
+                            if (users.length === 0) return null;
+                            const maxVisible = 3;
+                            const visible = users.slice(0, maxVisible);
+                            const remaining = users.length - maxVisible;
+                            const Icon = users.length === 1 ? User : Users;
+                            return (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                                      <span className="truncate">
+                                        {visible.join(', ')}
+                                        {remaining > 0 && (
+                                          <span className="ml-1 inline-flex items-center justify-center rounded-full bg-muted px-1.5 text-[10px] font-bold">
+                                            +{remaining}
+                                          </span>
+                                        )}
+                                      </span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  {users.length > 3 && (
+                                    <TooltipContent side="bottom">
+                                      <p className="text-xs font-medium mb-1">Utilisateurs connectés :</p>
+                                      {users.map((name, i) => (
+                                        <p key={i} className="text-xs">{name}</p>
+                                      ))}
+                                    </TooltipContent>
+                                  )}
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
+                          })()}
                         </div>
                         <div className="flex gap-2 shrink-0">
                           {!project.archived ? (
