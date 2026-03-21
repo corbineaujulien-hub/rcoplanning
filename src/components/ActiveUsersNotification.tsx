@@ -86,12 +86,12 @@ export default function ActiveUsersNotification({ projectId }: { projectId: stri
   const remaining = otherUsers.length - maxVisible;
 
   const content = isMobile ? (
-    <span className="text-xs font-medium text-primary-foreground">{otherUsers.length}</span>
+    <span className="text-xs font-medium text-red-400">{otherUsers.length}</span>
   ) : (
-    <span className="text-xs text-primary-foreground/90">
+    <span className="text-xs text-red-400">
       {visibleNames.join(', ')}
       {remaining > 0 && (
-        <span className="ml-1 inline-flex items-center justify-center rounded-full bg-primary-foreground/20 px-1.5 text-[10px] font-bold text-primary-foreground">
+        <span className="ml-1 inline-flex items-center justify-center rounded-full bg-red-500/20 px-1.5 text-[10px] font-bold text-red-400">
           +{remaining}
         </span>
       )}
@@ -103,7 +103,7 @@ export default function ActiveUsersNotification({ projectId }: { projectId: stri
       <Tooltip>
         <TooltipTrigger asChild>
           <div className="flex items-center gap-1.5 cursor-default">
-            <Users className="h-4 w-4 text-primary-foreground/70 shrink-0" />
+            <Users className="h-4 w-4 text-red-400 shrink-0" />
             {content}
           </div>
         </TooltipTrigger>

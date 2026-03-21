@@ -422,12 +422,12 @@ export default function Home() {
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                                    <div className="flex items-center gap-1.5 text-xs text-red-600 mt-1">
                                       <Icon className="h-3.5 w-3.5 shrink-0" />
                                       <span className="truncate">
                                         {visible.join(', ')}
                                         {remaining > 0 && (
-                                          <span className="ml-1 inline-flex items-center justify-center rounded-full bg-muted px-1.5 text-[10px] font-bold">
+                                          <span className="ml-1 inline-flex items-center justify-center rounded-full bg-red-100 text-red-600 px-1.5 text-[10px] font-bold">
                                             +{remaining}
                                           </span>
                                         )}
