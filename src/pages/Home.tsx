@@ -411,6 +411,41 @@ export default function Home() {
                               <span className="font-medium w-10 text-right">{deliveryPct}%</span>
                             </div>
                           </div>
+                          {(() => {
+                            const users = presenceMap.get(project.id) || [];
+                            if (users.length === 0) return null;
+                            const maxVisible = 3;
+                            const visible = users.slice(0, maxVisible);
+                            const remaining = users.length - maxVisible;
+                            const Icon = users.length === 1 ? User : Users;
+                            return (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                                      <span className="truncate">
+                                        {visible.join(', ')}
+                                        {remaining > 0 && (
+                                          <span className="ml-1 inline-flex items-center justify-center rounded-full bg-muted px-1.5 text-[10px] font-bold">
+                                            +{remaining}
+                                          </span>
+                                        )}
+                                      </span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  {users.length > 3 && (
+                                    <TooltipContent side="bottom">
+                                      <p className="text-xs font-medium mb-1">Utilisateurs connectés :</p>
+                                      {users.map((name, i) => (
+                                        <p key={i} className="text-xs">{name}</p>
+                                      ))}
+                                    </TooltipContent>
+                                  )}
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
+                          })()}
                         </div>
                         <div className="flex gap-2 shrink-0">
                           {!project.archived ? (
