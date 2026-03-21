@@ -256,6 +256,9 @@ export default function Home() {
   const activeCount = projects.filter(p => !p.archived).length;
   const archivedCount = projects.filter(p => p.archived).length;
 
+  const projectIds = useMemo(() => filteredProjects.map(p => p.id), [filteredProjects]);
+  const presenceMap = useProjectsPresence(projectIds);
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="bg-primary text-primary-foreground shadow-lg">
