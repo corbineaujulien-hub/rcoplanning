@@ -192,7 +192,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
       cumulativeWeight,
       cumulativeByType,
       totalByType,
-      factorySuffix,
+      factorySuffix: combinedSuffix,
     });
   };
 
