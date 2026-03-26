@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
-import { BeamElement, Plan, PRODUCT_TYPES } from '@/types/delivery';
+import { BeamElement, Plan, PRODUCT_TYPES, TRANSPORT_CATEGORIES } from '@/types/delivery';
+import { getTransportCategory } from '@/utils/transportUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
