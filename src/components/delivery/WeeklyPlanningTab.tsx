@@ -148,6 +148,17 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
     return '_MultiUsines';
   }, [factoryFilter]);
 
+  // Transporter filter suffix for filenames
+  const transporterSuffix = useMemo(() => {
+    if (transporterFilter.size === 0) return '';
+    const realTransporters = [...transporterFilter].filter(t => t !== '__sans_transporteur__');
+    if (realTransporters.length === 1) return `_${realTransporters[0].replace(/\s+/g, '_').replace(/[^A-Za-z0-9_]/g, '')}`;
+    if (transporterFilter.size === 1 && transporterFilter.has('__sans_transporteur__')) return '_SansTransporteur';
+    return '_MultiTransporteurs';
+  }, [transporterFilter]);
+
+  const combinedSuffix = `${factorySuffix}${transporterSuffix}`;
+
   const exportExcel = () => {
     const data = displayTrucks.map(t => {
       const els = getTruckElements(t.id);
@@ -155,6 +166,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
         'Date': t.date,
         'Horaire': t.time,
         'N° Camion': t.number,
+        'Transporteur': t.transporter?.trim() || '',
         'Usine': getTruckFactories(els).join(', '),
         'Poids (t)': getTruckWeight(els).toFixed(2),
         'Plus long (m)': getTruckMaxLength(els).toFixed(2),
@@ -166,7 +178,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `S${weekNumber}`);
-    XLSX.writeFile(wb, `planning_S${weekNumber}${factorySuffix}.xlsx`);
+    XLSX.writeFile(wb, `planning_S${weekNumber}${combinedSuffix}.xlsx`);
   };
 
   const exportPdf = async () => {
