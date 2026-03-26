@@ -95,6 +95,17 @@ export default function TruckCompositionTab() {
     return [...facs].sort();
   }, [trucks, getTruckElements]);
 
+  // All transporters present in trucks (for calendar transporter filter)
+  const truckTransporterList = useMemo(() => {
+    const transporters = new Set<string>();
+    let hasEmpty = false;
+    trucks.forEach(t => {
+      if (t.transporter?.trim()) transporters.add(t.transporter.trim());
+      else hasEmpty = true;
+    });
+    return { list: [...transporters].sort(), hasEmpty };
+  }, [trucks]);
+
   // Helper: does a truck pass the calendar factory filter?
   const truckPassesFactoryFilter = useCallback((truckId: string): boolean => {
     if (calendarFactoryFilter.size === 0) return true;
@@ -103,13 +114,22 @@ export default function TruckCompositionTab() {
     return facs.some(f => calendarFactoryFilter.has(f));
   }, [calendarFactoryFilter, getTruckElements]);
 
-  // Helper: get trucks for a date, filtered by team if multi-team and by factory
+  // Helper: does a truck pass the calendar transporter filter?
+  const truckPassesTransporterFilter = useCallback((truck: Truck): boolean => {
+    if (calendarTransporterFilter.size === 0) return true;
+    const transporter = truck.transporter?.trim() || '';
+    if (transporter === '') return calendarTransporterFilter.has('__sans_transporteur__');
+    return calendarTransporterFilter.has(transporter);
+  }, [calendarTransporterFilter]);
+
+  // Helper: get trucks for a date, filtered by team if multi-team, by factory and by transporter
   const getTeamTrucksForDate = useCallback((dateStr: string) => {
     let dayTrucks = getTrucksForDate(dateStr);
     if (hasMultipleTeams && activeTeamId) dayTrucks = dayTrucks.filter(t => t.teamId === activeTeamId);
     if (calendarFactoryFilter.size > 0) dayTrucks = dayTrucks.filter(t => truckPassesFactoryFilter(t.id));
+    if (calendarTransporterFilter.size > 0) dayTrucks = dayTrucks.filter(t => truckPassesTransporterFilter(t));
     return dayTrucks;
-  }, [getTrucksForDate, hasMultipleTeams, activeTeamId, calendarFactoryFilter, truckPassesFactoryFilter]);
+  }, [getTrucksForDate, hasMultipleTeams, activeTeamId, calendarFactoryFilter, truckPassesFactoryFilter, calendarTransporterFilter, truckPassesTransporterFilter]);
 
   // State for drag highlight on day view trucks
   const [dragOverTruckId, setDragOverTruckId] = useState<string | null>(null);
