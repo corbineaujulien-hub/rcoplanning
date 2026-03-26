@@ -154,11 +154,11 @@ export default function DatabaseTab() {
 
   // Map element ID → truck info
   const elementTruckMap = useMemo(() => {
-    const map = new Map<string, { number: string; date: string }>();
+    const map = new Map<string, { number: string; date: string; truckId: string; teamId?: string; transporter?: string }>();
     trucks.forEach(truck => {
       const ids = Array.isArray(truck.elementIds) ? truck.elementIds : [];
       ids.forEach(eid => {
-        map.set(eid, { number: truck.number, date: truck.date });
+        map.set(eid, { number: truck.number, date: truck.date, truckId: truck.id, teamId: truck.teamId, transporter: truck.transporter });
       });
     });
     return map;
