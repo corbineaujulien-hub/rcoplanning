@@ -21,6 +21,7 @@ interface WeeklyPlanningTabProps {
 export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPlanningTabProps) {
   const { projectInfo, trucks, elements, getTruckElements, teams } = useDelivery();
   const [factoryFilter, setFactoryFilter] = useState<Set<string>>(new Set());
+  const [transporterFilter, setTransporterFilter] = useState<Set<string>>(new Set());
 
   const weekTrucks = useMemo(() => {
     return trucks
@@ -44,14 +45,35 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
     return [...facs].sort();
   }, [weekTrucks, getTruckElements]);
 
-  // Filtered trucks based on factory filter
-  const displayTrucks = useMemo(() => {
-    if (factoryFilter.size === 0) return weekTrucks;
-    return weekTrucks.filter(t => {
-      const facs = getTruckFactories(getTruckElements(t.id));
-      return facs.some(f => factoryFilter.has(f));
+  // Transporters available in this week's trucks
+  const weekTransporterList = useMemo(() => {
+    const transporters = new Set<string>();
+    let hasEmpty = false;
+    weekTrucks.forEach(t => {
+      if (t.transporter?.trim()) transporters.add(t.transporter.trim());
+      else hasEmpty = true;
     });
-  }, [weekTrucks, factoryFilter, getTruckElements]);
+    return { list: [...transporters].sort(), hasEmpty };
+  }, [weekTrucks]);
+
+  // Filtered trucks based on factory and transporter filters
+  const displayTrucks = useMemo(() => {
+    let filtered = weekTrucks;
+    if (factoryFilter.size > 0) {
+      filtered = filtered.filter(t => {
+        const facs = getTruckFactories(getTruckElements(t.id));
+        return facs.some(f => factoryFilter.has(f));
+      });
+    }
+    if (transporterFilter.size > 0) {
+      filtered = filtered.filter(t => {
+        const transporter = t.transporter?.trim() || '';
+        if (transporter === '') return transporterFilter.has('__sans_transporteur__');
+        return transporterFilter.has(transporter);
+      });
+    }
+    return filtered;
+  }, [weekTrucks, factoryFilter, transporterFilter, getTruckElements]);
 
   const weekStart = useMemo(() => {
     if (weekTrucks.length === 0) return null;
@@ -126,6 +148,17 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
     return '_MultiUsines';
   }, [factoryFilter]);
 
+  // Transporter filter suffix for filenames
+  const transporterSuffix = useMemo(() => {
+    if (transporterFilter.size === 0) return '';
+    const realTransporters = [...transporterFilter].filter(t => t !== '__sans_transporteur__');
+    if (realTransporters.length === 1) return `_${realTransporters[0].replace(/\s+/g, '_').replace(/[^A-Za-z0-9_]/g, '')}`;
+    if (transporterFilter.size === 1 && transporterFilter.has('__sans_transporteur__')) return '_SansTransporteur';
+    return '_MultiTransporteurs';
+  }, [transporterFilter]);
+
+  const combinedSuffix = `${factorySuffix}${transporterSuffix}`;
+
   const exportExcel = () => {
     const data = displayTrucks.map(t => {
       const els = getTruckElements(t.id);
@@ -133,6 +166,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
         'Date': t.date,
         'Horaire': t.time,
         'N° Camion': t.number,
+        'Transporteur': t.transporter?.trim() || '',
         'Usine': getTruckFactories(els).join(', '),
         'Poids (t)': getTruckWeight(els).toFixed(2),
         'Plus long (m)': getTruckMaxLength(els).toFixed(2),
@@ -144,7 +178,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `S${weekNumber}`);
-    XLSX.writeFile(wb, `planning_S${weekNumber}${factorySuffix}.xlsx`);
+    XLSX.writeFile(wb, `planning_S${weekNumber}${combinedSuffix}.xlsx`);
   };
 
   const exportPdf = async () => {
@@ -158,7 +192,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
       cumulativeWeight,
       cumulativeByType,
       totalByType,
-      factorySuffix,
+      factorySuffix: combinedSuffix,
     });
   };
 
@@ -191,6 +225,36 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
                     </div>
                     {factoryFilter.size > 0 && (
                       <Button variant="default" size="sm" className="w-full text-xs h-6 mt-2" onClick={() => setFactoryFilter(new Set())}>
+                        <X className="h-3 w-3 mr-1" /> Réinitialiser
+                      </Button>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              )}
+              {(weekTransporterList.list.length > 0 || weekTransporterList.hasEmpty) && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant={transporterFilter.size > 0 ? 'default' : 'outline'} size="sm">
+                      <TruckIcon className="h-4 w-4 mr-1" /> {transporterFilter.size > 0 ? `Transporteur (${transporterFilter.size})` : 'Transporteur'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="end">
+                    <div className="space-y-1">
+                      {weekTransporterList.hasEmpty && (
+                        <label className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                          <Checkbox checked={transporterFilter.has('__sans_transporteur__')} onCheckedChange={() => setTransporterFilter(prev => { const next = new Set(prev); next.has('__sans_transporteur__') ? next.delete('__sans_transporteur__') : next.add('__sans_transporteur__'); return next; })} />
+                          <span className="text-xs italic text-muted-foreground">Sans transporteur</span>
+                        </label>
+                      )}
+                      {weekTransporterList.list.map(t => (
+                        <label key={t} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                          <Checkbox checked={transporterFilter.has(t)} onCheckedChange={() => setTransporterFilter(prev => { const next = new Set(prev); next.has(t) ? next.delete(t) : next.add(t); return next; })} />
+                          <span className="text-xs font-medium text-orange-500">{t}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {transporterFilter.size > 0 && (
+                      <Button variant="default" size="sm" className="w-full text-xs h-6 mt-2" onClick={() => setTransporterFilter(new Set())}>
                         <X className="h-3 w-3 mr-1" /> Réinitialiser
                       </Button>
                     )}

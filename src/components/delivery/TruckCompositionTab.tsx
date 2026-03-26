@@ -62,6 +62,7 @@ export default function TruckCompositionTab() {
   const [selectionMode, setSelectionMode] = useState<'list' | 'plans'>('list');
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [calendarFactoryFilter, setCalendarFactoryFilter] = useState<Set<string>>(new Set());
+  const [calendarTransporterFilter, setCalendarTransporterFilter] = useState<Set<string>>(new Set());
 
   // Plan filter states
   const [planFilterRepere, setPlanFilterRepere] = useState('');
@@ -94,6 +95,17 @@ export default function TruckCompositionTab() {
     return [...facs].sort();
   }, [trucks, getTruckElements]);
 
+  // All transporters present in trucks (for calendar transporter filter)
+  const truckTransporterList = useMemo(() => {
+    const transporters = new Set<string>();
+    let hasEmpty = false;
+    trucks.forEach(t => {
+      if (t.transporter?.trim()) transporters.add(t.transporter.trim());
+      else hasEmpty = true;
+    });
+    return { list: [...transporters].sort(), hasEmpty };
+  }, [trucks]);
+
   // Helper: does a truck pass the calendar factory filter?
   const truckPassesFactoryFilter = useCallback((truckId: string): boolean => {
     if (calendarFactoryFilter.size === 0) return true;
@@ -102,13 +114,22 @@ export default function TruckCompositionTab() {
     return facs.some(f => calendarFactoryFilter.has(f));
   }, [calendarFactoryFilter, getTruckElements]);
 
-  // Helper: get trucks for a date, filtered by team if multi-team and by factory
+  // Helper: does a truck pass the calendar transporter filter?
+  const truckPassesTransporterFilter = useCallback((truck: Truck): boolean => {
+    if (calendarTransporterFilter.size === 0) return true;
+    const transporter = truck.transporter?.trim() || '';
+    if (transporter === '') return calendarTransporterFilter.has('__sans_transporteur__');
+    return calendarTransporterFilter.has(transporter);
+  }, [calendarTransporterFilter]);
+
+  // Helper: get trucks for a date, filtered by team if multi-team, by factory and by transporter
   const getTeamTrucksForDate = useCallback((dateStr: string) => {
     let dayTrucks = getTrucksForDate(dateStr);
     if (hasMultipleTeams && activeTeamId) dayTrucks = dayTrucks.filter(t => t.teamId === activeTeamId);
     if (calendarFactoryFilter.size > 0) dayTrucks = dayTrucks.filter(t => truckPassesFactoryFilter(t.id));
+    if (calendarTransporterFilter.size > 0) dayTrucks = dayTrucks.filter(t => truckPassesTransporterFilter(t));
     return dayTrucks;
-  }, [getTrucksForDate, hasMultipleTeams, activeTeamId, calendarFactoryFilter, truckPassesFactoryFilter]);
+  }, [getTrucksForDate, hasMultipleTeams, activeTeamId, calendarFactoryFilter, truckPassesFactoryFilter, calendarTransporterFilter, truckPassesTransporterFilter]);
 
   // State for drag highlight on day view trucks
   const [dragOverTruckId, setDragOverTruckId] = useState<string | null>(null);
@@ -842,6 +863,36 @@ export default function TruckCompositionTab() {
                     </div>
                     {calendarFactoryFilter.size > 0 && (
                       <Button variant="default" size="sm" className="w-full text-xs h-6 mt-2" onClick={() => setCalendarFactoryFilter(new Set())}>
+                        <X className="h-3 w-3 mr-1" /> Réinitialiser
+                      </Button>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              )}
+              {(truckTransporterList.list.length > 0 || truckTransporterList.hasEmpty) && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant={calendarTransporterFilter.size > 0 ? 'default' : 'outline'} size="sm">
+                      <TruckIcon className="h-4 w-4 mr-1" /> {calendarTransporterFilter.size > 0 ? `Transporteur (${calendarTransporterFilter.size})` : 'Transporteur'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="end">
+                    <div className="space-y-1">
+                      {truckTransporterList.hasEmpty && (
+                        <label className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                          <Checkbox checked={calendarTransporterFilter.has('__sans_transporteur__')} onCheckedChange={() => setCalendarTransporterFilter(prev => { const next = new Set(prev); next.has('__sans_transporteur__') ? next.delete('__sans_transporteur__') : next.add('__sans_transporteur__'); return next; })} />
+                          <span className="text-xs italic text-muted-foreground">Sans transporteur</span>
+                        </label>
+                      )}
+                      {truckTransporterList.list.map(t => (
+                        <label key={t} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                          <Checkbox checked={calendarTransporterFilter.has(t)} onCheckedChange={() => setCalendarTransporterFilter(prev => { const next = new Set(prev); next.has(t) ? next.delete(t) : next.add(t); return next; })} />
+                          <span className="text-xs font-medium text-orange-500">{t}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {calendarTransporterFilter.size > 0 && (
+                      <Button variant="default" size="sm" className="w-full text-xs h-6 mt-2" onClick={() => setCalendarTransporterFilter(new Set())}>
                         <X className="h-3 w-3 mr-1" /> Réinitialiser
                       </Button>
                     )}
