@@ -231,6 +231,36 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
                   </PopoverContent>
                 </Popover>
               )}
+              {(weekTransporterList.list.length > 0 || weekTransporterList.hasEmpty) && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant={transporterFilter.size > 0 ? 'default' : 'outline'} size="sm">
+                      <TruckIcon className="h-4 w-4 mr-1" /> {transporterFilter.size > 0 ? `Transporteur (${transporterFilter.size})` : 'Transporteur'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="end">
+                    <div className="space-y-1">
+                      {weekTransporterList.hasEmpty && (
+                        <label className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                          <Checkbox checked={transporterFilter.has('__sans_transporteur__')} onCheckedChange={() => setTransporterFilter(prev => { const next = new Set(prev); next.has('__sans_transporteur__') ? next.delete('__sans_transporteur__') : next.add('__sans_transporteur__'); return next; })} />
+                          <span className="text-xs italic text-muted-foreground">Sans transporteur</span>
+                        </label>
+                      )}
+                      {weekTransporterList.list.map(t => (
+                        <label key={t} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                          <Checkbox checked={transporterFilter.has(t)} onCheckedChange={() => setTransporterFilter(prev => { const next = new Set(prev); next.has(t) ? next.delete(t) : next.add(t); return next; })} />
+                          <span className="text-xs font-medium text-orange-500">{t}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {transporterFilter.size > 0 && (
+                      <Button variant="default" size="sm" className="w-full text-xs h-6 mt-2" onClick={() => setTransporterFilter(new Set())}>
+                        <X className="h-3 w-3 mr-1" /> Réinitialiser
+                      </Button>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              )}
               <Button variant="outline" size="sm" onClick={exportExcel}>
                 <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
               </Button>
