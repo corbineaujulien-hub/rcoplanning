@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
-import { BeamElement, Plan, PRODUCT_TYPES } from '@/types/delivery';
+import { BeamElement, Plan, PRODUCT_TYPES, TRANSPORT_CATEGORIES } from '@/types/delivery';
+import { getTransportCategory } from '@/utils/transportUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -111,7 +112,7 @@ function ColumnFilter({ column, values, filters, setFilters, labelFn }: {
 }
 
 export default function DatabaseTab() {
-  const { elements, setElements, addElements, updateElement, deleteElement, plans, addPlan, updatePlan, deletePlan, trucks, projectInfo } = useDelivery();
+  const { elements, setElements, addElements, updateElement, deleteElement, plans, addPlan, updatePlan, deletePlan, trucks, projectInfo, getTruckElements, teams } = useDelivery();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [importMode, setImportMode] = useState<'overwrite' | 'update' | null>(null);
@@ -153,11 +154,11 @@ export default function DatabaseTab() {
 
   // Map element ID → truck info
   const elementTruckMap = useMemo(() => {
-    const map = new Map<string, { number: string; date: string }>();
+    const map = new Map<string, { number: string; date: string; truckId: string; teamId?: string; transporter?: string }>();
     trucks.forEach(truck => {
       const ids = Array.isArray(truck.elementIds) ? truck.elementIds : [];
       ids.forEach(eid => {
-        map.set(eid, { number: truck.number, date: truck.date });
+        map.set(eid, { number: truck.number, date: truck.date, truckId: truck.id, teamId: truck.teamId, transporter: truck.transporter });
       });
     });
     return map;
@@ -480,10 +481,17 @@ export default function DatabaseTab() {
   const totalWeight = filteredElements.reduce((s, el) => s + el.weight, 0);
 
   // Excel export
+  const showTeamColumn = teams.length > 1;
   const handleExportExcel = () => {
     const data = filteredElements.map(el => {
       const info = elementTruckMap.get(el.id);
-      return {
+      let categoryLabel = '';
+      if (info) {
+        const truckEls = getTruckElements(info.truckId);
+        categoryLabel = TRANSPORT_CATEGORIES[getTransportCategory(truckEls)].label;
+      }
+      const teamName = info?.teamId ? (teams.find(t => t.id === info.teamId)?.name || '') : '';
+      const row: Record<string, string | number> = {
         'N° Repère': el.repere,
         'Zone': el.zone,
         'Type de produit': el.productType,
@@ -493,8 +501,13 @@ export default function DatabaseTab() {
         'Usine': el.factory,
         'Numéro camion': info ? info.number : '',
         'Date camion': info ? formatTruckDate(info.date) : '',
-        'Transporteur': info ? (trucks.find(t => t.number === info.number)?.transporter || '') : '',
+        'Catégorie de transport': categoryLabel,
+        'Transporteur': info?.transporter?.trim() || '',
       };
+      if (showTeamColumn) {
+        row['Équipe'] = teamName;
+      }
+      return row;
     });
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
