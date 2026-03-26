@@ -21,6 +21,7 @@ interface WeeklyPlanningTabProps {
 export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPlanningTabProps) {
   const { projectInfo, trucks, elements, getTruckElements, teams } = useDelivery();
   const [factoryFilter, setFactoryFilter] = useState<Set<string>>(new Set());
+  const [transporterFilter, setTransporterFilter] = useState<Set<string>>(new Set());
 
   const weekTrucks = useMemo(() => {
     return trucks
@@ -44,14 +45,35 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
     return [...facs].sort();
   }, [weekTrucks, getTruckElements]);
 
-  // Filtered trucks based on factory filter
-  const displayTrucks = useMemo(() => {
-    if (factoryFilter.size === 0) return weekTrucks;
-    return weekTrucks.filter(t => {
-      const facs = getTruckFactories(getTruckElements(t.id));
-      return facs.some(f => factoryFilter.has(f));
+  // Transporters available in this week's trucks
+  const weekTransporterList = useMemo(() => {
+    const transporters = new Set<string>();
+    let hasEmpty = false;
+    weekTrucks.forEach(t => {
+      if (t.transporter?.trim()) transporters.add(t.transporter.trim());
+      else hasEmpty = true;
     });
-  }, [weekTrucks, factoryFilter, getTruckElements]);
+    return { list: [...transporters].sort(), hasEmpty };
+  }, [weekTrucks]);
+
+  // Filtered trucks based on factory and transporter filters
+  const displayTrucks = useMemo(() => {
+    let filtered = weekTrucks;
+    if (factoryFilter.size > 0) {
+      filtered = filtered.filter(t => {
+        const facs = getTruckFactories(getTruckElements(t.id));
+        return facs.some(f => factoryFilter.has(f));
+      });
+    }
+    if (transporterFilter.size > 0) {
+      filtered = filtered.filter(t => {
+        const transporter = t.transporter?.trim() || '';
+        if (transporter === '') return transporterFilter.has('__sans_transporteur__');
+        return transporterFilter.has(transporter);
+      });
+    }
+    return filtered;
+  }, [weekTrucks, factoryFilter, transporterFilter, getTruckElements]);
 
   const weekStart = useMemo(() => {
     if (weekTrucks.length === 0) return null;
