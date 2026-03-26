@@ -869,6 +869,36 @@ export default function TruckCompositionTab() {
                   </PopoverContent>
                 </Popover>
               )}
+              {(truckTransporterList.list.length > 0 || truckTransporterList.hasEmpty) && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant={calendarTransporterFilter.size > 0 ? 'default' : 'outline'} size="sm">
+                      <TruckIcon className="h-4 w-4 mr-1" /> {calendarTransporterFilter.size > 0 ? `Transporteur (${calendarTransporterFilter.size})` : 'Transporteur'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="end">
+                    <div className="space-y-1">
+                      {truckTransporterList.hasEmpty && (
+                        <label className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                          <Checkbox checked={calendarTransporterFilter.has('__sans_transporteur__')} onCheckedChange={() => setCalendarTransporterFilter(prev => { const next = new Set(prev); next.has('__sans_transporteur__') ? next.delete('__sans_transporteur__') : next.add('__sans_transporteur__'); return next; })} />
+                          <span className="text-xs italic text-muted-foreground">Sans transporteur</span>
+                        </label>
+                      )}
+                      {truckTransporterList.list.map(t => (
+                        <label key={t} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                          <Checkbox checked={calendarTransporterFilter.has(t)} onCheckedChange={() => setCalendarTransporterFilter(prev => { const next = new Set(prev); next.has(t) ? next.delete(t) : next.add(t); return next; })} />
+                          <span className="text-xs font-medium text-orange-500">{t}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {calendarTransporterFilter.size > 0 && (
+                      <Button variant="default" size="sm" className="w-full text-xs h-6 mt-2" onClick={() => setCalendarTransporterFilter(new Set())}>
+                        <X className="h-3 w-3 mr-1" /> Réinitialiser
+                      </Button>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              )}
               {trucks.length > 0 && (
                 <>
                   {hasMultipleTeams && (
