@@ -942,7 +942,7 @@ export default function TruckCompositionTab() {
                       <Users className="h-4 w-4 mr-1" /> Réaffecter
                     </Button>
                   )}
-                  <Button variant="outline" size="sm" onClick={() => { setShiftSelectedTrucks(new Set()); setShiftValue(''); setShowShiftDialog(true); }}>
+                  <Button variant="outline" size="sm" onClick={() => setShowShiftDialog(true)}>
                     <ArrowRightLeft className="h-4 w-4 mr-1" /> Décaler
                   </Button>
                   <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteAll(true)}>
