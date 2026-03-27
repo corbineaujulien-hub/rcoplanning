@@ -58,7 +58,8 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
   const [teams, setTeamsState] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [compositionTabOpened, setCompositionTabOpened] = useState(false);
-  const [savedViewMode, setSavedViewMode] = useState<'month' | 'week' | 'day' | null>(null);
+  const [savedViewMode, setSavedViewMode] = useState<'month' | 'week' | 'day'>('month');
+  const [savedCurrentDate, setSavedCurrentDate] = useState<Date | null>(null);
 
   // Load initial data
   useEffect(() => {
