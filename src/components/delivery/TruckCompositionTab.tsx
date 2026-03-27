@@ -417,6 +417,29 @@ export default function TruckCompositionTab() {
     (e.currentTarget as HTMLElement).classList.remove('drag-over');
   };
 
+  // Check if a day is non-working (Sunday, Saturday if hidden, French holiday)
+  const isNonWorkingDay = (date: Date): boolean => {
+    const dow = date.getDay();
+    if (dow === 0) return true; // Dimanche
+    if (dow === 6 && !showSaturdays) return true; // Samedi si non affiché
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return isHoliday(dateStr);
+  };
+
+  // Add working days (skipping non-working days)
+  const addWorkingDays = (date: Date, days: number): Date => {
+    const result = new Date(date);
+    let remaining = Math.abs(days);
+    const direction = days >= 0 ? 1 : -1;
+    while (remaining > 0) {
+      result.setDate(result.getDate() + direction);
+      if (!isNonWorkingDay(result)) {
+        remaining--;
+      }
+    }
+    return result;
+  };
+
   // Shift trucks logic
   const handleShiftConfirm = () => {
     const val = parseInt(shiftValue, 10);
@@ -425,23 +448,28 @@ export default function TruckCompositionTab() {
     shiftSelectedTrucks.forEach(truckId => {
       const truck = trucks.find(t => t.id === truckId);
       if (!truck) return;
-
-      const baseDate = parse(truck.date, 'yyyy-MM-dd', new Date());
-      let newDate: Date;
+      const [y, mo, d] = truck.date.split('-').map(Number);
+      const baseDate = new Date(y, mo - 1, d);
 
       if (shiftType === 'weeks') {
-        newDate = addWeeks(baseDate, val);
+        // Weeks: shift by N*5 working days
+        const newDate = addWorkingDays(baseDate, val * 5);
         updateTruck(truckId, { date: format(newDate, 'yyyy-MM-dd') });
       } else if (shiftType === 'days') {
-        newDate = addDays(baseDate, val);
+        const newDate = addWorkingDays(baseDate, val);
         updateTruck(truckId, { date: format(newDate, 'yyyy-MM-dd') });
       } else {
         // Hours: parse time and shift
         const [h, m] = truck.time.split(':').map(Number);
         const dateTime = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), h, m);
         const shifted = addHours(dateTime, val);
+        // If the shifted date lands on a non-working day, move forward to next working day
+        let finalDate = new Date(shifted);
+        while (isNonWorkingDay(finalDate)) {
+          finalDate.setDate(finalDate.getDate() + 1);
+        }
         updateTruck(truckId, {
-          date: format(shifted, 'yyyy-MM-dd'),
+          date: format(finalDate, 'yyyy-MM-dd'),
           time: format(shifted, 'HH:mm'),
         });
       }
