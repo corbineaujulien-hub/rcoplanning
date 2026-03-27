@@ -1391,73 +1391,14 @@ export default function TruckCompositionTab() {
       </AlertDialog>
 
       {/* Shift Dialog */}
-      <Dialog open={showShiftDialog} onOpenChange={setShowShiftDialog}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Décaler des camions</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm">Sélectionner les camions</Label>
-              <Button variant="ghost" size="sm" className="text-xs" onClick={() => {
-                if (shiftSelectedTrucks.size === trucks.length) {
-                  setShiftSelectedTrucks(new Set());
-                } else {
-                  setShiftSelectedTrucks(new Set(trucks.map(t => t.id)));
-                }
-              }}>
-                {shiftSelectedTrucks.size === trucks.length ? 'Tout désélectionner' : 'Tout sélectionner'}
-              </Button>
-            </div>
-            <div className="space-y-1 max-h-[40vh] overflow-y-auto">
-              {trucks.map(truck => {
-                const els = getTruckElements(truck.id);
-                const cat = getTransportCategory(els);
-                return (
-                  <label key={truck.id} className="flex items-center gap-2 p-2 rounded-md border cursor-pointer hover:bg-secondary/50 transition-colors">
-                    <Checkbox
-                      checked={shiftSelectedTrucks.has(truck.id)}
-                      onCheckedChange={() => {
-                        setShiftSelectedTrucks(prev => {
-                          const next = new Set(prev);
-                          next.has(truck.id) ? next.delete(truck.id) : next.add(truck.id);
-                          return next;
-                        });
-                      }}
-                    />
-                    <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${els.length === 0 ? 'bg-foreground' : getCategoryColorClass(cat)}`} />
-                    <span className="text-sm font-medium">{truck.number}</span>
-                    <span className="text-xs text-muted-foreground">{truck.date} · {truck.time}</span>
-                  </label>
-                );
-              })}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Type de décalage</Label>
-                <Select value={shiftType} onValueChange={v => setShiftType(v as any)}>
-                  <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="weeks">Semaines</SelectItem>
-                    <SelectItem value="days">Jours</SelectItem>
-                    <SelectItem value="hours">Heures</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs">Valeur (+ ou -)</Label>
-                <Input type="number" value={shiftValue} onChange={e => setShiftValue(e.target.value)} className="h-8 text-sm mt-1" placeholder="Ex: 1 ou -2" />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowShiftDialog(false)}>Annuler</Button>
-            <Button onClick={handleShiftConfirm} disabled={shiftSelectedTrucks.size === 0 || !shiftValue || parseInt(shiftValue) === 0}>
-              Décaler ({shiftSelectedTrucks.size} camion{shiftSelectedTrucks.size > 1 ? 's' : ''})
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ShiftCalendarDialog
+        open={showShiftDialog}
+        onOpenChange={setShowShiftDialog}
+        trucks={trucks}
+        getTruckElements={getTruckElements}
+        showSaturdays={showSaturdays}
+        onShiftConfirm={handleShiftConfirm}
+      />
 
       {/* Bulk Reassignment Dialog */}
       <Dialog open={showBulkReassign} onOpenChange={setShowBulkReassign}>
