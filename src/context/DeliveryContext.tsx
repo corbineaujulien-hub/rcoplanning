@@ -53,6 +53,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
   const [plans, setPlansState] = useState<Plan[]>([]);
   const [teams, setTeamsState] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
+  const [compositionTabOpened, setCompositionTabOpened] = useState(false);
 
   // Load initial data
   useEffect(() => {
