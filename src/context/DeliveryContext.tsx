@@ -428,16 +428,22 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
 
   // Compute initial date: if earliest truck date > today, use it; otherwise today
   const initialDate = useMemo(() => {
+    const parseDateLocal = (dateStr: string) => {
+      const [year, month, day] = dateStr.slice(0, 10).split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    };
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const trucksWithDate = trucks.filter(t => t.date);
+    const trucksWithDate = trucks.filter(t => typeof t.date === 'string' && t.date.trim() !== '');
     if (trucksWithDate.length === 0) return new Date(today);
 
-    const firstTruckDate = new Date(
-      Math.min(...trucksWithDate.map(t => new Date(t.date + 'T00:00:00').getTime()))
-    );
-    firstTruckDate.setHours(0, 0, 0, 0);
+    const firstTruckDate = trucksWithDate
+      .map(t => parseDateLocal(t.date))
+      .reduce((min, date) => (date.getTime() < min.getTime() ? date : min));
 
     return firstTruckDate.getTime() > today.getTime() ? firstTruckDate : new Date(today);
   }, [trucks]);
