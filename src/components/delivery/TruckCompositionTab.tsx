@@ -27,7 +27,7 @@ import { TransportAlertModal, MultiSiteAlertModal } from './AlertModal';
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 6);
 
 export default function TruckCompositionTab() {
-  const { elements, trucks, getTrucksForDate, getTruckElements, addTruck, addElementsToTruck, removeElementFromTruck, deleteTruck, deleteAllTrucks, updateTruck, isElementAssigned, plans, projectInfo, teams, initialDate, compositionTabOpened, setCompositionTabOpened, savedViewMode, setSavedViewMode } = useDelivery();
+  const { elements, trucks, getTrucksForDate, getTruckElements, addTruck, addElementsToTruck, removeElementFromTruck, deleteTruck, deleteAllTrucks, updateTruck, isElementAssigned, plans, projectInfo, teams, initialDate, compositionTabOpened, setCompositionTabOpened, savedViewMode, setSavedViewMode, savedCurrentDate, setSavedCurrentDate } = useDelivery();
   const hasMultipleTeams = teams.length > 1;
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
 
@@ -40,26 +40,33 @@ export default function TruckCompositionTab() {
     if (!activeTeamId) return trucks;
     return trucks.filter(t => t.teamId === activeTeamId);
   }, [trucks, hasMultipleTeams, activeTeamId]);
-  const [currentDate, setCurrentDate] = useState(() => new Date());
-  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
 
-  // On first open, set currentDate from initialDate and restore saved view mode; mark tab as opened
+  // currentDate and viewMode are initialized from context (survives tab switches)
+  const [currentDate, setCurrentDate] = useState(() => {
+    if (!compositionTabOpened && savedCurrentDate === null) {
+      // First open: use initialDate rule
+      return initialDate;
+    }
+    return savedCurrentDate || initialDate;
+  });
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>(savedViewMode);
+
+  // On first open, mark tab as opened
   useEffect(() => {
     if (!compositionTabOpened) {
-      setCurrentDate(initialDate);
-      if (savedViewMode) {
-        setViewMode(savedViewMode);
-      }
       setCompositionTabOpened(true);
     }
-  }, [compositionTabOpened, initialDate, setCompositionTabOpened, savedViewMode]);
+  }, [compositionTabOpened, setCompositionTabOpened]);
 
-  // Save view mode to context whenever it changes
+  // Persist currentDate to context whenever it changes
   useEffect(() => {
-    if (compositionTabOpened) {
-      setSavedViewMode(viewMode);
-    }
-  }, [viewMode, compositionTabOpened, setSavedViewMode]);
+    setSavedCurrentDate(currentDate);
+  }, [currentDate, setSavedCurrentDate]);
+
+  // Persist viewMode to context whenever it changes
+  useEffect(() => {
+    setSavedViewMode(viewMode);
+  }, [viewMode, setSavedViewMode]);
   const [filterRepere, setFilterRepere] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filterZone, setFilterZone] = useState<Set<string>>(new Set());

@@ -36,8 +36,10 @@ interface DeliveryContextType {
   initialDate: Date;
   compositionTabOpened: boolean;
   setCompositionTabOpened: (v: boolean) => void;
-  savedViewMode: 'month' | 'week' | 'day' | null;
-  setSavedViewMode: (mode: 'month' | 'week' | 'day' | null) => void;
+  savedViewMode: 'month' | 'week' | 'day';
+  setSavedViewMode: (mode: 'month' | 'week' | 'day') => void;
+  savedCurrentDate: Date | null;
+  setSavedCurrentDate: (date: Date) => void;
 }
 
 const DeliveryContext = createContext<DeliveryContextType | null>(null);
@@ -56,7 +58,8 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
   const [teams, setTeamsState] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [compositionTabOpened, setCompositionTabOpened] = useState(false);
-  const [savedViewMode, setSavedViewMode] = useState<'month' | 'week' | 'day' | null>(null);
+  const [savedViewMode, setSavedViewMode] = useState<'month' | 'week' | 'day'>('month');
+  const [savedCurrentDate, setSavedCurrentDate] = useState<Date | null>(null);
 
   // Load initial data
   useEffect(() => {
@@ -441,7 +444,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
       getElementById, getTruckElements, getUnassignedElements, isElementAssigned, getTrucksForDate,
       addPlan, updatePlan, deletePlan,
       addTeam, updateTeam, deleteTeam,
-      initialDate, compositionTabOpened, setCompositionTabOpened, savedViewMode, setSavedViewMode,
+      initialDate, compositionTabOpened, setCompositionTabOpened, savedViewMode, setSavedViewMode, savedCurrentDate, setSavedCurrentDate,
     }}>
       {children}
     </DeliveryContext.Provider>
