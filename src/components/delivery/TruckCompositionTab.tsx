@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useDelivery } from '@/context/DeliveryContext';
 import { BeamElement, Truck, TRANSPORT_CATEGORIES, TransportCategory, Plan } from '@/types/delivery';
