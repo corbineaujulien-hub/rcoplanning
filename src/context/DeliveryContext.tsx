@@ -36,6 +36,8 @@ interface DeliveryContextType {
   initialDate: Date;
   compositionTabOpened: boolean;
   setCompositionTabOpened: (v: boolean) => void;
+  savedViewMode: 'month' | 'week' | 'day' | null;
+  setSavedViewMode: (mode: 'month' | 'week' | 'day' | null) => void;
 }
 
 const DeliveryContext = createContext<DeliveryContextType | null>(null);
