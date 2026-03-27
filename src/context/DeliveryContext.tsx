@@ -33,6 +33,9 @@ interface DeliveryContextType {
   addTeam: (team: Team) => void;
   updateTeam: (id: string, updates: Partial<Team>) => void;
   deleteTeam: (id: string) => void;
+  initialDate: Date;
+  compositionTabOpened: boolean;
+  setCompositionTabOpened: (v: boolean) => void;
 }
 
 const DeliveryContext = createContext<DeliveryContextType | null>(null);
