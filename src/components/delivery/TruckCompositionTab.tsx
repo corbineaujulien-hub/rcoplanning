@@ -23,6 +23,7 @@ import { fr } from 'date-fns/locale';
 import NewTruckModal from './NewTruckModal';
 import TruckDetailModal from './TruckDetailModal';
 import { TransportAlertModal, MultiSiteAlertModal } from './AlertModal';
+import ShiftCalendarDialog from './ShiftCalendarDialog';
 
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 6);
 
