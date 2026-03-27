@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { ProjectInfo, BeamElement, Truck, Plan, Team, DEFAULT_PROJECT_INFO } from '@/types/delivery';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
