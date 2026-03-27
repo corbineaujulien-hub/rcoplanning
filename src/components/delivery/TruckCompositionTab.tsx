@@ -43,13 +43,23 @@ export default function TruckCompositionTab() {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
 
-  // On first open, set currentDate from initialDate; mark tab as opened
+  // On first open, set currentDate from initialDate and restore saved view mode; mark tab as opened
   useEffect(() => {
     if (!compositionTabOpened) {
       setCurrentDate(initialDate);
+      if (savedViewMode) {
+        setViewMode(savedViewMode);
+      }
       setCompositionTabOpened(true);
     }
-  }, [compositionTabOpened, initialDate, setCompositionTabOpened]);
+  }, [compositionTabOpened, initialDate, setCompositionTabOpened, savedViewMode]);
+
+  // Save view mode to context whenever it changes
+  useEffect(() => {
+    if (compositionTabOpened) {
+      setSavedViewMode(viewMode);
+    }
+  }, [viewMode, compositionTabOpened, setSavedViewMode]);
   const [filterRepere, setFilterRepere] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filterZone, setFilterZone] = useState<Set<string>>(new Set());
