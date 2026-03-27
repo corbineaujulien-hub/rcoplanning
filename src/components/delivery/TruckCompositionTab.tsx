@@ -44,12 +44,18 @@ export default function TruckCompositionTab() {
   // currentDate and viewMode are initialized from context (survives tab switches)
   const [currentDate, setCurrentDate] = useState(() => {
     if (!compositionTabOpened && savedCurrentDate === null) {
-      // First open: use initialDate rule
       return initialDate;
     }
     return savedCurrentDate || initialDate;
   });
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>(savedViewMode);
+
+  // When initialDate changes (e.g. trucks finish loading) and this is first open, update currentDate
+  useEffect(() => {
+    if (!compositionTabOpened) {
+      setCurrentDate(initialDate);
+    }
+  }, [initialDate, compositionTabOpened]);
 
   // On first open, mark tab as opened
   useEffect(() => {
