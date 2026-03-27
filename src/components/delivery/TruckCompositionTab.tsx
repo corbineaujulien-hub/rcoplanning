@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useDelivery } from '@/context/DeliveryContext';
 import { BeamElement, Truck, TRANSPORT_CATEGORIES, TransportCategory, Plan } from '@/types/delivery';
@@ -27,7 +27,7 @@ import { TransportAlertModal, MultiSiteAlertModal } from './AlertModal';
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 6);
 
 export default function TruckCompositionTab() {
-  const { elements, trucks, getTrucksForDate, getTruckElements, addTruck, addElementsToTruck, removeElementFromTruck, deleteTruck, deleteAllTrucks, updateTruck, isElementAssigned, plans, projectInfo, teams } = useDelivery();
+  const { elements, trucks, getTrucksForDate, getTruckElements, addTruck, addElementsToTruck, removeElementFromTruck, deleteTruck, deleteAllTrucks, updateTruck, isElementAssigned, plans, projectInfo, teams, initialDate, compositionTabOpened, setCompositionTabOpened } = useDelivery();
   const hasMultipleTeams = teams.length > 1;
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
 
@@ -40,8 +40,16 @@ export default function TruckCompositionTab() {
     if (!activeTeamId) return trucks;
     return trucks.filter(t => t.teamId === activeTeamId);
   }, [trucks, hasMultipleTeams, activeTeamId]);
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(() => new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
+
+  // On first open, set currentDate from initialDate; mark tab as opened
+  useEffect(() => {
+    if (!compositionTabOpened) {
+      setCurrentDate(initialDate);
+      setCompositionTabOpened(true);
+    }
+  }, [compositionTabOpened, initialDate, setCompositionTabOpened]);
   const [filterRepere, setFilterRepere] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filterZone, setFilterZone] = useState<Set<string>>(new Set());
