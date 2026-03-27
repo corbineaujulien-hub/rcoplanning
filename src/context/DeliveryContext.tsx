@@ -420,6 +420,16 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
     await supabase.from('teams').delete().eq('id', id);
   }, []);
 
+  // Compute initial date: if earliest truck date > today, use it; otherwise today
+  const initialDate = useMemo(() => {
+    if (trucks.length === 0) return new Date();
+    const sorted = [...trucks].sort((a, b) => a.date.localeCompare(b.date));
+    const earliest = new Date(sorted[0].date + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return earliest > today ? earliest : new Date();
+  }, [trucks]);
+
   return (
     <DeliveryContext.Provider value={{
       projectInfo, elements, trucks, plans, teams, projectId, loading,
@@ -428,6 +438,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
       getElementById, getTruckElements, getUnassignedElements, isElementAssigned, getTrucksForDate,
       addPlan, updatePlan, deletePlan,
       addTeam, updateTeam, deleteTeam,
+      initialDate, compositionTabOpened, setCompositionTabOpened,
     }}>
       {children}
     </DeliveryContext.Provider>
