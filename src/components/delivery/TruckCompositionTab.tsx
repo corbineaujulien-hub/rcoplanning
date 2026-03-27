@@ -442,29 +442,23 @@ export default function TruckCompositionTab() {
   };
 
   // Shift trucks logic
-  const handleShiftConfirm = () => {
-    const val = parseInt(shiftValue, 10);
-    if (isNaN(val) || val === 0 || shiftSelectedTrucks.size === 0) return;
-
-    shiftSelectedTrucks.forEach(truckId => {
+  const handleShiftConfirm = (selectedIds: Set<string>, type: 'weeks' | 'days' | 'hours', val: number) => {
+    selectedIds.forEach(truckId => {
       const truck = trucks.find(t => t.id === truckId);
       if (!truck) return;
       const [y, mo, d] = truck.date.split('-').map(Number);
       const baseDate = new Date(y, mo - 1, d);
 
-      if (shiftType === 'weeks') {
-        // Weeks: shift by N*5 working days
+      if (type === 'weeks') {
         const newDate = addWorkingDays(baseDate, val * 5);
         updateTruck(truckId, { date: format(newDate, 'yyyy-MM-dd') });
-      } else if (shiftType === 'days') {
+      } else if (type === 'days') {
         const newDate = addWorkingDays(baseDate, val);
         updateTruck(truckId, { date: format(newDate, 'yyyy-MM-dd') });
       } else {
-        // Hours: parse time and shift
         const [h, m] = truck.time.split(':').map(Number);
         const dateTime = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), h, m);
         const shifted = addHours(dateTime, val);
-        // If the shifted date lands on a non-working day, move forward to next working day
         let finalDate = new Date(shifted);
         while (isNonWorkingDay(finalDate)) {
           finalDate.setDate(finalDate.getDate() + 1);
@@ -477,8 +471,6 @@ export default function TruckCompositionTab() {
     });
 
     setShowShiftDialog(false);
-    setShiftSelectedTrucks(new Set());
-    setShiftValue('');
   };
 
   const recapData = useMemo(() => {
