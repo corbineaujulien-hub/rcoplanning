@@ -102,9 +102,6 @@ export default function TruckCompositionTab() {
 
   // Shift dialog states
   const [showShiftDialog, setShowShiftDialog] = useState(false);
-  const [shiftSelectedTrucks, setShiftSelectedTrucks] = useState<Set<string>>(new Set());
-  const [shiftType, setShiftType] = useState<'weeks' | 'days' | 'hours'>('days');
-  const [shiftValue, setShiftValue] = useState('');
 
   // Bulk reassignment dialog
   const [showBulkReassign, setShowBulkReassign] = useState(false);
