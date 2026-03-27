@@ -23,6 +23,7 @@ import { fr } from 'date-fns/locale';
 import NewTruckModal from './NewTruckModal';
 import TruckDetailModal from './TruckDetailModal';
 import { TransportAlertModal, MultiSiteAlertModal } from './AlertModal';
+import ShiftCalendarDialog from './ShiftCalendarDialog';
 
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 6);
 
@@ -101,9 +102,6 @@ export default function TruckCompositionTab() {
 
   // Shift dialog states
   const [showShiftDialog, setShowShiftDialog] = useState(false);
-  const [shiftSelectedTrucks, setShiftSelectedTrucks] = useState<Set<string>>(new Set());
-  const [shiftType, setShiftType] = useState<'weeks' | 'days' | 'hours'>('days');
-  const [shiftValue, setShiftValue] = useState('');
 
   // Bulk reassignment dialog
   const [showBulkReassign, setShowBulkReassign] = useState(false);
@@ -441,29 +439,23 @@ export default function TruckCompositionTab() {
   };
 
   // Shift trucks logic
-  const handleShiftConfirm = () => {
-    const val = parseInt(shiftValue, 10);
-    if (isNaN(val) || val === 0 || shiftSelectedTrucks.size === 0) return;
-
-    shiftSelectedTrucks.forEach(truckId => {
+  const handleShiftConfirm = (selectedIds: Set<string>, type: 'weeks' | 'days' | 'hours', val: number) => {
+    selectedIds.forEach(truckId => {
       const truck = trucks.find(t => t.id === truckId);
       if (!truck) return;
       const [y, mo, d] = truck.date.split('-').map(Number);
       const baseDate = new Date(y, mo - 1, d);
 
-      if (shiftType === 'weeks') {
-        // Weeks: shift by N*5 working days
+      if (type === 'weeks') {
         const newDate = addWorkingDays(baseDate, val * 5);
         updateTruck(truckId, { date: format(newDate, 'yyyy-MM-dd') });
-      } else if (shiftType === 'days') {
+      } else if (type === 'days') {
         const newDate = addWorkingDays(baseDate, val);
         updateTruck(truckId, { date: format(newDate, 'yyyy-MM-dd') });
       } else {
-        // Hours: parse time and shift
         const [h, m] = truck.time.split(':').map(Number);
         const dateTime = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), h, m);
         const shifted = addHours(dateTime, val);
-        // If the shifted date lands on a non-working day, move forward to next working day
         let finalDate = new Date(shifted);
         while (isNonWorkingDay(finalDate)) {
           finalDate.setDate(finalDate.getDate() + 1);
@@ -476,8 +468,6 @@ export default function TruckCompositionTab() {
     });
 
     setShowShiftDialog(false);
-    setShiftSelectedTrucks(new Set());
-    setShiftValue('');
   };
 
   const recapData = useMemo(() => {
@@ -949,7 +939,7 @@ export default function TruckCompositionTab() {
                       <Users className="h-4 w-4 mr-1" /> Réaffecter
                     </Button>
                   )}
-                  <Button variant="outline" size="sm" onClick={() => { setShiftSelectedTrucks(new Set()); setShiftValue(''); setShowShiftDialog(true); }}>
+                  <Button variant="outline" size="sm" onClick={() => setShowShiftDialog(true)}>
                     <ArrowRightLeft className="h-4 w-4 mr-1" /> Décaler
                   </Button>
                   <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteAll(true)}>
@@ -1398,73 +1388,14 @@ export default function TruckCompositionTab() {
       </AlertDialog>
 
       {/* Shift Dialog */}
-      <Dialog open={showShiftDialog} onOpenChange={setShowShiftDialog}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Décaler des camions</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm">Sélectionner les camions</Label>
-              <Button variant="ghost" size="sm" className="text-xs" onClick={() => {
-                if (shiftSelectedTrucks.size === trucks.length) {
-                  setShiftSelectedTrucks(new Set());
-                } else {
-                  setShiftSelectedTrucks(new Set(trucks.map(t => t.id)));
-                }
-              }}>
-                {shiftSelectedTrucks.size === trucks.length ? 'Tout désélectionner' : 'Tout sélectionner'}
-              </Button>
-            </div>
-            <div className="space-y-1 max-h-[40vh] overflow-y-auto">
-              {trucks.map(truck => {
-                const els = getTruckElements(truck.id);
-                const cat = getTransportCategory(els);
-                return (
-                  <label key={truck.id} className="flex items-center gap-2 p-2 rounded-md border cursor-pointer hover:bg-secondary/50 transition-colors">
-                    <Checkbox
-                      checked={shiftSelectedTrucks.has(truck.id)}
-                      onCheckedChange={() => {
-                        setShiftSelectedTrucks(prev => {
-                          const next = new Set(prev);
-                          next.has(truck.id) ? next.delete(truck.id) : next.add(truck.id);
-                          return next;
-                        });
-                      }}
-                    />
-                    <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${els.length === 0 ? 'bg-foreground' : getCategoryColorClass(cat)}`} />
-                    <span className="text-sm font-medium">{truck.number}</span>
-                    <span className="text-xs text-muted-foreground">{truck.date} · {truck.time}</span>
-                  </label>
-                );
-              })}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Type de décalage</Label>
-                <Select value={shiftType} onValueChange={v => setShiftType(v as any)}>
-                  <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="weeks">Semaines</SelectItem>
-                    <SelectItem value="days">Jours</SelectItem>
-                    <SelectItem value="hours">Heures</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs">Valeur (+ ou -)</Label>
-                <Input type="number" value={shiftValue} onChange={e => setShiftValue(e.target.value)} className="h-8 text-sm mt-1" placeholder="Ex: 1 ou -2" />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowShiftDialog(false)}>Annuler</Button>
-            <Button onClick={handleShiftConfirm} disabled={shiftSelectedTrucks.size === 0 || !shiftValue || parseInt(shiftValue) === 0}>
-              Décaler ({shiftSelectedTrucks.size} camion{shiftSelectedTrucks.size > 1 ? 's' : ''})
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ShiftCalendarDialog
+        open={showShiftDialog}
+        onOpenChange={setShowShiftDialog}
+        trucks={trucks}
+        getTruckElements={getTruckElements}
+        showSaturdays={showSaturdays}
+        onShiftConfirm={handleShiftConfirm}
+      />
 
       {/* Bulk Reassignment Dialog */}
       <Dialog open={showBulkReassign} onOpenChange={setShowBulkReassign}>
