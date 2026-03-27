@@ -444,7 +444,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
       getElementById, getTruckElements, getUnassignedElements, isElementAssigned, getTrucksForDate,
       addPlan, updatePlan, deletePlan,
       addTeam, updateTeam, deleteTeam,
-      initialDate, compositionTabOpened, setCompositionTabOpened, savedViewMode, setSavedViewMode,
+      initialDate, compositionTabOpened, setCompositionTabOpened, savedViewMode, setSavedViewMode, savedCurrentDate, setSavedCurrentDate,
     }}>
       {children}
     </DeliveryContext.Provider>
