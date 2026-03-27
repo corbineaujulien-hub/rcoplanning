@@ -36,6 +36,8 @@ interface DeliveryContextType {
   initialDate: Date;
   compositionTabOpened: boolean;
   setCompositionTabOpened: (v: boolean) => void;
+  savedViewMode: 'month' | 'week' | 'day' | null;
+  setSavedViewMode: (mode: 'month' | 'week' | 'day' | null) => void;
 }
 
 const DeliveryContext = createContext<DeliveryContextType | null>(null);
@@ -54,6 +56,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
   const [teams, setTeamsState] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [compositionTabOpened, setCompositionTabOpened] = useState(false);
+  const [savedViewMode, setSavedViewMode] = useState<'month' | 'week' | 'day' | null>(null);
 
   // Load initial data
   useEffect(() => {
@@ -438,7 +441,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
       getElementById, getTruckElements, getUnassignedElements, isElementAssigned, getTrucksForDate,
       addPlan, updatePlan, deletePlan,
       addTeam, updateTeam, deleteTeam,
-      initialDate, compositionTabOpened, setCompositionTabOpened,
+      initialDate, compositionTabOpened, setCompositionTabOpened, savedViewMode, setSavedViewMode,
     }}>
       {children}
     </DeliveryContext.Provider>
