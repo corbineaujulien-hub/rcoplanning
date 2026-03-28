@@ -196,8 +196,8 @@ export default function ShiftCalendarDialog({
         <div className="font-medium">N°{truck.number} | {truck.time}</div>
         {els.length > 0 && (
           <>
-            <div className="text-muted-foreground truncate">{productsLine}</div>
-            <div className="text-muted-foreground truncate">{factoriesLine}</div>
+            <div className="opacity-80 truncate">{productsLine}</div>
+            <div className="opacity-80 truncate">{factoriesLine}</div>
           </>
         )}
       </button>
