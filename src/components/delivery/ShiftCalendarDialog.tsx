@@ -152,12 +152,12 @@ export default function ShiftCalendarDialog({
   const getTruckInfo = (truck: Truck) => {
     const els = getTruckElements(truck.id);
     const cat = getTransportCategory(els);
-    const borderClass = els.length === 0 ? 'border-l-foreground' : getCategoryBorderClass(cat);
+    const colorClass = els.length === 0 ? 'bg-foreground text-background' : getCategoryColorClass(cat);
     const counts = getProductCountsByType(els);
     const factories = getTruckFactories(els);
     const productsLine = Object.entries(counts).map(([type, n]) => `${type}(${n})`).join(' ');
     const factoriesLine = factories.join(', ');
-    return { els, borderClass, productsLine, factoriesLine };
+    return { els, colorClass, productsLine, factoriesLine };
   };
 
   // Render a compact truck chip for month view
