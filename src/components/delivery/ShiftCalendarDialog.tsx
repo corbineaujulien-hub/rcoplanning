@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Truck, TRANSPORT_CATEGORIES } from '@/types/delivery';
-import { getTransportCategory, getTruckWeight, getCategoryColorClass } from '@/utils/transportUtils';
+import { Truck } from '@/types/delivery';
+import { getTransportCategory, getCategoryBorderClass, getProductCountsByType, getTruckFactories } from '@/utils/transportUtils';
 import { isHoliday } from '@/utils/frenchHolidays';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Truck as TruckIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, isSameMonth, isSameDay, isToday, getDay, getISOWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -148,45 +148,58 @@ export default function ShiftCalendarDialog({
     onOpenChange(false);
   };
 
-  // Render a compact truck chip for month view
-  const renderMonthTruckChip = (truck: Truck) => {
+  // Helper to build product counts and factories lines
+  const getTruckInfo = (truck: Truck) => {
     const els = getTruckElements(truck.id);
     const cat = getTransportCategory(els);
+    const borderClass = els.length === 0 ? 'border-l-foreground' : getCategoryBorderClass(cat);
+    const counts = getProductCountsByType(els);
+    const factories = getTruckFactories(els);
+    const productsLine = Object.entries(counts).map(([type, n]) => `${type}(${n})`).join(' ');
+    const factoriesLine = factories.join(', ');
+    return { els, borderClass, productsLine, factoriesLine };
+  };
+
+  // Render a compact truck chip for month view
+  const renderMonthTruckChip = (truck: Truck) => {
+    const { els, borderClass, productsLine, factoriesLine } = getTruckInfo(truck);
     const isSelected = selectedTrucks.has(truck.id);
-    const isEmpty = els.length === 0;
-    const colorClass = isEmpty ? 'bg-foreground text-background' : getCategoryColorClass(cat);
 
     return (
       <button
         key={truck.id}
         onClick={(e) => { e.stopPropagation(); toggleTruck(truck.id); }}
-        className={`w-full text-left text-[9px] px-1 py-0.5 rounded truncate transition-all ${colorClass} ${isSelected ? 'ring-2 ring-primary ring-offset-1' : 'opacity-70 hover:opacity-100'}`}
+        className={`w-full text-left text-[8px] leading-tight px-1 py-0.5 rounded bg-card border-l-2 ${borderClass} transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-1' : 'opacity-70 hover:opacity-100'}`}
       >
-        {truck.number} · {truck.time}
+        <div className="font-medium">N°{truck.number} | {truck.time}</div>
+        {els.length > 0 && (
+          <>
+            <div className="text-muted-foreground truncate">{productsLine}</div>
+            <div className="text-muted-foreground truncate">{factoriesLine}</div>
+          </>
+        )}
       </button>
     );
   };
 
   // Render a truck card for week view
   const renderWeekTruckCard = (truck: Truck) => {
-    const els = getTruckElements(truck.id);
-    const cat = getTransportCategory(els);
+    const { els, borderClass, productsLine, factoriesLine } = getTruckInfo(truck);
     const isSelected = selectedTrucks.has(truck.id);
-    const isEmpty = els.length === 0;
-    const colorClass = isEmpty ? 'bg-foreground text-background' : getCategoryColorClass(cat);
-    const catInfo = TRANSPORT_CATEGORIES[cat];
 
     return (
       <button
         key={truck.id}
         onClick={(e) => { e.stopPropagation(); toggleTruck(truck.id); }}
-        className={`w-full text-left text-[10px] px-1.5 py-1 rounded transition-all ${colorClass} ${isSelected ? 'ring-2 ring-primary ring-offset-1' : 'opacity-70 hover:opacity-100'}`}
+        className={`w-full text-left text-[9px] leading-tight px-1.5 py-1 rounded bg-card border-l-2 ${borderClass} transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-1' : 'opacity-70 hover:opacity-100'}`}
       >
-        <div className="flex items-center gap-1">
-          <TruckIcon className="h-2.5 w-2.5 flex-shrink-0" />
-          <span className="font-medium truncate">{truck.number}</span>
-        </div>
-        <div className="opacity-80 truncate">{truck.time} · {catInfo.label}</div>
+        <div className="font-medium">N°{truck.number} | {truck.time}</div>
+        {els.length > 0 && (
+          <>
+            <div className="text-muted-foreground truncate">{productsLine}</div>
+            <div className="text-muted-foreground truncate">{factoriesLine}</div>
+          </>
+        )}
       </button>
     );
   };
