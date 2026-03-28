@@ -313,7 +313,7 @@ export default function ShiftCalendarDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-h-[90vh] overflow-hidden" style={{ width: 'fit-content', minWidth: '600px', maxWidth: '95vw' }}>
         <DialogHeader>
           <DialogTitle>Décaler des camions</DialogTitle>
         </DialogHeader>
