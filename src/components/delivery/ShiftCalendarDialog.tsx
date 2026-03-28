@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Truck } from '@/types/delivery';
-import { getTransportCategory, getCategoryBorderClass, getProductCountsByType, getTruckFactories } from '@/utils/transportUtils';
+import { getTransportCategory, getCategoryColorClass, getProductCountsByType, getTruckFactories } from '@/utils/transportUtils';
 import { isHoliday } from '@/utils/frenchHolidays';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
