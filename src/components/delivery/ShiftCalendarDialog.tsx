@@ -271,8 +271,8 @@ export default function ShiftCalendarDialog({
   // Week view
   const renderWeekView = () => {
     return (
-      <ScrollArea className="h-[40vh]">
-        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${calendarDays.length}, 1fr)` }}>
+      <ScrollArea className="h-[40vh]" style={{ overflowX: 'auto' }}>
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${calendarDays.length}, minmax(120px, 1fr))` }}>
           {calendarDays.map(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
             const dayTrucks = trucksByDate[dateStr] || [];
