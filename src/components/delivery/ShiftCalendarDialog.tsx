@@ -184,14 +184,14 @@ export default function ShiftCalendarDialog({
 
   // Render a truck card for week view
   const renderWeekTruckCard = (truck: Truck) => {
-    const { els, borderClass, productsLine, factoriesLine } = getTruckInfo(truck);
+    const { els, colorClass, productsLine, factoriesLine } = getTruckInfo(truck);
     const isSelected = selectedTrucks.has(truck.id);
 
     return (
       <button
         key={truck.id}
         onClick={(e) => { e.stopPropagation(); toggleTruck(truck.id); }}
-        className={`w-full text-left text-[9px] leading-tight px-1.5 py-1 rounded bg-card border-l-2 ${borderClass} transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-1' : 'opacity-70 hover:opacity-100'}`}
+        className={`w-full text-left text-[9px] leading-tight px-1.5 py-1 rounded ${colorClass} transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-1' : 'opacity-70 hover:opacity-100'}`}
       >
         <div className="font-medium">N°{truck.number} | {truck.time}</div>
         {els.length > 0 && (
