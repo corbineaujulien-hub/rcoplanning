@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Truck } from '@/types/delivery';
-import { getTransportCategory, getCategoryBorderClass, getProductCountsByType, getTruckFactories } from '@/utils/transportUtils';
+import { getTransportCategory, getCategoryColorClass, getProductCountsByType, getTruckFactories } from '@/utils/transportUtils';
 import { isHoliday } from '@/utils/frenchHolidays';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -152,30 +152,30 @@ export default function ShiftCalendarDialog({
   const getTruckInfo = (truck: Truck) => {
     const els = getTruckElements(truck.id);
     const cat = getTransportCategory(els);
-    const borderClass = els.length === 0 ? 'border-l-foreground' : getCategoryBorderClass(cat);
+    const colorClass = els.length === 0 ? 'bg-foreground text-background' : getCategoryColorClass(cat);
     const counts = getProductCountsByType(els);
     const factories = getTruckFactories(els);
     const productsLine = Object.entries(counts).map(([type, n]) => `${type}(${n})`).join(' ');
     const factoriesLine = factories.join(', ');
-    return { els, borderClass, productsLine, factoriesLine };
+    return { els, colorClass, productsLine, factoriesLine };
   };
 
   // Render a compact truck chip for month view
   const renderMonthTruckChip = (truck: Truck) => {
-    const { els, borderClass, productsLine, factoriesLine } = getTruckInfo(truck);
+    const { els, colorClass, productsLine, factoriesLine } = getTruckInfo(truck);
     const isSelected = selectedTrucks.has(truck.id);
 
     return (
       <button
         key={truck.id}
         onClick={(e) => { e.stopPropagation(); toggleTruck(truck.id); }}
-        className={`w-full text-left text-[8px] leading-tight px-1 py-0.5 rounded bg-card border-l-2 ${borderClass} transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-1' : 'opacity-70 hover:opacity-100'}`}
+        className={`w-full text-left text-[8px] leading-tight px-1 py-0.5 rounded ${colorClass} transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-1' : 'opacity-70 hover:opacity-100'}`}
       >
         <div className="font-medium">N°{truck.number} | {truck.time}</div>
         {els.length > 0 && (
           <>
-            <div className="text-muted-foreground truncate">{productsLine}</div>
-            <div className="text-muted-foreground truncate">{factoriesLine}</div>
+            <div className="opacity-80 truncate">{productsLine}</div>
+            <div className="opacity-80 truncate">{factoriesLine}</div>
           </>
         )}
       </button>
@@ -184,20 +184,20 @@ export default function ShiftCalendarDialog({
 
   // Render a truck card for week view
   const renderWeekTruckCard = (truck: Truck) => {
-    const { els, borderClass, productsLine, factoriesLine } = getTruckInfo(truck);
+    const { els, colorClass, productsLine, factoriesLine } = getTruckInfo(truck);
     const isSelected = selectedTrucks.has(truck.id);
 
     return (
       <button
         key={truck.id}
         onClick={(e) => { e.stopPropagation(); toggleTruck(truck.id); }}
-        className={`w-full text-left text-[9px] leading-tight px-1.5 py-1 rounded bg-card border-l-2 ${borderClass} transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-1' : 'opacity-70 hover:opacity-100'}`}
+        className={`w-full text-left text-[9px] leading-tight px-1.5 py-1 rounded ${colorClass} transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-1' : 'opacity-70 hover:opacity-100'}`}
       >
         <div className="font-medium">N°{truck.number} | {truck.time}</div>
         {els.length > 0 && (
           <>
-            <div className="text-muted-foreground truncate">{productsLine}</div>
-            <div className="text-muted-foreground truncate">{factoriesLine}</div>
+            <div className="opacity-80 truncate">{productsLine}</div>
+            <div className="opacity-80 truncate">{factoriesLine}</div>
           </>
         )}
       </button>
