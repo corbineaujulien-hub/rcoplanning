@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getProductCountsByType, getCategoryColorClass, getFactoryColor } from '@/utils/transportUtils';
-import { TRANSPORT_CATEGORIES, BeamElement } from '@/types/delivery';
+import { TRANSPORT_CATEGORIES, BeamElement, HANDLING_MEANS_OPTIONS } from '@/types/delivery';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
