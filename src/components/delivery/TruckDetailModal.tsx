@@ -265,6 +265,7 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
                   </div>
                 ))}
               </div>
+            )}
 
             <div>
               <p className="text-sm text-muted-foreground mb-2 flex items-center gap-1"><Package className="h-3 w-3" />Produits ({elements.length})</p>
