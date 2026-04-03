@@ -223,6 +223,7 @@ export type Database = {
           created_at: string | null
           date: string
           element_ids: Json | null
+          handling_means: Json | null
           id: string
           number: string
           project_id: string
@@ -235,6 +236,7 @@ export type Database = {
           created_at?: string | null
           date?: string
           element_ids?: Json | null
+          handling_means?: Json | null
           id?: string
           number?: string
           project_id: string
@@ -247,6 +249,7 @@ export type Database = {
           created_at?: string | null
           date?: string
           element_ids?: Json | null
+          handling_means?: Json | null
           id?: string
           number?: string
           project_id?: string
