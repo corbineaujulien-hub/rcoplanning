@@ -8,9 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useDelivery } from '@/context/DeliveryContext';
-import { Truck, TRANSPORT_CATEGORIES } from '@/types/delivery';
+import { Truck, TRANSPORT_CATEGORIES, HANDLING_MEANS_OPTIONS } from '@/types/delivery';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getProductCountsByType, getCategoryColorClass, getFactoryColor } from '@/utils/transportUtils';
-import { Truck as TruckIcon, Weight, Ruler, Factory, Package, Trash2, X, Pencil, MessageSquare, Users, MapPin, TruckIcon as TransporterIcon } from 'lucide-react';
+import { Truck as TruckIcon, Weight, Ruler, Factory, Package, Trash2, X, Pencil, MessageSquare, Users, MapPin, TruckIcon as TransporterIcon, Wrench } from 'lucide-react';
 
 interface TruckDetailModalProps {
   open: boolean;
