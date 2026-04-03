@@ -30,7 +30,15 @@ export interface Truck {
   comment?: string;
   teamId?: string;
   transporter?: string;
+  handlingMeans?: Record<string, string>;
 }
+
+export const HANDLING_MEANS_OPTIONS = [
+  'Chariot élévateur 25To',
+  'Grue 1',
+  'Grue 2',
+  'Pont roulant',
+] as const;
 
 export interface Team {
   id: string;
