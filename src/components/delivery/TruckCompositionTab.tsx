@@ -95,6 +95,7 @@ export default function TruckCompositionTab() {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [calendarFactoryFilter, setCalendarFactoryFilter] = useState<Set<string>>(new Set());
   const [calendarTransporterFilter, setCalendarTransporterFilter] = useState<Set<string>>(new Set());
+  const [calendarHandlingMeansFilter, setCalendarHandlingMeansFilter] = useState<Set<string>>(new Set());
 
   // Plan filter states
   const [planFilterRepere, setPlanFilterRepere] = useState('');
