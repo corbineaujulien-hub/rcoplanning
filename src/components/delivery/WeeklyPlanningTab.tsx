@@ -22,6 +22,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
   const { projectInfo, trucks, elements, getTruckElements, teams } = useDelivery();
   const [factoryFilter, setFactoryFilter] = useState<Set<string>>(new Set());
   const [transporterFilter, setTransporterFilter] = useState<Set<string>>(new Set());
+  const [handlingMeansFilter, setHandlingMeansFilter] = useState<Set<string>>(new Set());
 
   const weekTrucks = useMemo(() => {
     return trucks
