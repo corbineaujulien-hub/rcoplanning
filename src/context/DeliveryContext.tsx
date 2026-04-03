@@ -103,6 +103,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
             elementIds: (t.element_ids as string[]) || [], comment: t.comment || '',
             teamId: (t as any).team_id || undefined,
             transporter: (t as any).transporter || undefined,
+            handlingMeans: (t as any).handling_means as Record<string, string> || {},
           })));
         }
 
