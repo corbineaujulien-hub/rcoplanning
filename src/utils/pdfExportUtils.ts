@@ -11,6 +11,7 @@ interface TruckData {
   time: string;
   comment?: string;
   transporter?: string;
+  handlingMeans?: Record<string, string>;
 }
 
 interface PdfContext {
