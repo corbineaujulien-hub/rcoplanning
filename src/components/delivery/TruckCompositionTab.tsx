@@ -152,14 +152,22 @@ export default function TruckCompositionTab() {
     return calendarTransporterFilter.has(transporter);
   }, [calendarTransporterFilter]);
 
-  // Helper: get trucks for a date, filtered by team if multi-team, by factory and by transporter
+  // Helper: does a truck pass the calendar handling means filter?
+  const truckPassesHandlingMeansFilter = useCallback((truck: Truck): boolean => {
+    if (calendarHandlingMeansFilter.size === 0) return true;
+    const means = truck.handlingMeans || {};
+    return Object.values(means).some(v => calendarHandlingMeansFilter.has(v));
+  }, [calendarHandlingMeansFilter]);
+
+  // Helper: get trucks for a date, filtered by team if multi-team, by factory, transporter and handling means
   const getTeamTrucksForDate = useCallback((dateStr: string) => {
     let dayTrucks = getTrucksForDate(dateStr);
     if (hasMultipleTeams && activeTeamId) dayTrucks = dayTrucks.filter(t => t.teamId === activeTeamId);
     if (calendarFactoryFilter.size > 0) dayTrucks = dayTrucks.filter(t => truckPassesFactoryFilter(t.id));
     if (calendarTransporterFilter.size > 0) dayTrucks = dayTrucks.filter(t => truckPassesTransporterFilter(t));
+    if (calendarHandlingMeansFilter.size > 0) dayTrucks = dayTrucks.filter(t => truckPassesHandlingMeansFilter(t));
     return dayTrucks;
-  }, [getTrucksForDate, hasMultipleTeams, activeTeamId, calendarFactoryFilter, truckPassesFactoryFilter, calendarTransporterFilter, truckPassesTransporterFilter]);
+  }, [getTrucksForDate, hasMultipleTeams, activeTeamId, calendarFactoryFilter, truckPassesFactoryFilter, calendarTransporterFilter, truckPassesTransporterFilter, calendarHandlingMeansFilter, truckPassesHandlingMeansFilter]);
 
   // State for drag highlight on day view trucks
   const [dragOverTruckId, setDragOverTruckId] = useState<string | null>(null);
