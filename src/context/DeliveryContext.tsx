@@ -309,6 +309,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
       date: truck.date, time: truck.time, element_ids: truck.elementIds,
       comment: truck.comment || '', team_id: truck.teamId || null,
       transporter: truck.transporter || '',
+      handling_means: truck.handlingMeans || {},
     } as any);
   }, [projectId]);
 
