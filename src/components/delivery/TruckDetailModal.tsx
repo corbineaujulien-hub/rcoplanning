@@ -8,9 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useDelivery } from '@/context/DeliveryContext';
-import { Truck, TRANSPORT_CATEGORIES } from '@/types/delivery';
+import { Truck, TRANSPORT_CATEGORIES, HANDLING_MEANS_OPTIONS } from '@/types/delivery';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getProductCountsByType, getCategoryColorClass, getFactoryColor } from '@/utils/transportUtils';
-import { Truck as TruckIcon, Weight, Ruler, Factory, Package, Trash2, X, Pencil, MessageSquare, Users, MapPin, TruckIcon as TransporterIcon } from 'lucide-react';
+import { Truck as TruckIcon, Weight, Ruler, Factory, Package, Trash2, X, Pencil, MessageSquare, Users, MapPin, TruckIcon as TransporterIcon, Wrench } from 'lucide-react';
 
 interface TruckDetailModalProps {
   open: boolean;
@@ -230,6 +230,42 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
                 />
               </div>
             </div>
+
+            {/* Handling Means per factory */}
+            {factories.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Wrench className="h-3 w-3" /> Moyen de manutention
+                </Label>
+                {factories.map(f => (
+                  <div key={f} className="flex items-center gap-2">
+                    <span className="text-white text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: getFactoryColor(f) }}>{f}</span>
+                    <Select
+                      value={(liveTruck.handlingMeans?.[f]) || '__none__'}
+                      onValueChange={v => {
+                        const newMeans = { ...(liveTruck.handlingMeans || {}) };
+                        if (v === '__none__') {
+                          delete newMeans[f];
+                        } else {
+                          newMeans[f] = v;
+                        }
+                        updateTruck(liveTruck.id, { handlingMeans: newMeans });
+                      }}
+                    >
+                      <SelectTrigger className="h-8 flex-1 text-xs">
+                        <SelectValue placeholder="Sélectionner..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">—</SelectItem>
+                        {HANDLING_MEANS_OPTIONS.map(opt => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div>
               <p className="text-sm text-muted-foreground mb-2 flex items-center gap-1"><Package className="h-3 w-3" />Produits ({elements.length})</p>

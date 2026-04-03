@@ -1,12 +1,12 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getProductCountsByType, getCategoryColorClass, getFactoryColor } from '@/utils/transportUtils';
-import { TRANSPORT_CATEGORIES, BeamElement } from '@/types/delivery';
+import { TRANSPORT_CATEGORIES, BeamElement, HANDLING_MEANS_OPTIONS } from '@/types/delivery';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Truck as TruckIcon, Weight, Ruler, Factory, Package, FileSpreadsheet, Download, MessageSquare, MapPin, X } from 'lucide-react';
+import { Truck as TruckIcon, Weight, Ruler, Factory, Package, FileSpreadsheet, Download, MessageSquare, MapPin, X, Wrench } from 'lucide-react';
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
@@ -22,6 +22,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
   const { projectInfo, trucks, elements, getTruckElements, teams } = useDelivery();
   const [factoryFilter, setFactoryFilter] = useState<Set<string>>(new Set());
   const [transporterFilter, setTransporterFilter] = useState<Set<string>>(new Set());
+  const [handlingMeansFilter, setHandlingMeansFilter] = useState<Set<string>>(new Set());
 
   const weekTrucks = useMemo(() => {
     return trucks
@@ -56,7 +57,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
     return { list: [...transporters].sort(), hasEmpty };
   }, [weekTrucks]);
 
-  // Filtered trucks based on factory and transporter filters
+  // Filtered trucks based on factory, transporter and handling means filters
   const displayTrucks = useMemo(() => {
     let filtered = weekTrucks;
     if (factoryFilter.size > 0) {
@@ -72,8 +73,14 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
         return transporterFilter.has(transporter);
       });
     }
+    if (handlingMeansFilter.size > 0) {
+      filtered = filtered.filter(t => {
+        const means = t.handlingMeans || {};
+        return Object.values(means).some(v => handlingMeansFilter.has(v));
+      });
+    }
     return filtered;
-  }, [weekTrucks, factoryFilter, transporterFilter, getTruckElements]);
+  }, [weekTrucks, factoryFilter, transporterFilter, handlingMeansFilter, getTruckElements]);
 
   const weekStart = useMemo(() => {
     if (weekTrucks.length === 0) return null;
@@ -210,11 +217,11 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
               {weekFactoryList.length > 0 && (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant={factoryFilter.size > 0 ? 'default' : 'outline'} size="sm">
-                      <Factory className="h-4 w-4 mr-1" /> {factoryFilter.size > 0 ? `Usine (${factoryFilter.size})` : 'Usine'}
+                    <Button variant={(factoryFilter.size > 0 || handlingMeansFilter.size > 0) ? 'default' : 'outline'} size="sm">
+                      <Factory className="h-4 w-4 mr-1" /> {factoryFilter.size > 0 || handlingMeansFilter.size > 0 ? `Usine (${factoryFilter.size + handlingMeansFilter.size})` : 'Usine'}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="end">
+                  <PopoverContent className="w-56 max-h-80 overflow-auto p-2" align="end">
                     <div className="space-y-1">
                       {weekFactoryList.map(f => (
                         <label key={f} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
@@ -223,8 +230,19 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
                         </label>
                       ))}
                     </div>
-                    {factoryFilter.size > 0 && (
-                      <Button variant="default" size="sm" className="w-full text-xs h-6 mt-2" onClick={() => setFactoryFilter(new Set())}>
+                    <div className="mt-2 pt-2 border-t border-border">
+                      <p className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1"><Wrench className="h-3 w-3" /> Moyen de manutention</p>
+                      <div className="space-y-1">
+                        {HANDLING_MEANS_OPTIONS.map(m => (
+                          <label key={m} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                            <Checkbox checked={handlingMeansFilter.has(m)} onCheckedChange={() => setHandlingMeansFilter(prev => { const next = new Set(prev); next.has(m) ? next.delete(m) : next.add(m); return next; })} />
+                            <span className="text-xs">{m}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    {(factoryFilter.size > 0 || handlingMeansFilter.size > 0) && (
+                      <Button variant="default" size="sm" className="w-full text-xs h-6 mt-2" onClick={() => { setFactoryFilter(new Set()); setHandlingMeansFilter(new Set()); }}>
                         <X className="h-3 w-3 mr-1" /> Réinitialiser
                       </Button>
                     )}

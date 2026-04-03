@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useDelivery } from '@/context/DeliveryContext';
-import { BeamElement, Truck, TRANSPORT_CATEGORIES, TransportCategory, Plan } from '@/types/delivery';
+import { BeamElement, Truck, TRANSPORT_CATEGORIES, TransportCategory, Plan, HANDLING_MEANS_OPTIONS } from '@/types/delivery';
 import { getTransportCategory, getTruckWeight, getCategoryColorClass, isNonStandard, isMultiSite, getTruckMaxLength, getTruckFactories, getTruckZones, getProductCountsByType, getFactoryColor } from '@/utils/transportUtils';
 import { isHoliday } from '@/utils/frenchHolidays';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronLeft, ChevronRight, ChevronDown, GripVertical, Truck as TruckIcon, Filter, X, Trash2, MessageSquare, Search, Weight, Ruler, Factory, Package, FileText, List, ArrowRightLeft, Users, MapPin } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, GripVertical, Truck as TruckIcon, Filter, X, Trash2, MessageSquare, Search, Weight, Ruler, Factory, Package, FileText, List, ArrowRightLeft, Users, MapPin, Wrench } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, isSameMonth, isSameDay, isToday, getDay, addHours, parse, getISOWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import NewTruckModal from './NewTruckModal';
@@ -95,6 +95,7 @@ export default function TruckCompositionTab() {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [calendarFactoryFilter, setCalendarFactoryFilter] = useState<Set<string>>(new Set());
   const [calendarTransporterFilter, setCalendarTransporterFilter] = useState<Set<string>>(new Set());
+  const [calendarHandlingMeansFilter, setCalendarHandlingMeansFilter] = useState<Set<string>>(new Set());
 
   // Plan filter states
   const [planFilterRepere, setPlanFilterRepere] = useState('');
@@ -151,14 +152,22 @@ export default function TruckCompositionTab() {
     return calendarTransporterFilter.has(transporter);
   }, [calendarTransporterFilter]);
 
-  // Helper: get trucks for a date, filtered by team if multi-team, by factory and by transporter
+  // Helper: does a truck pass the calendar handling means filter?
+  const truckPassesHandlingMeansFilter = useCallback((truck: Truck): boolean => {
+    if (calendarHandlingMeansFilter.size === 0) return true;
+    const means = truck.handlingMeans || {};
+    return Object.values(means).some(v => calendarHandlingMeansFilter.has(v));
+  }, [calendarHandlingMeansFilter]);
+
+  // Helper: get trucks for a date, filtered by team if multi-team, by factory, transporter and handling means
   const getTeamTrucksForDate = useCallback((dateStr: string) => {
     let dayTrucks = getTrucksForDate(dateStr);
     if (hasMultipleTeams && activeTeamId) dayTrucks = dayTrucks.filter(t => t.teamId === activeTeamId);
     if (calendarFactoryFilter.size > 0) dayTrucks = dayTrucks.filter(t => truckPassesFactoryFilter(t.id));
     if (calendarTransporterFilter.size > 0) dayTrucks = dayTrucks.filter(t => truckPassesTransporterFilter(t));
+    if (calendarHandlingMeansFilter.size > 0) dayTrucks = dayTrucks.filter(t => truckPassesHandlingMeansFilter(t));
     return dayTrucks;
-  }, [getTrucksForDate, hasMultipleTeams, activeTeamId, calendarFactoryFilter, truckPassesFactoryFilter, calendarTransporterFilter, truckPassesTransporterFilter]);
+  }, [getTrucksForDate, hasMultipleTeams, activeTeamId, calendarFactoryFilter, truckPassesFactoryFilter, calendarTransporterFilter, truckPassesTransporterFilter, calendarHandlingMeansFilter, truckPassesHandlingMeansFilter]);
 
   // State for drag highlight on day view trucks
   const [dragOverTruckId, setDragOverTruckId] = useState<string | null>(null);
@@ -881,11 +890,11 @@ export default function TruckCompositionTab() {
               {truckFactoryList.length > 0 && (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant={calendarFactoryFilter.size > 0 ? 'default' : 'outline'} size="sm">
-                      <Factory className="h-4 w-4 mr-1" /> {calendarFactoryFilter.size > 0 ? `Usine (${calendarFactoryFilter.size})` : 'Usine'}
+                    <Button variant={(calendarFactoryFilter.size > 0 || calendarHandlingMeansFilter.size > 0) ? 'default' : 'outline'} size="sm">
+                      <Factory className="h-4 w-4 mr-1" /> {calendarFactoryFilter.size > 0 || calendarHandlingMeansFilter.size > 0 ? `Usine (${calendarFactoryFilter.size + calendarHandlingMeansFilter.size})` : 'Usine'}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="end">
+                  <PopoverContent className="w-56 max-h-80 overflow-auto p-2" align="end">
                     <div className="space-y-1">
                       {truckFactoryList.map(f => (
                         <label key={f} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
@@ -894,8 +903,19 @@ export default function TruckCompositionTab() {
                         </label>
                       ))}
                     </div>
-                    {calendarFactoryFilter.size > 0 && (
-                      <Button variant="default" size="sm" className="w-full text-xs h-6 mt-2" onClick={() => setCalendarFactoryFilter(new Set())}>
+                    <div className="mt-2 pt-2 border-t border-border">
+                      <p className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1"><Wrench className="h-3 w-3" /> Moyen de manutention</p>
+                      <div className="space-y-1">
+                        {HANDLING_MEANS_OPTIONS.map(m => (
+                          <label key={m} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                            <Checkbox checked={calendarHandlingMeansFilter.has(m)} onCheckedChange={() => setCalendarHandlingMeansFilter(prev => { const next = new Set(prev); next.has(m) ? next.delete(m) : next.add(m); return next; })} />
+                            <span className="text-xs">{m}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    {(calendarFactoryFilter.size > 0 || calendarHandlingMeansFilter.size > 0) && (
+                      <Button variant="default" size="sm" className="w-full text-xs h-6 mt-2" onClick={() => { setCalendarFactoryFilter(new Set()); setCalendarHandlingMeansFilter(new Set()); }}>
                         <X className="h-3 w-3 mr-1" /> Réinitialiser
                       </Button>
                     )}
@@ -1239,6 +1259,42 @@ export default function TruckCompositionTab() {
                                 </div>
                               ))}
                             </div>
+                            {/* Handling means per factory - inline editing */}
+                            {factories.length > 0 && (
+                              <div className="space-y-1">
+                                {factories.map(f => {
+                                  const currentMeans = truck.handlingMeans?.[f] || '';
+                                  return (
+                                    <div key={f} className="flex items-center gap-1.5 text-xs">
+                                      <span className="text-white font-bold px-1.5 py-0.5 rounded text-[10px]" style={{ backgroundColor: getFactoryColor(f) }}>{f}</span>
+                                      <span className="text-muted-foreground">:</span>
+                                      <Select
+                                        value={currentMeans || '__none__'}
+                                        onValueChange={v => {
+                                          const newMeans = { ...(truck.handlingMeans || {}) };
+                                          if (v === '__none__') {
+                                            delete newMeans[f];
+                                          } else {
+                                            newMeans[f] = v;
+                                          }
+                                          updateTruck(truck.id, { handlingMeans: newMeans });
+                                        }}
+                                      >
+                                        <SelectTrigger className="h-6 text-[11px] w-auto min-w-[140px] border-transparent hover:border-input bg-transparent px-1">
+                                          <SelectValue placeholder="+ Moyen de manutention" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="__none__">—</SelectItem>
+                                          {HANDLING_MEANS_OPTIONS.map(opt => (
+                                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                             <Textarea
                               defaultValue={truck.comment || ''}
                               onBlur={e => { const v = e.target.value; if (v !== (truck.comment || '')) updateTruck(truck.id, { comment: v }); }}

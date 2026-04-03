@@ -103,6 +103,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
             elementIds: (t.element_ids as string[]) || [], comment: t.comment || '',
             teamId: (t as any).team_id || undefined,
             transporter: (t as any).transporter || undefined,
+            handlingMeans: (t as any).handling_means as Record<string, string> || {},
           })));
         }
 
@@ -188,11 +189,11 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           const t = payload.new as any;
           setTrucksState(prev => {
             if (prev.some(tr => tr.id === t.id)) return prev;
-            return [...prev, { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined, transporter: (t as any).transporter || undefined }];
+            return [...prev, { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined, transporter: (t as any).transporter || undefined, handlingMeans: (t as any).handling_means as Record<string, string> || {} }];
           });
         } else if (payload.eventType === 'UPDATE') {
           const t = payload.new as any;
-          setTrucksState(prev => prev.map(tr => tr.id === t.id ? { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined, transporter: (t as any).transporter || undefined } : tr));
+          setTrucksState(prev => prev.map(tr => tr.id === t.id ? { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined, transporter: (t as any).transporter || undefined, handlingMeans: (t as any).handling_means as Record<string, string> || {} } : tr));
         } else if (payload.eventType === 'DELETE') {
           const t = payload.old as any;
           setTrucksState(prev => prev.filter(tr => tr.id !== t.id));
@@ -308,6 +309,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
       date: truck.date, time: truck.time, element_ids: truck.elementIds,
       comment: truck.comment || '', team_id: truck.teamId || null,
       transporter: truck.transporter || '',
+      handling_means: truck.handlingMeans || {},
     } as any);
   }, [projectId]);
 
@@ -321,6 +323,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
     if (updates.comment !== undefined) dbUpdates.comment = updates.comment;
     if (updates.teamId !== undefined) dbUpdates.team_id = updates.teamId;
     if (updates.transporter !== undefined) dbUpdates.transporter = updates.transporter;
+    if (updates.handlingMeans !== undefined) dbUpdates.handling_means = updates.handlingMeans;
     await supabase.from('trucks').update(dbUpdates).eq('id', id);
   }, []);
 

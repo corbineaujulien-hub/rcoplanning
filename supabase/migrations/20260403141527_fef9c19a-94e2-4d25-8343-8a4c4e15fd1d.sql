@@ -1,0 +1,1 @@
+ALTER TABLE public.trucks ADD COLUMN handling_means jsonb DEFAULT '{}'::jsonb;
