@@ -193,7 +193,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           });
         } else if (payload.eventType === 'UPDATE') {
           const t = payload.new as any;
-          setTrucksState(prev => prev.map(tr => tr.id === t.id ? { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined, transporter: (t as any).transporter || undefined } : tr));
+          setTrucksState(prev => prev.map(tr => tr.id === t.id ? { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined, transporter: (t as any).transporter || undefined, handlingMeans: (t as any).handling_means as Record<string, string> || {} } : tr));
         } else if (payload.eventType === 'DELETE') {
           const t = payload.old as any;
           setTrucksState(prev => prev.filter(tr => tr.id !== t.id));
