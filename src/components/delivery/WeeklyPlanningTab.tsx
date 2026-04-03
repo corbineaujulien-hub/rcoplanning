@@ -57,7 +57,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
     return { list: [...transporters].sort(), hasEmpty };
   }, [weekTrucks]);
 
-  // Filtered trucks based on factory and transporter filters
+  // Filtered trucks based on factory, transporter and handling means filters
   const displayTrucks = useMemo(() => {
     let filtered = weekTrucks;
     if (factoryFilter.size > 0) {
@@ -73,8 +73,14 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
         return transporterFilter.has(transporter);
       });
     }
+    if (handlingMeansFilter.size > 0) {
+      filtered = filtered.filter(t => {
+        const means = t.handlingMeans || {};
+        return Object.values(means).some(v => handlingMeansFilter.has(v));
+      });
+    }
     return filtered;
-  }, [weekTrucks, factoryFilter, transporterFilter, getTruckElements]);
+  }, [weekTrucks, factoryFilter, transporterFilter, handlingMeansFilter, getTruckElements]);
 
   const weekStart = useMemo(() => {
     if (weekTrucks.length === 0) return null;
