@@ -890,11 +890,11 @@ export default function TruckCompositionTab() {
               {truckFactoryList.length > 0 && (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant={calendarFactoryFilter.size > 0 ? 'default' : 'outline'} size="sm">
-                      <Factory className="h-4 w-4 mr-1" /> {calendarFactoryFilter.size > 0 ? `Usine (${calendarFactoryFilter.size})` : 'Usine'}
+                    <Button variant={(calendarFactoryFilter.size > 0 || calendarHandlingMeansFilter.size > 0) ? 'default' : 'outline'} size="sm">
+                      <Factory className="h-4 w-4 mr-1" /> {calendarFactoryFilter.size > 0 || calendarHandlingMeansFilter.size > 0 ? `Usine (${calendarFactoryFilter.size + calendarHandlingMeansFilter.size})` : 'Usine'}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="end">
+                  <PopoverContent className="w-56 max-h-80 overflow-auto p-2" align="end">
                     <div className="space-y-1">
                       {truckFactoryList.map(f => (
                         <label key={f} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
@@ -903,8 +903,19 @@ export default function TruckCompositionTab() {
                         </label>
                       ))}
                     </div>
-                    {calendarFactoryFilter.size > 0 && (
-                      <Button variant="default" size="sm" className="w-full text-xs h-6 mt-2" onClick={() => setCalendarFactoryFilter(new Set())}>
+                    <div className="mt-2 pt-2 border-t border-border">
+                      <p className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1"><Wrench className="h-3 w-3" /> Moyen de manutention</p>
+                      <div className="space-y-1">
+                        {HANDLING_MEANS_OPTIONS.map(m => (
+                          <label key={m} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                            <Checkbox checked={calendarHandlingMeansFilter.has(m)} onCheckedChange={() => setCalendarHandlingMeansFilter(prev => { const next = new Set(prev); next.has(m) ? next.delete(m) : next.add(m); return next; })} />
+                            <span className="text-xs">{m}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    {(calendarFactoryFilter.size > 0 || calendarHandlingMeansFilter.size > 0) && (
+                      <Button variant="default" size="sm" className="w-full text-xs h-6 mt-2" onClick={() => { setCalendarFactoryFilter(new Set()); setCalendarHandlingMeansFilter(new Set()); }}>
                         <X className="h-3 w-3 mr-1" /> Réinitialiser
                       </Button>
                     )}
