@@ -89,9 +89,9 @@ export const SUBCONTRACTORS = [
 
 export const TRANSPORT_CATEGORIES: Record<TransportCategory, TransportInfo> = {
   standard: { category: 'standard', label: 'Plateau standard', maxLength: 13.5, maxWeight: 28 },
-  cat1: { category: 'cat1', label: 'Extensible catégorie I', maxLength: 16.5, maxWeight: 28 },
-  cat2: { category: 'cat2', label: 'Extensible catégorie II', maxLength: 21.5, maxWeight: 42 },
-  cat3: { category: 'cat3', label: 'Extensible catégorie III', maxLength: 40, maxWeight: 42 },
+  cat1: { category: 'cat1', label: 'Convoi catégorie 1', maxLength: 16.5, maxWeight: 28 },
+  cat2: { category: 'cat2', label: 'Convoi catégorie 2', maxLength: 21.5, maxWeight: 42 },
+  cat3: { category: 'cat3', label: 'Convoi catégorie 3', maxLength: 40, maxWeight: 42 },
 };
 
 export const DEFAULT_PROJECT_INFO: ProjectInfo = {
