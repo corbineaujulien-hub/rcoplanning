@@ -503,6 +503,12 @@ export default function DatabaseTab() {
         'Date camion': info ? formatTruckDate(info.date) : '',
         'Catégorie de transport': categoryLabel,
         'Transporteur': info?.transporter?.trim() || '',
+        'Moyen de manutention': (() => {
+          if (!info) return '';
+          const truck = trucks.find(t => t.id === info.truckId);
+          if (!truck?.handlingMeans) return '';
+          return truck.handlingMeans[el.factory] || '';
+        })(),
       };
       if (showTeamColumn) {
         row['Équipe'] = teamName;
