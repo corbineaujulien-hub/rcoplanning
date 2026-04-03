@@ -323,6 +323,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
     if (updates.comment !== undefined) dbUpdates.comment = updates.comment;
     if (updates.teamId !== undefined) dbUpdates.team_id = updates.teamId;
     if (updates.transporter !== undefined) dbUpdates.transporter = updates.transporter;
+    if (updates.handlingMeans !== undefined) dbUpdates.handling_means = updates.handlingMeans;
     await supabase.from('trucks').update(dbUpdates).eq('id', id);
   }, []);
 
