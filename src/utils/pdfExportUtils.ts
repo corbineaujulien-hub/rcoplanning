@@ -386,6 +386,25 @@ function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[], co
     y += 4;
   });
 
+  // Handling means per factory
+  if (truck.handlingMeans) {
+    const factoriesWithMeans = factories.filter(f => truck.handlingMeans![f]);
+    if (factoriesWithMeans.length > 0) {
+      y += 1;
+      factoriesWithMeans.forEach(f => {
+        x = cardX + borderW + 2;
+        pdf.setFontSize(5.5);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(...hexToRgb(getFactoryColor(f)));
+        pdf.text(`${f} :`, x, y + 2.5);
+        x += pdf.getTextWidth(`${f} :`) + 1.5;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(80, 80, 80);
+        pdf.text(truck.handlingMeans![f], x, y + 2.5);
+        y += 3.5;
+      });
+    }
+  }
 
   if (truck.comment?.trim()) {
     x = cardX + borderW + 2;
