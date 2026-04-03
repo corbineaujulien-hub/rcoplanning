@@ -1259,6 +1259,42 @@ export default function TruckCompositionTab() {
                                 </div>
                               ))}
                             </div>
+                            {/* Handling means per factory - inline editing */}
+                            {factories.length > 0 && (
+                              <div className="space-y-1">
+                                {factories.map(f => {
+                                  const currentMeans = truck.handlingMeans?.[f] || '';
+                                  return (
+                                    <div key={f} className="flex items-center gap-1.5 text-xs">
+                                      <span className="text-white font-bold px-1.5 py-0.5 rounded text-[10px]" style={{ backgroundColor: getFactoryColor(f) }}>{f}</span>
+                                      <span className="text-muted-foreground">:</span>
+                                      <Select
+                                        value={currentMeans || '__none__'}
+                                        onValueChange={v => {
+                                          const newMeans = { ...(truck.handlingMeans || {}) };
+                                          if (v === '__none__') {
+                                            delete newMeans[f];
+                                          } else {
+                                            newMeans[f] = v;
+                                          }
+                                          updateTruck(truck.id, { handlingMeans: newMeans });
+                                        }}
+                                      >
+                                        <SelectTrigger className="h-6 text-[11px] w-auto min-w-[140px] border-transparent hover:border-input bg-transparent px-1">
+                                          <SelectValue placeholder="+ Moyen de manutention" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="__none__">—</SelectItem>
+                                          {HANDLING_MEANS_OPTIONS.map(opt => (
+                                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                             <Textarea
                               defaultValue={truck.comment || ''}
                               onBlur={e => { const v = e.target.value; if (v !== (truck.comment || '')) updateTruck(truck.id, { comment: v }); }}
