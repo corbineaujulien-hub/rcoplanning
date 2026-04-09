@@ -776,7 +776,6 @@ export default function DatabaseTab() {
                 )}
               </TableBody>
             </Table>
-          </div>
         </CardContent>
       </Card>
 
