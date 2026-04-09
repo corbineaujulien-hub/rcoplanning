@@ -249,6 +249,18 @@ export default function TruckCompositionTab() {
     });
   };
 
+  // Plan elements filtered by shared filters (Zone, Type, Factory, Status)
+  const getFilteredPlanElements = (plan: Plan): BeamElement[] => {
+    return getPlanElements(plan).filter(el => {
+      if (filterZone.size > 0 && !filterZone.has(el.zone)) return false;
+      if (filterType.size > 0 && !filterType.has(el.productType)) return false;
+      if (filterFactory.size > 0 && !filterFactory.has(el.factory)) return false;
+      if (filterStatus === 'unloaded' && isElementAssigned(el.id)) return false;
+      if (filterStatus === 'loaded' && !isElementAssigned(el.id)) return false;
+      return true;
+    });
+  };
+
   const groupByType = (els: BeamElement[]): Record<string, BeamElement[]> => {
     const groups: Record<string, BeamElement[]> = {};
     els.forEach(el => {
