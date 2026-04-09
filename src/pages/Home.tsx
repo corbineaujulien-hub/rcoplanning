@@ -64,6 +64,7 @@ export default function Home() {
   const [filterConductor, setFilterConductor] = useState('all');
   const [filterSubcontractor, setFilterSubcontractor] = useState('all');
   const [showArchived, setShowArchived] = useState(false);
+  const [filterBdd, setFilterBdd] = useState<'all' | 'complete' | 'incomplete'>('all');
 
   const fetchAllPaginated = async (table: string, columns: string) => {
     const PAGE_SIZE = 1000;
@@ -202,7 +203,8 @@ export default function Home() {
         const matchesName = !searchName || (p.site_name || '').toLowerCase().includes(searchLower) || (p.otp_number || '').toLowerCase().includes(searchLower) || (p.client_name || '').toLowerCase().includes(searchLower);
         const matchesConductor = filterConductor === 'all' || p.conductor === filterConductor;
         const matchesSubcontractor = filterSubcontractor === 'all' || p.subcontractor === filterSubcontractor;
-        return matchesName && matchesConductor && matchesSubcontractor;
+        const matchesBdd = filterBdd === 'all' || (filterBdd === 'complete' ? p.database_complete : !p.database_complete);
+        return matchesName && matchesConductor && matchesSubcontractor && matchesBdd;
       })
       .sort((a, b) => {
         const dateA = firstTruckDateMap.get(a.id);
@@ -212,7 +214,7 @@ export default function Home() {
         if (!dateB) return -1;
         return dateA.localeCompare(dateB);
       });
-  }, [projects, searchName, filterConductor, filterSubcontractor, showArchived, firstTruckDateMap]);
+  }, [projects, searchName, filterConductor, filterSubcontractor, filterBdd, showArchived, firstTruckDateMap]);
 
   const getProjectToken = (projectId: string) => {
     return links.find(l => l.project_id === projectId)?.token || null;
@@ -339,7 +341,7 @@ export default function Home() {
               </Select>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center flex-wrap">
               <Button
                 variant={!showArchived ? 'default' : 'outline'}
                 size="sm"
@@ -353,6 +355,23 @@ export default function Home() {
                 onClick={() => setShowArchived(true)}
               >
                 <Archive className="h-4 w-4 mr-1" /> Archivés ({archivedCount})
+              </Button>
+              <span className="mx-2 h-5 w-px bg-border" />
+              <Button
+                variant={filterBdd === 'complete' ? 'default' : 'outline'}
+                size="sm"
+                className="text-xs h-7 px-2"
+                onClick={() => setFilterBdd(prev => prev === 'complete' ? 'all' : 'complete')}
+              >
+                BDD ✅
+              </Button>
+              <Button
+                variant={filterBdd === 'incomplete' ? 'default' : 'outline'}
+                size="sm"
+                className="text-xs h-7 px-2"
+                onClick={() => setFilterBdd(prev => prev === 'incomplete' ? 'all' : 'incomplete')}
+              >
+                BDD ❌
               </Button>
             </div>
 
@@ -382,8 +401,9 @@ export default function Home() {
                       <div className="flex items-start gap-4">
                         <div className="flex-1 min-w-0 space-y-2">
                           <div className="font-semibold text-foreground truncate">
+                            {project.otp_number && <span className="text-muted-foreground font-normal text-sm mr-2">OTP: {project.otp_number} —</span>}
                             {project.site_name || 'Chantier sans nom'}
-                            {project.otp_number && <span className="text-muted-foreground font-normal ml-2 text-sm">OTP: {project.otp_number}</span>}
+                            {project.database_complete && <span className="text-xs font-medium text-green-600 ml-2">BDD ✅</span>}
                           </div>
                           <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-0.5 text-sm text-muted-foreground">
                             <div className="flex flex-wrap gap-x-3">
@@ -412,9 +432,6 @@ export default function Home() {
                               <span className="font-medium w-10 text-right">{deliveryPct}%</span>
                             </div>
                           </div>
-                          {project.database_complete && (
-                            <span className="text-xs font-medium text-green-600 mt-1">BDD ✅</span>
-                          )}
                           {(() => {
                             const users = presenceMap.get(project.id) || [];
                             if (users.length === 0) return null;
