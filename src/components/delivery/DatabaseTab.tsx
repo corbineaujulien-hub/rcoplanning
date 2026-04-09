@@ -690,8 +690,7 @@ export default function DatabaseTab() {
               </span>
             </div>
           )}
-          <div className="overflow-auto max-h-[65vh]">
-            <Table>
+            <Table className="max-h-[65vh]">
               <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow className="bg-card">
                   <TableHead className="w-32">N° Repère</TableHead>
@@ -777,7 +776,6 @@ export default function DatabaseTab() {
                 )}
               </TableBody>
             </Table>
-          </div>
         </CardContent>
       </Card>
 
