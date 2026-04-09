@@ -27,6 +27,7 @@ interface ProjectRow {
   otp_number: string | null;
   created_at: string | null;
   archived: boolean;
+  database_complete: boolean;
 }
 
 interface ProjectLink {
@@ -83,7 +84,7 @@ export default function Home() {
   const fetchProjects = async () => {
     setLoading(true);
     const [{ data: pData }, { data: lData }, tData, eData] = await Promise.all([
-      supabase.from('projects').select('id, site_name, client_name, conductor, subcontractor, otp_number, created_at, archived').order('created_at', { ascending: false }),
+      supabase.from('projects').select('id, site_name, client_name, conductor, subcontractor, otp_number, created_at, archived, database_complete').order('created_at', { ascending: false }),
       supabase.from('project_access_links').select('project_id, token'),
       fetchAllPaginated('trucks', 'project_id, date, element_ids'),
       fetchAllPaginated('beam_elements', 'project_id, weight'),
@@ -411,6 +412,9 @@ export default function Home() {
                               <span className="font-medium w-10 text-right">{deliveryPct}%</span>
                             </div>
                           </div>
+                          {project.database_complete && (
+                            <span className="text-xs font-medium text-green-600 mt-1">BDD ✅</span>
+                          )}
                           {(() => {
                             const users = presenceMap.get(project.id) || [];
                             if (users.length === 0) return null;
