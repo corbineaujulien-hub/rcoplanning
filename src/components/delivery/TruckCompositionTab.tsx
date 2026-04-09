@@ -208,9 +208,24 @@ export default function TruckCompositionTab() {
   const [dragOverTruckId, setDragOverTruckId] = useState<string | null>(null);
   const [dragOverNewZone, setDragOverNewZone] = useState(false);
 
-  const zones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))], [elements]);
-  const factoryList = useMemo(() => [...new Set(elements.map(e => e.factory).filter(Boolean))], [elements]);
-  const productTypes = useMemo(() => [...new Set(elements.map(e => e.productType).filter(Boolean))].sort(), [elements]);
+  // Cross-filtering helper: get elements passing all list/plans filters EXCEPT the excluded one
+  const getElementsExcludingFilter = useCallback((exclude: 'zone' | 'type' | 'factory' | 'status') => {
+    return elements.filter(el => {
+      if (exclude !== 'zone' && filterZone.size > 0 && !filterZone.has(el.zone)) return false;
+      if (exclude !== 'type' && filterType.size > 0 && !filterType.has(el.productType)) return false;
+      if (exclude !== 'factory' && filterFactory.size > 0 && !filterFactory.has(el.factory)) return false;
+      if (exclude !== 'status') {
+        if (filterStatus === 'unloaded' && isElementAssigned(el.id)) return false;
+        if (filterStatus === 'loaded' && !isElementAssigned(el.id)) return false;
+      }
+      return true;
+    });
+  }, [elements, filterZone, filterType, filterFactory, filterStatus, isElementAssigned]);
+
+  // Dynamic filter options based on cross-filtering
+  const zones = useMemo(() => [...new Set(getElementsExcludingFilter('zone').map(e => e.zone).filter(Boolean))].sort(), [getElementsExcludingFilter]);
+  const productTypes = useMemo(() => [...new Set(getElementsExcludingFilter('type').map(e => e.productType).filter(Boolean))].sort(), [getElementsExcludingFilter]);
+  const factoryList = useMemo(() => [...new Set(getElementsExcludingFilter('factory').map(e => e.factory).filter(Boolean))].sort(), [getElementsExcludingFilter]);
 
   const filteredElements = useMemo(() => {
     return elements.filter(el => {
@@ -230,6 +245,18 @@ export default function TruckCompositionTab() {
     return elements.filter(el => {
       if (plan.zones.length > 0 && !plan.zones.includes(el.zone)) return false;
       if (plan.productTypes.length > 0 && !plan.productTypes.includes(el.productType)) return false;
+      return true;
+    });
+  };
+
+  // Plan elements filtered by shared filters (Zone, Type, Factory, Status)
+  const getFilteredPlanElements = (plan: Plan): BeamElement[] => {
+    return getPlanElements(plan).filter(el => {
+      if (filterZone.size > 0 && !filterZone.has(el.zone)) return false;
+      if (filterType.size > 0 && !filterType.has(el.productType)) return false;
+      if (filterFactory.size > 0 && !filterFactory.has(el.factory)) return false;
+      if (filterStatus === 'unloaded' && isElementAssigned(el.id)) return false;
+      if (filterStatus === 'loaded' && !isElementAssigned(el.id)) return false;
       return true;
     });
   };
@@ -790,24 +817,20 @@ export default function TruckCompositionTab() {
                   (() => {
                     const plan = plans.find(p => p.id === selectedPlanId);
                     if (!plan) return null;
-                    let matchedElements = getPlanElements(plan);
+                    let matchedElements = getFilteredPlanElements(plan);
 
-                    // Apply plan-level filters
+                    // Apply plan-level text search
                     if (planFilterRepere) {
                       matchedElements = matchedElements.filter(el => el.repere.toLowerCase().includes(planFilterRepere.toLowerCase()));
-                    }
-                    if (planFilterFactory && planFilterFactory !== '__all__') {
-                      matchedElements = matchedElements.filter(el => el.factory === planFilterFactory);
                     }
 
                     const unassignedMatched = matchedElements.filter(e => !isElementAssigned(e.id));
                     const grouped = groupByType(matchedElements);
-                    const planFactories = [...new Set(getPlanElements(plan).map(e => e.factory).filter(Boolean))];
 
                     return (
                       <>
                         <div className="flex items-center gap-2 mb-2">
-                          <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setSelectedPlanId(null); setPlanFilterRepere(''); setPlanFilterFactory(''); }}>
+                          <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setSelectedPlanId(null); setPlanFilterRepere(''); }}>
                             ← Retour
                           </Button>
                           <span className="text-xs font-medium truncate flex-1">{plan.name}</span>
@@ -816,21 +839,14 @@ export default function TruckCompositionTab() {
                           <iframe src={plan.pdfDataUrl} className="w-full h-[50vh] rounded border mb-2" title={plan.name} />
                         )}
 
-                        {/* Filters for plan repères */}
+                        {/* Search for plan repères */}
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <div className="relative flex-1 min-w-[120px]">
                             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                             <Input placeholder="Rechercher repère…" value={planFilterRepere} onChange={e => setPlanFilterRepere(e.target.value)} className="h-7 text-xs pl-7" />
                           </div>
-                          <Select value={planFilterFactory} onValueChange={setPlanFilterFactory}>
-                            <SelectTrigger className="h-7 text-xs w-[140px]"><SelectValue placeholder="Usine" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__all__">Toutes usines</SelectItem>
-                              {planFactories.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                          {(planFilterRepere || (planFilterFactory && planFilterFactory !== '__all__')) && (
-                            <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => { setPlanFilterRepere(''); setPlanFilterFactory(''); }}>
+                          {planFilterRepere && (
+                            <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setPlanFilterRepere('')}>
                               <X className="h-3 w-3" />
                             </Button>
                           )}
