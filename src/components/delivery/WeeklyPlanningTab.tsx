@@ -37,25 +37,60 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
       .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
   }, [trucks, weekNumber, year, teamId]);
 
-  // Factories available in this week's trucks
+  // Helper: get weekTrucks passing all filters EXCEPT the excluded one
+  const getWeekTrucksExcludingFilter = useCallback((exclude: 'factory' | 'transporter' | 'handlingMeans') => {
+    let filtered = weekTrucks;
+    if (exclude !== 'factory' && factoryFilter.size > 0) {
+      filtered = filtered.filter(t => {
+        const facs = getTruckFactories(getTruckElements(t.id));
+        return facs.some(f => factoryFilter.has(f));
+      });
+    }
+    if (exclude !== 'transporter' && transporterFilter.size > 0) {
+      filtered = filtered.filter(t => {
+        const transporter = t.transporter?.trim() || '';
+        if (transporter === '') return transporterFilter.has('__sans_transporteur__');
+        return transporterFilter.has(transporter);
+      });
+    }
+    if (exclude !== 'handlingMeans' && handlingMeansFilter.size > 0) {
+      filtered = filtered.filter(t => {
+        const means = t.handlingMeans || {};
+        return Object.values(means).some(v => handlingMeansFilter.has(v));
+      });
+    }
+    return filtered;
+  }, [weekTrucks, factoryFilter, transporterFilter, handlingMeansFilter, getTruckElements]);
+
+  // Factories available (dynamically filtered by other active filters)
   const weekFactoryList = useMemo(() => {
     const facs = new Set<string>();
-    weekTrucks.forEach(t => {
+    getWeekTrucksExcludingFilter('factory').forEach(t => {
       getTruckFactories(getTruckElements(t.id)).forEach(f => facs.add(f));
     });
     return [...facs].sort();
-  }, [weekTrucks, getTruckElements]);
+  }, [getWeekTrucksExcludingFilter, getTruckElements]);
 
-  // Transporters available in this week's trucks
+  // Transporters available (dynamically filtered by other active filters)
   const weekTransporterList = useMemo(() => {
     const transporters = new Set<string>();
     let hasEmpty = false;
-    weekTrucks.forEach(t => {
+    getWeekTrucksExcludingFilter('transporter').forEach(t => {
       if (t.transporter?.trim()) transporters.add(t.transporter.trim());
       else hasEmpty = true;
     });
     return { list: [...transporters].sort(), hasEmpty };
-  }, [weekTrucks]);
+  }, [getWeekTrucksExcludingFilter]);
+
+  // Available handling means (dynamically filtered by other active filters)
+  const availableHandlingMeans = useMemo(() => {
+    const means = new Set<string>();
+    getWeekTrucksExcludingFilter('handlingMeans').forEach(t => {
+      const m = t.handlingMeans || {};
+      Object.values(m).forEach(v => { if (v) means.add(v); });
+    });
+    return [...means].sort();
+  }, [getWeekTrucksExcludingFilter]);
 
   // Filtered trucks based on factory, transporter and handling means filters
   const displayTrucks = useMemo(() => {
@@ -233,7 +268,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
                     <div className="mt-2 pt-2 border-t border-border">
                       <p className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1"><Wrench className="h-3 w-3" /> Moyen de manutention</p>
                       <div className="space-y-1">
-                        {HANDLING_MEANS_OPTIONS.map(m => (
+                        {availableHandlingMeans.map(m => (
                           <label key={m} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
                             <Checkbox checked={handlingMeansFilter.has(m)} onCheckedChange={() => setHandlingMeansFilter(prev => { const next = new Set(prev); next.has(m) ? next.delete(m) : next.add(m); return next; })} />
                             <span className="text-xs">{m}</span>
