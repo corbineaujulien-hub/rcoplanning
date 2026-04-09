@@ -817,24 +817,20 @@ export default function TruckCompositionTab() {
                   (() => {
                     const plan = plans.find(p => p.id === selectedPlanId);
                     if (!plan) return null;
-                    let matchedElements = getPlanElements(plan);
+                    let matchedElements = getFilteredPlanElements(plan);
 
-                    // Apply plan-level filters
+                    // Apply plan-level text search
                     if (planFilterRepere) {
                       matchedElements = matchedElements.filter(el => el.repere.toLowerCase().includes(planFilterRepere.toLowerCase()));
-                    }
-                    if (planFilterFactory && planFilterFactory !== '__all__') {
-                      matchedElements = matchedElements.filter(el => el.factory === planFilterFactory);
                     }
 
                     const unassignedMatched = matchedElements.filter(e => !isElementAssigned(e.id));
                     const grouped = groupByType(matchedElements);
-                    const planFactories = [...new Set(getPlanElements(plan).map(e => e.factory).filter(Boolean))];
 
                     return (
                       <>
                         <div className="flex items-center gap-2 mb-2">
-                          <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setSelectedPlanId(null); setPlanFilterRepere(''); setPlanFilterFactory(''); }}>
+                          <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setSelectedPlanId(null); setPlanFilterRepere(''); }}>
                             ← Retour
                           </Button>
                           <span className="text-xs font-medium truncate flex-1">{plan.name}</span>
@@ -843,21 +839,14 @@ export default function TruckCompositionTab() {
                           <iframe src={plan.pdfDataUrl} className="w-full h-[50vh] rounded border mb-2" title={plan.name} />
                         )}
 
-                        {/* Filters for plan repères */}
+                        {/* Search for plan repères */}
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <div className="relative flex-1 min-w-[120px]">
                             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                             <Input placeholder="Rechercher repère…" value={planFilterRepere} onChange={e => setPlanFilterRepere(e.target.value)} className="h-7 text-xs pl-7" />
                           </div>
-                          <Select value={planFilterFactory} onValueChange={setPlanFilterFactory}>
-                            <SelectTrigger className="h-7 text-xs w-[140px]"><SelectValue placeholder="Usine" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__all__">Toutes usines</SelectItem>
-                              {planFactories.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                          {(planFilterRepere || (planFilterFactory && planFilterFactory !== '__all__')) && (
-                            <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => { setPlanFilterRepere(''); setPlanFilterFactory(''); }}>
+                          {planFilterRepere && (
+                            <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setPlanFilterRepere('')}>
                               <X className="h-3 w-3" />
                             </Button>
                           )}
