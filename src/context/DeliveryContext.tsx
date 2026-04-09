@@ -73,6 +73,8 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
             conductor: proj.conductor || '', subcontractor: proj.subcontractor || '',
             contactName: proj.contact_name || '', contactPhone: proj.contact_phone || '',
             showSaturdays: proj.show_saturdays || false,
+            databaseComplete: (proj as any).database_complete || false,
+            databaseComment: (proj as any).database_comment || '',
           });
         }
 
@@ -166,6 +168,8 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
             conductor: p.conductor || '', subcontractor: p.subcontractor || '',
             contactName: p.contact_name || '', contactPhone: p.contact_phone || '',
             showSaturdays: p.show_saturdays || false,
+            databaseComplete: (p as any).database_complete || false,
+            databaseComment: (p as any).database_comment || '',
           });
         }
       })
@@ -242,8 +246,11 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
       client_name: info.clientName, site_address: info.siteAddress,
       conductor: info.conductor, subcontractor: info.subcontractor,
       contact_name: info.contactName, contact_phone: info.contactPhone,
-      show_saturdays: info.showSaturdays, updated_at: new Date().toISOString(),
-    }).eq('id', projectId);
+      show_saturdays: info.showSaturdays,
+      database_complete: info.databaseComplete,
+      database_comment: info.databaseComment,
+      updated_at: new Date().toISOString(),
+    } as any).eq('id', projectId);
   }, [projectId]);
 
   const setElements = useCallback(async (newElements: BeamElement[]) => {
