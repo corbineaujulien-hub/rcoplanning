@@ -412,6 +412,9 @@ export default function Home() {
                               <span className="font-medium w-10 text-right">{deliveryPct}%</span>
                             </div>
                           </div>
+                          {project.database_complete && (
+                            <span className="text-xs font-medium text-green-600 mt-1">BDD ✅</span>
+                          )}
                           {(() => {
                             const users = presenceMap.get(project.id) || [];
                             if (users.length === 0) return null;
