@@ -690,7 +690,7 @@ export default function DatabaseTab() {
               </span>
             </div>
           )}
-            <Table className="max-h-[65vh]">
+            <Table containerClassName="max-h-[65vh]">
               <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow className="bg-card">
                   <TableHead className="w-32">N° Repère</TableHead>
