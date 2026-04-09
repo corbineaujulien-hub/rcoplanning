@@ -112,7 +112,7 @@ function ColumnFilter({ column, values, filters, setFilters, labelFn }: {
 }
 
 export default function DatabaseTab() {
-  const { elements, setElements, addElements, updateElement, deleteElement, plans, addPlan, updatePlan, deletePlan, trucks, projectInfo, getTruckElements, teams } = useDelivery();
+  const { elements, setElements, addElements, updateElement, deleteElement, plans, addPlan, updatePlan, deletePlan, trucks, projectInfo, setProjectInfo, getTruckElements, teams, projectId } = useDelivery();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [importMode, setImportMode] = useState<'overwrite' | 'update' | null>(null);
