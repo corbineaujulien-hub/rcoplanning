@@ -533,8 +533,89 @@ export default function DatabaseTab() {
     }).length;
   };
 
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
+  const [uncompleteDialogOpen, setUncompleteDialogOpen] = useState(false);
+
+  const handleMarkComplete = async () => {
+    const updated = { ...projectInfo, databaseComplete: true };
+    setProjectInfo(updated);
+    setCompleteDialogOpen(false);
+    toast.success('Base de données marquée comme complète');
+  };
+
+  const handleMarkIncomplete = async () => {
+    const updated = { ...projectInfo, databaseComplete: false };
+    setProjectInfo(updated);
+    setUncompleteDialogOpen(false);
+    toast.success('Complétude annulée');
+  };
+
+  const handleCommentBlur = (newComment: string) => {
+    if (newComment !== (projectInfo.databaseComment || '')) {
+      setProjectInfo({ ...projectInfo, databaseComment: newComment });
+    }
+  };
+
   return (
     <div className="space-y-4">
+      {/* Completeness toolbar */}
+      <div className="flex items-center gap-4 flex-wrap bg-muted/30 border rounded-lg px-4 py-3">
+        <div className="shrink-0">
+          {projectInfo.databaseComplete ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-green-600">Base de données complète ✅</span>
+              <AlertDialog open={uncompleteDialogOpen} onOpenChange={setUncompleteDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-7">
+                    Annuler la complétion
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Annuler la complétion</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Confirmez-vous que la base de données n'est plus complète ?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleMarkIncomplete}>Confirmer</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          ) : (
+            <AlertDialog open={completeDialogOpen} onOpenChange={setCompleteDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  Marquer la base comme complète
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Confirmer la complétude</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Confirmez-vous que la base de données est complète ? Cette action indique que tous les éléments ont été injectés.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleMarkComplete}>Confirmer</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
+        <div className="flex-1 min-w-[200px]">
+          <Input
+            defaultValue={projectInfo.databaseComment || ''}
+            placeholder="Commentaire sur la base de données (ex : éléments restants à injecter)..."
+            onBlur={(e) => handleCommentBlur(e.target.value)}
+            className="h-9"
+          />
+        </div>
+      </div>
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-2">
