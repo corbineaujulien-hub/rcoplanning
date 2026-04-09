@@ -115,26 +115,61 @@ export default function TruckCompositionTab() {
     return trucks.find(t => t.elementIds.includes(elementId));
   };
 
-  // All factories present in trucks (for calendar factory filter)
+  // Helper: get trucks passing all calendar filters EXCEPT the excluded one
+  const getTrucksExcludingFilter = useCallback((exclude: 'factory' | 'transporter' | 'handlingMeans') => {
+    let filtered = hasMultipleTeams && activeTeamId ? trucks.filter(t => t.teamId === activeTeamId) : trucks;
+    if (exclude !== 'factory' && calendarFactoryFilter.size > 0) {
+      filtered = filtered.filter(t => {
+        const els = getTruckElements(t.id);
+        return getTruckFactories(els).some(f => calendarFactoryFilter.has(f));
+      });
+    }
+    if (exclude !== 'transporter' && calendarTransporterFilter.size > 0) {
+      filtered = filtered.filter(t => {
+        const transporter = t.transporter?.trim() || '';
+        if (transporter === '') return calendarTransporterFilter.has('__sans_transporteur__');
+        return calendarTransporterFilter.has(transporter);
+      });
+    }
+    if (exclude !== 'handlingMeans' && calendarHandlingMeansFilter.size > 0) {
+      filtered = filtered.filter(t => {
+        const means = t.handlingMeans || {};
+        return Object.values(means).some(v => calendarHandlingMeansFilter.has(v));
+      });
+    }
+    return filtered;
+  }, [trucks, hasMultipleTeams, activeTeamId, calendarFactoryFilter, calendarTransporterFilter, calendarHandlingMeansFilter, getTruckElements]);
+
+  // All factories present in trucks (dynamically filtered by other active filters)
   const truckFactoryList = useMemo(() => {
     const facs = new Set<string>();
-    trucks.forEach(t => {
+    getTrucksExcludingFilter('factory').forEach(t => {
       const els = getTruckElements(t.id);
       getTruckFactories(els).forEach(f => facs.add(f));
     });
     return [...facs].sort();
-  }, [trucks, getTruckElements]);
+  }, [getTrucksExcludingFilter, getTruckElements]);
 
-  // All transporters present in trucks (for calendar transporter filter)
+  // All transporters present in trucks (dynamically filtered by other active filters)
   const truckTransporterList = useMemo(() => {
     const transporters = new Set<string>();
     let hasEmpty = false;
-    trucks.forEach(t => {
+    getTrucksExcludingFilter('transporter').forEach(t => {
       if (t.transporter?.trim()) transporters.add(t.transporter.trim());
       else hasEmpty = true;
     });
     return { list: [...transporters].sort(), hasEmpty };
-  }, [trucks]);
+  }, [getTrucksExcludingFilter]);
+
+  // Available handling means (dynamically filtered by other active filters)
+  const availableHandlingMeans = useMemo(() => {
+    const means = new Set<string>();
+    getTrucksExcludingFilter('handlingMeans').forEach(t => {
+      const m = t.handlingMeans || {};
+      Object.values(m).forEach(v => { if (v) means.add(v); });
+    });
+    return [...means].sort();
+  }, [getTrucksExcludingFilter]);
 
   // Helper: does a truck pass the calendar factory filter?
   const truckPassesFactoryFilter = useCallback((truckId: string): boolean => {
@@ -906,7 +941,7 @@ export default function TruckCompositionTab() {
                     <div className="mt-2 pt-2 border-t border-border">
                       <p className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1"><Wrench className="h-3 w-3" /> Moyen de manutention</p>
                       <div className="space-y-1">
-                        {HANDLING_MEANS_OPTIONS.map(m => (
+                         {availableHandlingMeans.map(m => (
                           <label key={m} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
                             <Checkbox checked={calendarHandlingMeansFilter.has(m)} onCheckedChange={() => setCalendarHandlingMeansFilter(prev => { const next = new Set(prev); next.has(m) ? next.delete(m) : next.add(m); return next; })} />
                             <span className="text-xs">{m}</span>
@@ -1447,7 +1482,12 @@ export default function TruckCompositionTab() {
       <ShiftCalendarDialog
         open={showShiftDialog}
         onOpenChange={setShowShiftDialog}
-        trucks={trucks}
+        trucks={filteredTrucks.filter(t => {
+          if (calendarFactoryFilter.size > 0 && !truckPassesFactoryFilter(t.id)) return false;
+          if (calendarTransporterFilter.size > 0 && !truckPassesTransporterFilter(t)) return false;
+          if (calendarHandlingMeansFilter.size > 0 && !truckPassesHandlingMeansFilter(t)) return false;
+          return true;
+        })}
         getTruckElements={getTruckElements}
         showSaturdays={showSaturdays}
         onShiftConfirm={handleShiftConfirm}
