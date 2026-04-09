@@ -145,6 +145,8 @@ export type Database = {
           contact_name: string | null
           contact_phone: string | null
           created_at: string | null
+          database_comment: string | null
+          database_complete: boolean
           id: string
           otp_number: string | null
           show_saturdays: boolean | null
@@ -160,6 +162,8 @@ export type Database = {
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string | null
+          database_comment?: string | null
+          database_complete?: boolean
           id?: string
           otp_number?: string | null
           show_saturdays?: boolean | null
@@ -175,6 +179,8 @@ export type Database = {
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string | null
+          database_comment?: string | null
+          database_complete?: boolean
           id?: string
           otp_number?: string | null
           show_saturdays?: boolean | null
