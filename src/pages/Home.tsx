@@ -99,17 +99,35 @@ export default function Home() {
 
   useEffect(() => { fetchProjects(); }, []);
 
+  // Helper: get projects filtered by all filters EXCEPT the excluded one
+  const getProjectsExcludingFilter = useCallback((exclude: 'conductor' | 'subcontractor' | 'search' | 'bdd') => {
+    return projects.filter(p => {
+      if (showArchived !== (p.archived ?? false)) return false;
+      if (exclude !== 'search') {
+        const searchLower = searchName.toLowerCase();
+        if (searchName && !(p.site_name || '').toLowerCase().includes(searchLower) && !(p.otp_number || '').toLowerCase().includes(searchLower) && !(p.client_name || '').toLowerCase().includes(searchLower)) return false;
+      }
+      if (exclude !== 'conductor' && filterConductor !== 'all' && p.conductor !== filterConductor) return false;
+      if (exclude !== 'subcontractor' && filterSubcontractor !== 'all' && p.subcontractor !== filterSubcontractor) return false;
+      if (exclude !== 'bdd') {
+        if (filterBdd === 'complete' && !p.database_complete) return false;
+        if (filterBdd === 'incomplete' && p.database_complete) return false;
+      }
+      return true;
+    });
+  }, [projects, searchName, filterConductor, filterSubcontractor, filterBdd, showArchived]);
+
   const conductors = useMemo(() => {
     const set = new Set<string>();
-    projects.forEach(p => { if (p.conductor) set.add(p.conductor); });
+    getProjectsExcludingFilter('conductor').forEach(p => { if (p.conductor) set.add(p.conductor); });
     return Array.from(set).sort();
-  }, [projects]);
+  }, [getProjectsExcludingFilter]);
 
   const subcontractors = useMemo(() => {
     const set = new Set<string>();
-    projects.forEach(p => { if (p.subcontractor) set.add(p.subcontractor); });
+    getProjectsExcludingFilter('subcontractor').forEach(p => { if (p.subcontractor) set.add(p.subcontractor); });
     return Array.from(set).sort();
-  }, [projects]);
+  }, [getProjectsExcludingFilter]);
 
   // Compute first truck date per project
   const firstTruckDateMap = useMemo(() => {
