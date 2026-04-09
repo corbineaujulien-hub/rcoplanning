@@ -208,9 +208,24 @@ export default function TruckCompositionTab() {
   const [dragOverTruckId, setDragOverTruckId] = useState<string | null>(null);
   const [dragOverNewZone, setDragOverNewZone] = useState(false);
 
-  const zones = useMemo(() => [...new Set(elements.map(e => e.zone).filter(Boolean))], [elements]);
-  const factoryList = useMemo(() => [...new Set(elements.map(e => e.factory).filter(Boolean))], [elements]);
-  const productTypes = useMemo(() => [...new Set(elements.map(e => e.productType).filter(Boolean))].sort(), [elements]);
+  // Cross-filtering helper: get elements passing all list/plans filters EXCEPT the excluded one
+  const getElementsExcludingFilter = useCallback((exclude: 'zone' | 'type' | 'factory' | 'status') => {
+    return elements.filter(el => {
+      if (exclude !== 'zone' && filterZone.size > 0 && !filterZone.has(el.zone)) return false;
+      if (exclude !== 'type' && filterType.size > 0 && !filterType.has(el.productType)) return false;
+      if (exclude !== 'factory' && filterFactory.size > 0 && !filterFactory.has(el.factory)) return false;
+      if (exclude !== 'status') {
+        if (filterStatus === 'unloaded' && isElementAssigned(el.id)) return false;
+        if (filterStatus === 'loaded' && !isElementAssigned(el.id)) return false;
+      }
+      return true;
+    });
+  }, [elements, filterZone, filterType, filterFactory, filterStatus, isElementAssigned]);
+
+  // Dynamic filter options based on cross-filtering
+  const zones = useMemo(() => [...new Set(getElementsExcludingFilter('zone').map(e => e.zone).filter(Boolean))].sort(), [getElementsExcludingFilter]);
+  const productTypes = useMemo(() => [...new Set(getElementsExcludingFilter('type').map(e => e.productType).filter(Boolean))].sort(), [getElementsExcludingFilter]);
+  const factoryList = useMemo(() => [...new Set(getElementsExcludingFilter('factory').map(e => e.factory).filter(Boolean))].sort(), [getElementsExcludingFilter]);
 
   const filteredElements = useMemo(() => {
     return elements.filter(el => {
