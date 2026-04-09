@@ -431,34 +431,73 @@ export default function DatabaseTab() {
     });
   }, [elements, filters, elementTruckMap]);
 
-  const filterValues = useMemo(() => ({
-    zone: elements.map(el => el.zone),
-    productType: elements.map(el => el.productType),
-    section: elements.map(el => el.section),
-    factory: elements.map(el => el.factory),
-  }), [elements]);
+  // Helper: filter elements excluding one specific column's filter
+  const getElementsExcludingFilter = (excludeCol: string) => {
+    return elements.filter(el => {
+      for (const [col, vals] of Object.entries(filters)) {
+        if (vals.size === 0 || col === excludeCol) continue;
+        if (col === 'truckNumber') {
+          const info = elementTruckMap.get(el.id);
+          const elVal = info ? info.number : '__none__';
+          if (!vals.has(elVal)) return false;
+        } else if (col === 'truckDate') {
+          const info = elementTruckMap.get(el.id);
+          if (vals.has('__none__') && !info) continue;
+          if (!info) return false;
+          const dateFormatted = formatTruckDate(info.date);
+          const monthLabel = getMonthLabel(info.date);
+          let match = false;
+          for (const v of vals) {
+            if (v === '__none__' && !info) { match = true; break; }
+            if (v === dateFormatted) { match = true; break; }
+            if (v.startsWith('month:') && v.slice(6) === monthLabel) { match = true; break; }
+          }
+          if (!match) return false;
+        } else {
+          const elVal = el[col as keyof BeamElement];
+          if (!vals.has(String(elVal ?? ''))) return false;
+        }
+      }
+      return true;
+    });
+  };
+
+  const filterValues = useMemo(() => {
+    const zoneSource = getElementsExcludingFilter('zone');
+    const typeSource = getElementsExcludingFilter('productType');
+    const sectionSource = getElementsExcludingFilter('section');
+    const factorySource = getElementsExcludingFilter('factory');
+    return {
+      zone: zoneSource.map(el => el.zone),
+      productType: typeSource.map(el => el.productType),
+      section: sectionSource.map(el => el.section),
+      factory: factorySource.map(el => el.factory),
+    };
+  }, [elements, filters, elementTruckMap]);
 
   // Truck number filter values
   const truckNumberFilterValues = useMemo(() => {
+    const source = getElementsExcludingFilter('truckNumber');
     const vals: string[] = [];
-    const hasUnloaded = elements.some(el => !elementTruckMap.has(el.id));
+    const hasUnloaded = source.some(el => !elementTruckMap.has(el.id));
     if (hasUnloaded) vals.push('__none__');
     const numbers = new Set<string>();
-    elements.forEach(el => {
+    source.forEach(el => {
       const info = elementTruckMap.get(el.id);
       if (info) numbers.add(info.number);
     });
     return [...vals, ...[...numbers].sort()];
-  }, [elements, elementTruckMap]);
+  }, [elements, filters, elementTruckMap]);
 
   // Truck date filter values (dates + months + "Non programmé")
   const truckDateFilterValues = useMemo(() => {
+    const source = getElementsExcludingFilter('truckDate');
     const vals: string[] = [];
-    const hasUnscheduled = elements.some(el => !elementTruckMap.has(el.id));
+    const hasUnscheduled = source.some(el => !elementTruckMap.has(el.id));
     if (hasUnscheduled) vals.push('__none__');
     const dates = new Set<string>();
     const months = new Set<string>();
-    elements.forEach(el => {
+    source.forEach(el => {
       const info = elementTruckMap.get(el.id);
       if (info) {
         dates.add(formatTruckDate(info.date));
@@ -473,7 +512,7 @@ export default function DatabaseTab() {
       return (ya - yb) || (ma - mb) || (da - db);
     });
     return [...vals, ...sortedMonths, ...sortedDates];
-  }, [elements, elementTruckMap]);
+  }, [elements, filters, elementTruckMap]);
 
   const hasActiveFilters = useMemo(() => Object.values(filters).some(s => s.size > 0), [filters]);
 
