@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import ActiveUsersNotification from '@/components/ActiveUsersNotification';
 import { Progress } from '@/components/ui/progress';
 import { useNavigate } from 'react-router-dom';
@@ -15,10 +15,12 @@ import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactor
 import { TRANSPORT_CATEGORIES } from '@/types/delivery';
 import * as XLSX from 'xlsx';
 import { exportAllWeeksPdf } from '@/utils/pdfExportUtils';
+import ExportPdfModal from '@/components/delivery/ExportPdfModal';
 
 export default function DeliveryApp() {
   const { trucks, projectInfo, elements, getTruckElements, teams, projectId } = useDelivery();
   const navigate = useNavigate();
+  const [exportPdfOpen, setExportPdfOpen] = useState(false);
 
   const hasMultipleTeams = teams.length > 1;
 
@@ -108,8 +110,8 @@ export default function DeliveryApp() {
 
   const planningPct = totalSiteWeight > 0 ? Math.round((loadedWeight / totalSiteWeight) * 100) : 0;
 
-  const handleExportAllWeeksPdf = async () => {
-    await exportAllWeeksPdf(weeklyTabs, trucks, getTruckElements, projectInfo, totalSiteWeight, trucks, elements);
+  const handleExportSelectedWeeksPdf = async (selectedWeeks: { weekNumber: number; year: number }[]) => {
+    await exportAllWeeksPdf(selectedWeeks, trucks, getTruckElements, projectInfo, totalSiteWeight, trucks, elements);
   };
 
   return (
@@ -168,8 +170,8 @@ export default function DeliveryApp() {
                 <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={exportAllWeeksExcel}>
                   <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> Tout Excel
                 </Button>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleExportAllWeeksPdf}>
-                  <Calendar className="h-3.5 w-3.5 mr-1" /> Exporter tout en PDF
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setExportPdfOpen(true)}>
+                  <Calendar className="h-3.5 w-3.5 mr-1" /> Exporter PDF
                 </Button>
               </div>
             )}
@@ -192,6 +194,13 @@ export default function DeliveryApp() {
           ))}
         </Tabs>
       </main>
+      <ExportPdfModal
+        open={exportPdfOpen}
+        onOpenChange={setExportPdfOpen}
+        weeklyTabs={weeklyTabs}
+        trucks={trucks}
+        onExport={handleExportSelectedWeeksPdf}
+      />
     </div>
   );
 }
