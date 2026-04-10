@@ -15,12 +15,13 @@ import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactor
 import { TRANSPORT_CATEGORIES } from '@/types/delivery';
 import * as XLSX from 'xlsx';
 import { exportAllWeeksPdf } from '@/utils/pdfExportUtils';
-import ExportPdfModal from '@/components/delivery/ExportPdfModal';
+import ExportWeeksModal from '@/components/delivery/ExportWeeksModal';
 
 export default function DeliveryApp() {
   const { trucks, projectInfo, elements, getTruckElements, teams, projectId } = useDelivery();
   const navigate = useNavigate();
   const [exportPdfOpen, setExportPdfOpen] = useState(false);
+  const [exportExcelOpen, setExportExcelOpen] = useState(false);
 
   const hasMultipleTeams = teams.length > 1;
 
@@ -68,9 +69,9 @@ export default function DeliveryApp() {
     return result;
   }, [weeklyTabs, teams, trucks, hasMultipleTeams]);
 
-  const exportAllWeeksExcel = () => {
+  const exportSelectedWeeksExcel = (selectedWeeks: { weekNumber: number; year: number }[]) => {
     const wb = XLSX.utils.book_new();
-    weeklyTabs.forEach(w => {
+    selectedWeeks.forEach(w => {
       const weekTrucks = trucks
         .filter(t => {
           const d = parseISO(t.date);
@@ -97,7 +98,21 @@ export default function DeliveryApp() {
       const ws = XLSX.utils.json_to_sheet(data);
       XLSX.utils.book_append_sheet(wb, ws, `S${String(w.weekNumber).padStart(2, '0')}`);
     });
-    XLSX.writeFile(wb, `planning_toutes_semaines.xlsx`);
+
+    const nomChantier = projectInfo.siteName
+      ? projectInfo.siteName.trim().toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '')
+      : 'CHANTIER';
+    const lastYear = selectedWeeks[selectedWeeks.length - 1]?.year || new Date().getFullYear();
+
+    let filename: string;
+    if (selectedWeeks.length === 1) {
+      filename = `planning_${nomChantier}_S${String(selectedWeeks[0].weekNumber).padStart(2, '0')}_${lastYear}.xlsx`;
+    } else {
+      const firstW = selectedWeeks[0].weekNumber;
+      const lastW = selectedWeeks[selectedWeeks.length - 1].weekNumber;
+      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}-S${String(lastW).padStart(2, '0')}_${lastYear}.xlsx`;
+    }
+    XLSX.writeFile(wb, filename);
   };
 
   const totalSiteWeight = useMemo(() => elements.reduce((s, e) => s + e.weight, 0), [elements]);
@@ -167,8 +182,8 @@ export default function DeliveryApp() {
 
             {weeklyTabs.length > 0 && (
               <div className="flex items-center gap-1 ml-auto">
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={exportAllWeeksExcel}>
-                  <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> Tout Excel
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setExportExcelOpen(true)}>
+                  <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> Exporter Excel
                 </Button>
                 <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setExportPdfOpen(true)}>
                   <Calendar className="h-3.5 w-3.5 mr-1" /> Exporter PDF
@@ -194,12 +209,21 @@ export default function DeliveryApp() {
           ))}
         </Tabs>
       </main>
-      <ExportPdfModal
+      <ExportWeeksModal
         open={exportPdfOpen}
         onOpenChange={setExportPdfOpen}
         weeklyTabs={weeklyTabs}
         trucks={trucks}
         onExport={handleExportSelectedWeeksPdf}
+        title="Export PDF — Sélection des semaines"
+      />
+      <ExportWeeksModal
+        open={exportExcelOpen}
+        onOpenChange={setExportExcelOpen}
+        weeklyTabs={weeklyTabs}
+        trucks={trucks}
+        onExport={exportSelectedWeeksExcel}
+        title="Export Excel — Sélection des semaines"
       />
     </div>
   );

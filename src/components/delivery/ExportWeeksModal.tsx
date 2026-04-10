@@ -12,33 +12,30 @@ interface WeekTab {
   year: number;
 }
 
-interface ExportPdfModalProps {
+interface ExportWeeksModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   weeklyTabs: WeekTab[];
   trucks: Truck[];
   onExport: (selectedWeeks: WeekTab[]) => void;
+  title: string;
 }
 
-export default function ExportPdfModal({ open, onOpenChange, weeklyTabs, trucks, onExport }: ExportPdfModalProps) {
+export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, trucks, onExport, title }: ExportWeeksModalProps) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set(weeklyTabs.map(w => `${w.year}-${w.weekNumber}`)));
 
-  // Reset selection when modal opens
   const handleOpenChange = (o: boolean) => {
-    if (o) {
-      setSelected(new Set(weeklyTabs.map(w => `${w.year}-${w.weekNumber}`)));
-    }
+    if (o) setSelected(new Set(weeklyTabs.map(w => `${w.year}-${w.weekNumber}`)));
     onOpenChange(o);
   };
 
   const availableWeeks = useMemo(() => {
-    return weeklyTabs.filter(w => {
-      return trucks.some(t => {
+    return weeklyTabs.filter(w =>
+      trucks.some(t => {
         const d = parseISO(t.date);
         return parseInt(format(d, 'II')) === w.weekNumber && d.getFullYear() === w.year;
-      });
-    }).map(w => {
-      // Find first truck date in this week to compute week start/end
+      })
+    ).map(w => {
       const firstTruck = trucks.find(t => {
         const d = parseISO(t.date);
         return parseInt(format(d, 'II')) === w.weekNumber && d.getFullYear() === w.year;
@@ -46,12 +43,10 @@ export default function ExportPdfModal({ open, onOpenChange, weeklyTabs, trucks,
       const refDate = firstTruck ? parseISO(firstTruck.date) : new Date(w.year, 0, 1 + (w.weekNumber - 1) * 7);
       const weekStart = startOfISOWeek(refDate);
       const weekEnd = endOfISOWeek(refDate);
-      const startLabel = format(weekStart, 'dd/MM', { locale: fr });
-      const endLabel = format(weekEnd, 'dd/MM/yyyy', { locale: fr });
       return {
         ...w,
         key: `${w.year}-${w.weekNumber}`,
-        label: `Semaine ${w.weekNumber} — du ${startLabel} au ${endLabel}`,
+        label: `Semaine ${w.weekNumber} — du ${format(weekStart, 'dd/MM', { locale: fr })} au ${format(weekEnd, 'dd/MM/yyyy', { locale: fr })}`,
       };
     });
   }, [weeklyTabs, trucks]);
@@ -77,7 +72,7 @@ export default function ExportPdfModal({ open, onOpenChange, weeklyTabs, trucks,
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-[420px]">
         <DialogHeader>
-          <DialogTitle>Export PDF — Sélection des semaines</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
         <div className="flex items-center gap-2 mb-2">
