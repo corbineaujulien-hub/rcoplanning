@@ -194,6 +194,13 @@ export default function DeliveryApp() {
           ))}
         </Tabs>
       </main>
+      <ExportPdfModal
+        open={exportPdfOpen}
+        onOpenChange={setExportPdfOpen}
+        weeklyTabs={weeklyTabs}
+        trucks={trucks}
+        onExport={handleExportSelectedWeeksPdf}
+      />
     </div>
   );
 }
