@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import ActiveUsersNotification from '@/components/ActiveUsersNotification';
 import { Progress } from '@/components/ui/progress';
 import { useNavigate } from 'react-router-dom';
@@ -20,6 +20,7 @@ import ExportPdfModal from '@/components/delivery/ExportPdfModal';
 export default function DeliveryApp() {
   const { trucks, projectInfo, elements, getTruckElements, teams, projectId } = useDelivery();
   const navigate = useNavigate();
+  const [exportPdfOpen, setExportPdfOpen] = useState(false);
 
   const hasMultipleTeams = teams.length > 1;
 
