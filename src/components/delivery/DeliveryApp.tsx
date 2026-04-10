@@ -110,8 +110,8 @@ export default function DeliveryApp() {
 
   const planningPct = totalSiteWeight > 0 ? Math.round((loadedWeight / totalSiteWeight) * 100) : 0;
 
-  const handleExportAllWeeksPdf = async () => {
-    await exportAllWeeksPdf(weeklyTabs, trucks, getTruckElements, projectInfo, totalSiteWeight, trucks, elements);
+  const handleExportSelectedWeeksPdf = async (selectedWeeks: { weekNumber: number; year: number }[]) => {
+    await exportAllWeeksPdf(selectedWeeks, trucks, getTruckElements, projectInfo, totalSiteWeight, trucks, elements);
   };
 
   return (
@@ -170,8 +170,8 @@ export default function DeliveryApp() {
                 <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={exportAllWeeksExcel}>
                   <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> Tout Excel
                 </Button>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleExportAllWeeksPdf}>
-                  <Calendar className="h-3.5 w-3.5 mr-1" /> Exporter tout en PDF
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setExportPdfOpen(true)}>
+                  <Calendar className="h-3.5 w-3.5 mr-1" /> Exporter PDF
                 </Button>
               </div>
             )}
