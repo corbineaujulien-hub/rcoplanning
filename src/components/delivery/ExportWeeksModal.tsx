@@ -74,13 +74,14 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
     });
   }, [weeklyTabs, trucks]);
 
-  // Trucks of currently selected weeks
+  // Trucks across ALL available weeks (used to populate filter options).
   const weekTrucks = useMemo(() => {
+    const availableKeys = new Set(availableWeeks.map(w => w.key));
     return trucks.filter(t => {
       const d = parseISO(t.date);
-      return selected.has(`${d.getFullYear()}-${parseInt(format(d, 'II'))}`);
+      return availableKeys.has(`${d.getFullYear()}-${parseInt(format(d, 'II'))}`);
     });
-  }, [trucks, selected]);
+  }, [trucks, availableWeeks]);
 
   // Decorate trucks with their factories + transporter key
   const decorated = useMemo(() => weekTrucks.map(t => ({
@@ -105,12 +106,12 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
     });
   }, [decorated]);
 
-  // Reset filters to "all" when selected weeks change
+  // Reset filters to "all" when the available pool changes (or modal opens).
   useEffect(() => {
     setFactorySet(new Set(allFactories));
     setTransporterSet(new Set(allTransporters));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, weeklyTabs, trucks]);
+  }, [open, allFactories.join('|'), allTransporters.join('|')]);
 
   // Display lists with cumulative AND logic
   const displayFactories = useMemo(() => {
