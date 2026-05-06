@@ -1205,8 +1205,16 @@ export default function TruckCompositionTab() {
                             if (ids.length === 0) return;
                             checkAlertsAndAssign(truck.id, ids);
                           }}
-                          className={`border-l-4 transition-all ${dragOverTruckId === truck.id ? 'ring-2 ring-accent bg-accent/5' : ''} ${isEmpty ? 'border-l-foreground' : cat === 'standard' ? 'border-l-transport-standard' : cat === 'cat1' ? 'border-l-transport-cat1' : cat === 'cat2' ? 'border-l-transport-cat2' : 'border-l-transport-cat3'}`}
+                          className={`relative border-l-4 transition-all ${dragOverTruckId === truck.id ? 'ring-2 ring-accent bg-accent/5' : ''} ${isEmpty ? 'border-l-foreground' : cat === 'standard' ? 'border-l-transport-standard' : cat === 'cat1' ? 'border-l-transport-cat1' : cat === 'cat2' ? 'border-l-transport-cat2' : 'border-l-transport-cat3'}`}
                         >
+                          {forced && (
+                            <span
+                              className="absolute -top-2 -right-2 bg-white rounded-full p-0.5 shadow z-10"
+                              title={`Catégorie forcée : ${TRANSPORT_CATEGORIES[truck.forcedCategory!].label} — Motif : ${truck.forcedCategoryReason || '—'}`}
+                            >
+                              <AlertTriangle className="h-4 w-4" style={{ color: '#f97316' }} />
+                            </span>
+                          )}
                           <CardContent className="pt-4 space-y-2">
                             <div className="flex items-center gap-2 flex-wrap">
                               <TruckIcon className="h-5 w-5 text-accent flex-shrink-0" />
