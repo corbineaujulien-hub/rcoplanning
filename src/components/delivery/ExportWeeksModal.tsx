@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Factory, Truck as TruckIcon } from 'lucide-react';
 import { format, parseISO, startOfISOWeek, endOfISOWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import type { Truck, BeamElement } from '@/types/delivery';
@@ -181,26 +183,8 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
     onOpenChange(false);
   };
 
-  const renderFilterRow = (
-    label: string,
-    items: string[],
-    set: Set<string>,
-    setter: (s: Set<string>) => void,
-    valueLabel?: (v: string) => string,
-  ) => (
-    <div>
-      <p className="text-xs font-semibold mb-1">{label}</p>
-      <div className="flex flex-wrap gap-x-3 gap-y-1">
-        {items.length === 0 && <span className="text-xs text-muted-foreground italic">Aucun</span>}
-        {items.map(v => (
-          <label key={v} className="flex items-center gap-1.5 cursor-pointer text-xs">
-            <Checkbox checked={set.has(v)} onCheckedChange={() => toggleSetVal(set, setter, v)} />
-            {valueLabel ? valueLabel(v) : v}
-          </label>
-        ))}
-      </div>
-    </div>
-  );
+  const factoryActive = factorySet.size !== allFactories.length;
+  const transporterActive = transporterSet.size !== allTransporters.length;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -231,10 +215,54 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
           <Separator className="my-3" />
 
           <p className="text-sm font-semibold mb-2">Filtres</p>
-          <div className="space-y-3">
-            {renderFilterRow('Usine', displayFactories, factorySet, setFactorySet)}
-            {renderFilterRow('Transporteur', displayTransporters, transporterSet, setTransporterSet,
-              v => v === NO_TRANSPORTER ? 'Sans transporteur' : v)}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant={factoryActive ? 'default' : 'outline'} size="sm">
+                    <Factory className="h-4 w-4 mr-1" />
+                    {factoryActive ? `Usine (${factorySet.size})` : 'Usine'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 max-h-80 overflow-auto p-2" align="start">
+                  <div className="space-y-1">
+                    {displayFactories.length === 0 && (
+                      <span className="text-xs text-muted-foreground italic">Aucune usine</span>
+                    )}
+                    {displayFactories.map(f => (
+                      <label key={f} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                        <Checkbox checked={factorySet.has(f)} onCheckedChange={() => toggleSetVal(factorySet, setFactorySet, f)} />
+                        <span className="text-xs">{f}</span>
+                      </label>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant={transporterActive ? 'default' : 'outline'} size="sm">
+                    <TruckIcon className="h-4 w-4 mr-1" />
+                    {transporterActive ? `Transporteur (${transporterSet.size})` : 'Transporteur'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="start">
+                  <div className="space-y-1">
+                    {displayTransporters.length === 0 && (
+                      <span className="text-xs text-muted-foreground italic">Aucun transporteur</span>
+                    )}
+                    {displayTransporters.map(t => (
+                      <label key={t} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                        <Checkbox checked={transporterSet.has(t)} onCheckedChange={() => toggleSetVal(transporterSet, setTransporterSet, t)} />
+                        {t === NO_TRANSPORTER
+                          ? <span className="text-xs italic text-muted-foreground">Sans transporteur</span>
+                          : <span className="text-xs font-medium text-orange-500">{t}</span>}
+                      </label>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
             <button
               type="button"
               onClick={resetFilters}
