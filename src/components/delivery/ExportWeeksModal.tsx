@@ -150,8 +150,15 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
   const handleExport = () => {
     const selectedWeeks = availableWeeks.filter(w => selected.has(w.key)).map(({ weekNumber, year }) => ({ weekNumber, year }));
 
+    const selectedKeys = new Set(selectedWeeks.map(w => `${w.year}-${w.weekNumber}`));
     const filteredTrucks = decorated
-      .filter(d => d.factories.some(f => factorySet.has(f)) && transporterSet.has(d.transporterKey))
+      .filter(d => {
+        const dt = parseISO(d.truck.date);
+        const key = `${dt.getFullYear()}-${parseInt(format(dt, 'II'))}`;
+        return selectedKeys.has(key)
+          && d.factories.some(f => factorySet.has(f))
+          && transporterSet.has(d.transporterKey);
+      })
       .map(d => d.truck);
 
     let suffix = '';
