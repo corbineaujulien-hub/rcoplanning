@@ -8,9 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useDelivery } from '@/context/DeliveryContext';
-import { Truck, TRANSPORT_CATEGORIES, HANDLING_MEANS_OPTIONS } from '@/types/delivery';
+import { Truck, TRANSPORT_CATEGORIES, HANDLING_MEANS_OPTIONS, TransportCategory } from '@/types/delivery';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getProductCountsByType, getCategoryColorClass, getFactoryColor } from '@/utils/transportUtils';
-import { Truck as TruckIcon, Weight, Ruler, Factory, Package, Trash2, X, Pencil, MessageSquare, Users, MapPin, TruckIcon as TransporterIcon, Wrench } from 'lucide-react';
+import { Truck as TruckIcon, Weight, Ruler, Factory, Package, Trash2, X, Pencil, MessageSquare, Users, MapPin, TruckIcon as TransporterIcon, Wrench, AlertTriangle } from 'lucide-react';
 
 interface TruckDetailModalProps {
   open: boolean;
@@ -31,6 +31,9 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
   const [commentDirty, setCommentDirty] = useState(false);
   const [transporter, setTransporter] = useState('');
   const [transporterDirty, setTransporterDirty] = useState(false);
+  const [forcing, setForcing] = useState(false);
+  const [forceCategoryDraft, setForceCategoryDraft] = useState<TransportCategory>('standard');
+  const [forceReasonDraft, setForceReasonDraft] = useState('');
 
   if (!truck) return null;
 
@@ -39,13 +42,16 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
 
   const elements = getTruckElements(liveTruck.id);
   const isDuplicateNumber = editNumber.trim() !== '' && editNumber.trim().toLowerCase() !== liveTruck.number.toLowerCase() && trucks.some(t => t.id !== liveTruck.id && t.number.toLowerCase() === editNumber.trim().toLowerCase());
-  const category = getTransportCategory(elements);
+  const computedCategory = getTransportCategory(elements);
+  const forcedCategory = liveTruck.forcedCategory;
+  const category = forcedCategory || computedCategory;
   const weight = getTruckWeight(elements);
   const maxLen = getTruckMaxLength(elements);
   const factories = getTruckFactories(elements);
   const truckZones = getTruckZones(elements);
   const counts = getProductCountsByType(elements);
   const catInfo = TRANSPORT_CATEGORIES[category];
+  const computedCatInfo = TRANSPORT_CATEGORIES[computedCategory];
 
   // Sync comment state when truck changes
   if (!commentDirty && comment !== (liveTruck.comment || '')) {
@@ -213,10 +219,60 @@ export default function TruckDetailModal({ open, onClose, truck }: TruckDetailMo
             )}
 
             <div className="space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm text-muted-foreground">Catégorie :</span>
-                <span className={`${getCategoryColorClass(category)} px-2 py-1 rounded text-sm font-medium`}>{catInfo.label}</span>
-              </div>
+              {forcedCategory ? (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-muted-foreground">Catégorie calculée :</span>
+                    <span className={`${getCategoryColorClass(computedCategory)} opacity-50 px-2 py-1 rounded text-sm font-medium`}>{computedCatInfo.label}</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-muted-foreground">Catégorie forcée :</span>
+                    <span className={`${getCategoryColorClass(forcedCategory)} px-2 py-1 rounded text-sm font-medium`}>{TRANSPORT_CATEGORIES[forcedCategory].label}</span>
+                    <AlertTriangle className="h-4 w-4" style={{ color: '#f97316' }} />
+                  </div>
+                  {liveTruck.forcedCategoryReason && (
+                    <div className="text-sm"><span className="text-muted-foreground">Motif : </span>{liveTruck.forcedCategoryReason}</div>
+                  )}
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => updateTruck(liveTruck.id, { forcedCategory: undefined, forcedCategoryReason: undefined })}>
+                    Annuler le forçage
+                  </Button>
+                </div>
+              ) : forcing ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-muted-foreground">Catégorie calculée :</span>
+                    <span className={`${getCategoryColorClass(computedCategory)} px-2 py-1 rounded text-sm font-medium`}>{computedCatInfo.label}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm text-muted-foreground w-28">Catégorie forcée</Label>
+                    <Select value={forceCategoryDraft} onValueChange={v => setForceCategoryDraft(v as TransportCategory)}>
+                      <SelectTrigger className="h-8 flex-1 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {(Object.keys(TRANSPORT_CATEGORIES) as TransportCategory[]).map(k => (
+                          <SelectItem key={k} value={k}>{TRANSPORT_CATEGORIES[k].label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm text-muted-foreground w-28">Motif *</Label>
+                    <Input value={forceReasonDraft} onChange={e => setForceReasonDraft(e.target.value)} placeholder="Justification (obligatoire)" className="h-8 text-xs flex-1" />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="default" className="h-7 text-xs" disabled={!forceReasonDraft.trim()} onClick={() => {
+                      updateTruck(liveTruck.id, { forcedCategory: forceCategoryDraft, forcedCategoryReason: forceReasonDraft.trim() });
+                      setForcing(false); setForceReasonDraft('');
+                    }}>OK</Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setForcing(false); setForceReasonDraft(''); }}>Annuler</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground">Catégorie de transport :</span>
+                  <span className={`${getCategoryColorClass(category)} px-2 py-1 rounded text-sm font-medium`}>{catInfo.label}</span>
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setForceCategoryDraft(computedCategory); setForcing(true); }}>Forcer</Button>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <Label className="text-sm text-muted-foreground flex items-center gap-1">
                   <TruckIcon className="h-3 w-3" /> Transporteur

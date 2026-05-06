@@ -1,12 +1,12 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
-import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getProductCountsByType, getCategoryColorClass, getFactoryColor } from '@/utils/transportUtils';
+import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getProductCountsByType, getCategoryColorClass, getFactoryColor, getEffectiveCategory } from '@/utils/transportUtils';
 import { TRANSPORT_CATEGORIES, BeamElement, HANDLING_MEANS_OPTIONS } from '@/types/delivery';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Truck as TruckIcon, Weight, Ruler, Factory, Package, FileSpreadsheet, Download, MessageSquare, MapPin, X, Wrench } from 'lucide-react';
+import { Truck as TruckIcon, Weight, Ruler, Factory, Package, FileSpreadsheet, Download, MessageSquare, MapPin, X, Wrench, AlertTriangle } from 'lucide-react';
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
@@ -352,7 +352,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
               </div>
               {dayTrucks.map(truck => {
                 const els = getTruckElements(truck.id);
-                const cat = getTransportCategory(els);
+                const cat = getEffectiveCategory(truck, els);
                 const catInfo = TRANSPORT_CATEGORIES[cat];
                 const weight = getTruckWeight(els);
                 const maxLen = getTruckMaxLength(els);
@@ -369,6 +369,11 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
                           <span className="font-semibold text-lg">{truck.number}</span>
                           <span className="text-sm text-muted-foreground">— {truck.time}</span>
                           <span className={`${getCategoryColorClass(cat)} px-2 py-0.5 rounded text-xs font-medium`}>{catInfo.label}</span>
+                          {truck.forcedCategory && (
+                            <span title={`Catégorie forcée : ${catInfo.label} — Motif : ${truck.forcedCategoryReason || '—'}`}>
+                              <AlertTriangle className="h-4 w-4" style={{ color: '#f97316' }} />
+                            </span>
+                          )}
                           {truck.transporter?.trim() && (
                             <span className="text-sm font-medium text-orange-500">{truck.transporter}</span>
                           )}

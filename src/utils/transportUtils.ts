@@ -1,4 +1,4 @@
-import { BeamElement, TransportCategory, TRANSPORT_CATEGORIES } from '@/types/delivery';
+import { BeamElement, TransportCategory, TRANSPORT_CATEGORIES, Truck } from '@/types/delivery';
 
 const EXTENDED_LENGTH_TYPES = ['Poteau BA', 'Potelet BA'];
 
@@ -14,6 +14,11 @@ export function getTransportCategory(elements: BeamElement[]): TransportCategory
   if (maxLength <= 16.5 && totalWeight <= 28) return 'cat1';
   if (maxLength <= 21.5 && totalWeight <= 42) return 'cat2';
   return 'cat3';
+}
+
+export function getEffectiveCategory(truck: Truck | null | undefined, elements: BeamElement[]): TransportCategory {
+  if (truck?.forcedCategory) return truck.forcedCategory;
+  return getTransportCategory(elements);
 }
 
 export function getTruckWeight(elements: BeamElement[]): number {

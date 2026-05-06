@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useDelivery } from '@/context/DeliveryContext';
 import { BeamElement, Truck, TRANSPORT_CATEGORIES, TransportCategory, Plan, HANDLING_MEANS_OPTIONS } from '@/types/delivery';
-import { getTransportCategory, getTruckWeight, getCategoryColorClass, isNonStandard, isMultiSite, getTruckMaxLength, getTruckFactories, getTruckZones, getProductCountsByType, getFactoryColor } from '@/utils/transportUtils';
+import { getTransportCategory, getTruckWeight, getCategoryColorClass, isNonStandard, isMultiSite, getTruckMaxLength, getTruckFactories, getTruckZones, getProductCountsByType, getFactoryColor, getEffectiveCategory } from '@/utils/transportUtils';
 import { isHoliday } from '@/utils/frenchHolidays';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronLeft, ChevronRight, ChevronDown, GripVertical, Truck as TruckIcon, Filter, X, Trash2, MessageSquare, Search, Weight, Ruler, Factory, Package, FileText, List, ArrowRightLeft, Users, MapPin, Wrench } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, GripVertical, Truck as TruckIcon, Filter, X, Trash2, MessageSquare, Search, Weight, Ruler, Factory, Package, FileText, List, ArrowRightLeft, Users, MapPin, Wrench, AlertTriangle } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, isSameMonth, isSameDay, isToday, getDay, addHours, parse, getISOWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import NewTruckModal from './NewTruckModal';
@@ -563,13 +563,14 @@ export default function TruckCompositionTab() {
 
   const renderTruckBadge = (truck: Truck, showTime: boolean = false) => {
     const els = getTruckElements(truck.id);
-    const cat = getTransportCategory(els);
+    const cat = getEffectiveCategory(truck, els);
     const weight = getTruckWeight(els);
     const counts = getProductCountsByType(els);
     const isSelected = selectedTruckIds.has(truck.id);
     const isEmpty = els.length === 0;
     const hasComment = !!truck.comment?.trim();
     const colorClass = isEmpty ? 'bg-foreground text-background' : getCategoryColorClass(cat);
+    const forced = !!truck.forcedCategory;
     return (
       <div
         key={truck.id}
@@ -583,8 +584,14 @@ export default function TruckCompositionTab() {
             setDetailTruck(truck);
           }
         }}
-        className={`truck-badge ${colorClass} flex flex-col gap-0.5 cursor-grab active:cursor-grabbing ${isSelected ? 'ring-2 ring-accent' : ''}`}
+        className={`truck-badge ${colorClass} flex flex-col gap-0.5 cursor-grab active:cursor-grabbing relative ${isSelected ? 'ring-2 ring-accent' : ''}`}
+        title={forced ? `Catégorie forcée : ${TRANSPORT_CATEGORIES[truck.forcedCategory!].label} — Motif : ${truck.forcedCategoryReason || '—'}` : undefined}
       >
+        {forced && (
+          <span className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow z-10">
+            <AlertTriangle className="h-3 w-3" style={{ color: '#f97316' }} />
+          </span>
+        )}
         <div className="flex items-center gap-1">
           <TruckIcon className="h-3 w-3 flex-shrink-0" />
           <span className="truncate">{truck.number}</span>
