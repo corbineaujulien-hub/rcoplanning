@@ -333,8 +333,8 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
     if (updates.teamId !== undefined) dbUpdates.team_id = updates.teamId;
     if (updates.transporter !== undefined) dbUpdates.transporter = updates.transporter;
     if (updates.handlingMeans !== undefined) dbUpdates.handling_means = updates.handlingMeans;
-    if (updates.forcedCategory !== undefined) dbUpdates.forced_category = updates.forcedCategory || null;
-    if (updates.forcedCategoryReason !== undefined) dbUpdates.forced_category_reason = updates.forcedCategoryReason || null;
+    if ('forcedCategory' in updates) dbUpdates.forced_category = updates.forcedCategory || null;
+    if ('forcedCategoryReason' in updates) dbUpdates.forced_category_reason = updates.forcedCategoryReason || null;
     await supabase.from('trucks').update(dbUpdates).eq('id', id);
   }, []);
 
