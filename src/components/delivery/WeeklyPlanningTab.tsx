@@ -212,7 +212,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
         'Usine': getTruckFactories(els).join(', '),
         'Poids (t)': getTruckWeight(els).toFixed(2),
         'Plus long (m)': getTruckMaxLength(els).toFixed(2),
-        'Catégorie': TRANSPORT_CATEGORIES[getTransportCategory(els)].label,
+        'Catégorie': TRANSPORT_CATEGORIES[getEffectiveCategory(t, els)].label,
         'Nb produits': els.length,
         'Repères': els.map(e => e.repere).join(', '),
       };

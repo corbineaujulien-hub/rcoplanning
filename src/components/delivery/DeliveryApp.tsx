@@ -11,7 +11,7 @@ import TruckCompositionTab from '@/components/delivery/TruckCompositionTab';
 import WeeklyPlanningTab from '@/components/delivery/WeeklyPlanningTab';
 import { Truck as TruckIcon, ClipboardList, Database, Calendar, FileSpreadsheet, Home } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories } from '@/utils/transportUtils';
+import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getEffectiveCategory } from '@/utils/transportUtils';
 import { TRANSPORT_CATEGORIES } from '@/types/delivery';
 import * as XLSX from 'xlsx';
 import { exportAllWeeksPdf } from '@/utils/pdfExportUtils';
@@ -91,7 +91,7 @@ export default function DeliveryApp() {
           'Usine': getTruckFactories(els).join(', '),
           'Poids (t)': getTruckWeight(els).toFixed(2),
           'Plus long (m)': getTruckMaxLength(els).toFixed(2),
-          'Catégorie': TRANSPORT_CATEGORIES[getTransportCategory(els)].label,
+          'Catégorie': TRANSPORT_CATEGORIES[getEffectiveCategory(t, els)].label,
           'Nb produits': els.length,
           'Repères': els.map(e => e.repere).join(', '),
           'Commentaire': t.comment || '',
