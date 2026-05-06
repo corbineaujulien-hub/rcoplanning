@@ -69,11 +69,13 @@ export default function DeliveryApp() {
     return result;
   }, [weeklyTabs, teams, trucks, hasMultipleTeams]);
 
-  const exportSelectedWeeksExcel = (selectedWeeks: { weekNumber: number; year: number }[]) => {
+  const exportSelectedWeeksExcel = ({ selectedWeeks, filteredTrucks, filenameSuffix }: { selectedWeeks: { weekNumber: number; year: number }[]; filteredTrucks: typeof trucks; filenameSuffix: string }) => {
+    const allowedIds = new Set(filteredTrucks.map(t => t.id));
     const wb = XLSX.utils.book_new();
     selectedWeeks.forEach(w => {
       const weekTrucks = trucks
         .filter(t => {
+          if (!allowedIds.has(t.id)) return false;
           const d = parseISO(t.date);
           return parseInt(format(d, 'II')) === w.weekNumber && d.getFullYear() === w.year;
         })
@@ -106,11 +108,11 @@ export default function DeliveryApp() {
 
     let filename: string;
     if (selectedWeeks.length === 1) {
-      filename = `planning_${nomChantier}_S${String(selectedWeeks[0].weekNumber).padStart(2, '0')}_${lastYear}.xlsx`;
+      filename = `planning_${nomChantier}_S${String(selectedWeeks[0].weekNumber).padStart(2, '0')}_${lastYear}${filenameSuffix}.xlsx`;
     } else {
       const firstW = selectedWeeks[0].weekNumber;
       const lastW = selectedWeeks[selectedWeeks.length - 1].weekNumber;
-      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}-S${String(lastW).padStart(2, '0')}_${lastYear}.xlsx`;
+      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}-S${String(lastW).padStart(2, '0')}_${lastYear}${filenameSuffix}.xlsx`;
     }
     XLSX.writeFile(wb, filename);
   };
@@ -125,8 +127,8 @@ export default function DeliveryApp() {
 
   const planningPct = totalSiteWeight > 0 ? Math.round((loadedWeight / totalSiteWeight) * 100) : 0;
 
-  const handleExportSelectedWeeksPdf = async (selectedWeeks: { weekNumber: number; year: number }[]) => {
-    await exportAllWeeksPdf(selectedWeeks, trucks, getTruckElements, projectInfo, totalSiteWeight, trucks, elements);
+  const handleExportSelectedWeeksPdf = async ({ selectedWeeks, filteredTrucks, filenameSuffix }: { selectedWeeks: { weekNumber: number; year: number }[]; filteredTrucks: typeof trucks; filenameSuffix: string }) => {
+    await exportAllWeeksPdf(selectedWeeks, filteredTrucks, getTruckElements, projectInfo, totalSiteWeight, trucks, elements, filenameSuffix);
   };
 
   return (
@@ -214,6 +216,7 @@ export default function DeliveryApp() {
         onOpenChange={setExportPdfOpen}
         weeklyTabs={weeklyTabs}
         trucks={trucks}
+        getTruckElements={getTruckElements}
         onExport={handleExportSelectedWeeksPdf}
         title="Export PDF — Sélection des semaines"
       />
@@ -222,6 +225,7 @@ export default function DeliveryApp() {
         onOpenChange={setExportExcelOpen}
         weeklyTabs={weeklyTabs}
         trucks={trucks}
+        getTruckElements={getTruckElements}
         onExport={exportSelectedWeeksExcel}
         title="Export Excel — Sélection des semaines"
       />
