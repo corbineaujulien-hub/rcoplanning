@@ -44,6 +44,14 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
     onOpenChange(o);
   };
 
+  // When the modal opens (controlled from parent), make sure all weeks are selected by default.
+  useEffect(() => {
+    if (open) {
+      setSelected(new Set(weeklyTabs.map(w => `${w.year}-${w.weekNumber}`)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, weeklyTabs.length]);
+
   const availableWeeks = useMemo(() => {
     return weeklyTabs.filter(w =>
       trucks.some(t => {
