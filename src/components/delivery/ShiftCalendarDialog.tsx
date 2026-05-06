@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Truck } from '@/types/delivery';
-import { getTransportCategory, getCategoryColorClass, getProductCountsByType, getTruckFactories } from '@/utils/transportUtils';
+import { getTransportCategory, getCategoryColorClass, getProductCountsByType, getTruckFactories, getEffectiveCategory } from '@/utils/transportUtils';
 import { isHoliday } from '@/utils/frenchHolidays';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, isSameMonth, isSameDay, isToday, getDay, getISOWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -151,26 +151,28 @@ export default function ShiftCalendarDialog({
   // Helper to build product counts and factories lines
   const getTruckInfo = (truck: Truck) => {
     const els = getTruckElements(truck.id);
-    const cat = getTransportCategory(els);
+    const cat = getEffectiveCategory(truck, els);
     const colorClass = els.length === 0 ? 'bg-foreground text-background' : getCategoryColorClass(cat);
     const counts = getProductCountsByType(els);
     const factories = getTruckFactories(els);
     const productsLine = Object.entries(counts).map(([type, n]) => `${type}(${n})`).join(' ');
     const factoriesLine = factories.join(', ');
-    return { els, colorClass, productsLine, factoriesLine };
+    return { els, colorClass, productsLine, factoriesLine, forced: !!truck.forcedCategory };
   };
 
   // Render a compact truck chip for month view
   const renderMonthTruckChip = (truck: Truck) => {
-    const { els, colorClass, productsLine, factoriesLine } = getTruckInfo(truck);
+    const { els, colorClass, productsLine, factoriesLine, forced } = getTruckInfo(truck);
     const isSelected = selectedTrucks.has(truck.id);
 
     return (
       <button
         key={truck.id}
         onClick={(e) => { e.stopPropagation(); toggleTruck(truck.id); }}
-        className={`w-full text-left text-[8px] leading-tight px-1 py-0.5 rounded ${colorClass} transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-1' : 'opacity-70 hover:opacity-100'}`}
+        title={forced ? `Catégorie forcée — Motif : ${truck.forcedCategoryReason || '—'}` : undefined}
+        className={`w-full text-left text-[8px] leading-tight px-1 py-0.5 rounded ${colorClass} transition-all relative ${isSelected ? 'ring-2 ring-primary ring-offset-1' : 'opacity-70 hover:opacity-100'}`}
       >
+        {forced && <span className="absolute -top-1 -right-1 bg-white rounded-full"><AlertTriangle className="h-2.5 w-2.5" style={{ color: '#f97316' }} /></span>}
         <div className="font-medium">N°{truck.number} | {truck.time}</div>
         {els.length > 0 && (
           <>
@@ -184,15 +186,17 @@ export default function ShiftCalendarDialog({
 
   // Render a truck card for week view
   const renderWeekTruckCard = (truck: Truck) => {
-    const { els, colorClass, productsLine, factoriesLine } = getTruckInfo(truck);
+    const { els, colorClass, productsLine, factoriesLine, forced } = getTruckInfo(truck);
     const isSelected = selectedTrucks.has(truck.id);
 
     return (
       <button
         key={truck.id}
         onClick={(e) => { e.stopPropagation(); toggleTruck(truck.id); }}
-        className={`w-full text-left text-[9px] leading-tight px-1.5 py-1 rounded ${colorClass} transition-all ${isSelected ? 'ring-2 ring-primary ring-offset-1' : 'opacity-70 hover:opacity-100'}`}
+        title={forced ? `Catégorie forcée — Motif : ${truck.forcedCategoryReason || '—'}` : undefined}
+        className={`w-full text-left text-[9px] leading-tight px-1.5 py-1 rounded ${colorClass} transition-all relative ${isSelected ? 'ring-2 ring-primary ring-offset-1' : 'opacity-70 hover:opacity-100'}`}
       >
+        {forced && <span className="absolute -top-1 -right-1 bg-white rounded-full"><AlertTriangle className="h-3 w-3" style={{ color: '#f97316' }} /></span>}
         <div className="font-medium">N°{truck.number} | {truck.time}</div>
         {els.length > 0 && (
           <>
