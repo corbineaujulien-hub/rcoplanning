@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
 import { Truck } from '@/types/delivery';
-import { getTransportCategory, getTruckWeight, getCategoryColorClass } from '@/utils/transportUtils';
+import { getTransportCategory, getTruckWeight, getCategoryColorClass, getEffectiveCategory } from '@/utils/transportUtils';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ChevronLeft, ChevronRight, Truck as TruckIcon, FileSpreadsheet, Calendar, MessageSquare } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Truck as TruckIcon, FileSpreadsheet, Calendar, MessageSquare, AlertTriangle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { TRANSPORT_CATEGORIES } from '@/types/delivery';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addMonths, subMonths, addWeeks, subWeeks, isSameMonth, isToday, getDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import TruckDetailModal from './TruckDetailModal';
@@ -113,17 +115,28 @@ export default function GeneralPlanningTab() {
               <div className="space-y-1">
                 {dayTrucks.map(truck => {
                   const els = getTruckElements(truck.id);
-                  const cat = getTransportCategory(els);
+                  const cat = getEffectiveCategory(truck, els);
                   const weight = getTruckWeight(els);
                   const hasComment = !!truck.comment?.trim();
                   const isEmpty = els.length === 0;
                   const colorClass = isEmpty ? 'bg-foreground text-background' : getCategoryColorClass(cat);
+                  const forced = !!truck.forcedCategory;
                   return (
-                    <div key={truck.id} onClick={() => setDetailTruck(truck)} className={`truck-badge ${colorClass} flex items-center gap-1`}>
+                    <div key={truck.id} onClick={() => setDetailTruck(truck)} className={`truck-badge ${colorClass} flex items-center gap-1 relative`}>
                       <TruckIcon className="h-3 w-3" />
                       <span className="truncate">{truck.number}</span>
                       {hasComment && <MessageSquare className="h-3 w-3 flex-shrink-0 opacity-70" />}
                       <span className="ml-auto">{weight.toFixed(1)}t</span>
+                      {forced && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow"><AlertTriangle className="h-3 w-3" style={{ color: '#f97316' }} /></span>
+                            </TooltipTrigger>
+                            <TooltipContent>Catégorie forcée : {TRANSPORT_CATEGORIES[truck.forcedCategory!].label} — Motif : {truck.forcedCategoryReason || '—'}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
                     </div>
                   );
                 })}
