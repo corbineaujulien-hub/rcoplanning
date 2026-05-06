@@ -33,6 +33,8 @@ export interface Truck {
   teamId?: string;
   transporter?: string;
   handlingMeans?: Record<string, string>;
+  forcedCategory?: TransportCategory;
+  forcedCategoryReason?: string;
 }
 
 export const HANDLING_MEANS_OPTIONS = [
