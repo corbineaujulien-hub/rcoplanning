@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import { BeamElement, TransportCategory, TRANSPORT_CATEGORIES, ProjectInfo } from '@/types/delivery';
-import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getFactoryColor } from '@/utils/transportUtils';
+import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getFactoryColor, getEffectiveCategory } from '@/utils/transportUtils';
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -12,6 +12,8 @@ interface TruckData {
   comment?: string;
   transporter?: string;
   handlingMeans?: Record<string, string>;
+  forcedCategory?: TransportCategory;
+  forcedCategoryReason?: string;
 }
 
 interface PdfContext {
@@ -267,7 +269,7 @@ function estimateTruckHeight(els: BeamElement[], hasComment: boolean, columnWidt
 
 function drawTruckCard(ctx: PdfContext, truck: TruckData, els: BeamElement[], columnWidth: number, startX: number, startY: number): number {
   const { pdf } = ctx;
-  const cat = getTransportCategory(els);
+  const cat = getEffectiveCategory(truck as any, els);
   const catInfo = TRANSPORT_CATEGORIES[cat];
   const weight = getTruckWeight(els);
   const maxLen = getTruckMaxLength(els);
