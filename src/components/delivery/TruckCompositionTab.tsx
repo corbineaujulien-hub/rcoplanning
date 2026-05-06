@@ -547,7 +547,7 @@ export default function TruckCompositionTab() {
 
     filteredTrucks.forEach(truck => {
       const els = getTruckElements(truck.id);
-      const cat = getTransportCategory(els);
+      const cat = getEffectiveCategory(truck, els);
       const facs = getTruckFactories(els);
       if (facs.length === 0) facs.push('—');
       facs.forEach(f => {
@@ -1164,7 +1164,7 @@ export default function TruckCompositionTab() {
                   <>
                     {dayTrucks.map(truck => {
                       const els = getTruckElements(truck.id);
-                      const cat = getTransportCategory(els);
+                      const cat = getEffectiveCategory(truck, els);
                       const catInfo = TRANSPORT_CATEGORIES[cat];
                       const weight = getTruckWeight(els);
                       const maxLen = getTruckMaxLength(els);
@@ -1172,6 +1172,7 @@ export default function TruckCompositionTab() {
                       const truckZones = getTruckZones(els);
                       const counts = getProductCountsByType(els);
                       const isEmpty = els.length === 0;
+                      const forced = !!truck.forcedCategory;
                       return (
                         <Card
                           key={truck.id}
