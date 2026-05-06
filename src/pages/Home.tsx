@@ -72,11 +72,16 @@ export default function Home() {
     let page = 0;
     let hasMore = true;
     while (hasMore) {
-      const { data } = await (supabase.from as any)(table).select(columns).range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-      if (!data || data.length === 0) { hasMore = false; } else {
+      const { data } = await (supabase.from as any)(table)
+        .select(columns)
+        .order('created_at', { ascending: true })
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      if (!data || data.length === 0) {
+        hasMore = false;
+      } else {
         all = [...all, ...data];
         page++;
-        if (all.length >= 5000) hasMore = false;
+        if (data.length < PAGE_SIZE) hasMore = false;
       }
     }
     return all;
