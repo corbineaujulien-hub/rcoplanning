@@ -44,6 +44,14 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
     onOpenChange(o);
   };
 
+  // When the modal opens (controlled from parent), make sure all weeks are selected by default.
+  useEffect(() => {
+    if (open) {
+      setSelected(new Set(weeklyTabs.map(w => `${w.year}-${w.weekNumber}`)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, weeklyTabs.length]);
+
   const availableWeeks = useMemo(() => {
     return weeklyTabs.filter(w =>
       trucks.some(t => {
@@ -66,13 +74,14 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
     });
   }, [weeklyTabs, trucks]);
 
-  // Trucks of currently selected weeks
+  // Trucks across ALL available weeks (used to populate filter options).
   const weekTrucks = useMemo(() => {
+    const availableKeys = new Set(availableWeeks.map(w => w.key));
     return trucks.filter(t => {
       const d = parseISO(t.date);
-      return selected.has(`${d.getFullYear()}-${parseInt(format(d, 'II'))}`);
+      return availableKeys.has(`${d.getFullYear()}-${parseInt(format(d, 'II'))}`);
     });
-  }, [trucks, selected]);
+  }, [trucks, availableWeeks]);
 
   // Decorate trucks with their factories + transporter key
   const decorated = useMemo(() => weekTrucks.map(t => ({
@@ -97,12 +106,12 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
     });
   }, [decorated]);
 
-  // Reset filters to "all" when selected weeks change
+  // Reset filters to "all" when the available pool changes (or modal opens).
   useEffect(() => {
     setFactorySet(new Set(allFactories));
     setTransporterSet(new Set(allTransporters));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, weeklyTabs, trucks]);
+  }, [open, allFactories.join('|'), allTransporters.join('|')]);
 
   // Display lists with cumulative AND logic
   const displayFactories = useMemo(() => {
@@ -141,8 +150,15 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
   const handleExport = () => {
     const selectedWeeks = availableWeeks.filter(w => selected.has(w.key)).map(({ weekNumber, year }) => ({ weekNumber, year }));
 
+    const selectedKeys = new Set(selectedWeeks.map(w => `${w.year}-${w.weekNumber}`));
     const filteredTrucks = decorated
-      .filter(d => d.factories.some(f => factorySet.has(f)) && transporterSet.has(d.transporterKey))
+      .filter(d => {
+        const dt = parseISO(d.truck.date);
+        const key = `${dt.getFullYear()}-${parseInt(format(dt, 'II'))}`;
+        return selectedKeys.has(key)
+          && d.factories.some(f => factorySet.has(f))
+          && transporterSet.has(d.transporterKey);
+      })
       .map(d => d.truck);
 
     let suffix = '';
