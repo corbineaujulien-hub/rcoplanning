@@ -548,7 +548,8 @@ export async function exportAllWeeksPdf(
   projectInfo: ProjectInfo,
   totalSiteWeight: number,
   allTrucksCumulative: TruckData[],
-  allElements?: BeamElement[]
+  allElements?: BeamElement[],
+  filenameSuffix: string = ''
 ) {
   const logoData = await loadLogoAsBase64();
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -645,15 +646,15 @@ export async function exportAllWeeksPdf(
 
   let filename: string;
   if (weeklyTabs.length === 1) {
-    filename = `planning_${nomChantier}_S${String(weeklyTabs[0].weekNumber).padStart(2, '0')}_${lastYear}.pdf`;
+    filename = `planning_${nomChantier}_S${String(weeklyTabs[0].weekNumber).padStart(2, '0')}_${lastYear}${filenameSuffix}.pdf`;
   } else {
     // Check if this is all available weeks (heuristic: compare count)
     const firstW = weeklyTabs[0].weekNumber;
     const lastW = weeklyTabs[weeklyTabs.length - 1].weekNumber;
     if (firstW === lastW) {
-      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}_${lastYear}.pdf`;
+      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}_${lastYear}${filenameSuffix}.pdf`;
     } else {
-      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}-S${String(lastW).padStart(2, '0')}_${lastYear}.pdf`;
+      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}-S${String(lastW).padStart(2, '0')}_${lastYear}${filenameSuffix}.pdf`;
     }
   }
   pdf.save(filename);
