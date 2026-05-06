@@ -229,6 +229,8 @@ export type Database = {
           created_at: string | null
           date: string
           element_ids: Json | null
+          forced_category: string | null
+          forced_category_reason: string | null
           handling_means: Json | null
           id: string
           number: string
@@ -242,6 +244,8 @@ export type Database = {
           created_at?: string | null
           date?: string
           element_ids?: Json | null
+          forced_category?: string | null
+          forced_category_reason?: string | null
           handling_means?: Json | null
           id?: string
           number?: string
@@ -255,6 +259,8 @@ export type Database = {
           created_at?: string | null
           date?: string
           element_ids?: Json | null
+          forced_category?: string | null
+          forced_category_reason?: string | null
           handling_means?: Json | null
           id?: string
           number?: string
