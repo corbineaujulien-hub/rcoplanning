@@ -106,6 +106,8 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
             teamId: (t as any).team_id || undefined,
             transporter: (t as any).transporter || undefined,
             handlingMeans: (t as any).handling_means as Record<string, string> || {},
+            forcedCategory: (t as any).forced_category || undefined,
+            forcedCategoryReason: (t as any).forced_category_reason || undefined,
           })));
         }
 
@@ -193,11 +195,11 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           const t = payload.new as any;
           setTrucksState(prev => {
             if (prev.some(tr => tr.id === t.id)) return prev;
-            return [...prev, { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined, transporter: (t as any).transporter || undefined, handlingMeans: (t as any).handling_means as Record<string, string> || {} }];
+            return [...prev, { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined, transporter: (t as any).transporter || undefined, handlingMeans: (t as any).handling_means as Record<string, string> || {}, forcedCategory: (t as any).forced_category || undefined, forcedCategoryReason: (t as any).forced_category_reason || undefined }];
           });
         } else if (payload.eventType === 'UPDATE') {
           const t = payload.new as any;
-          setTrucksState(prev => prev.map(tr => tr.id === t.id ? { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined, transporter: (t as any).transporter || undefined, handlingMeans: (t as any).handling_means as Record<string, string> || {} } : tr));
+          setTrucksState(prev => prev.map(tr => tr.id === t.id ? { id: t.id, number: t.number || '', date: t.date || '', time: t.time || '', elementIds: (t.element_ids as string[]) || [], comment: t.comment || '', teamId: t.team_id || undefined, transporter: (t as any).transporter || undefined, handlingMeans: (t as any).handling_means as Record<string, string> || {}, forcedCategory: (t as any).forced_category || undefined, forcedCategoryReason: (t as any).forced_category_reason || undefined } : tr));
         } else if (payload.eventType === 'DELETE') {
           const t = payload.old as any;
           setTrucksState(prev => prev.filter(tr => tr.id !== t.id));
@@ -331,6 +333,8 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
     if (updates.teamId !== undefined) dbUpdates.team_id = updates.teamId;
     if (updates.transporter !== undefined) dbUpdates.transporter = updates.transporter;
     if (updates.handlingMeans !== undefined) dbUpdates.handling_means = updates.handlingMeans;
+    if (updates.forcedCategory !== undefined) dbUpdates.forced_category = updates.forcedCategory || null;
+    if (updates.forcedCategoryReason !== undefined) dbUpdates.forced_category_reason = updates.forcedCategoryReason || null;
     await supabase.from('trucks').update(dbUpdates).eq('id', id);
   }, []);
 
@@ -346,28 +350,36 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
 
   const addElementsToTruck = useCallback(async (truckId: string, elementIds: string[]) => {
     let newElementIds: string[] = [];
+    let hadForced = false;
     setTrucksState(prev => {
-      const updated = prev.map(t =>
-        t.id === truckId ? { ...t, elementIds: [...new Set([...t.elementIds, ...elementIds])] } : t
-      );
+      const updated = prev.map(t => {
+        if (t.id !== truckId) return t;
+        if (t.forcedCategory) hadForced = true;
+        return { ...t, elementIds: [...new Set([...t.elementIds, ...elementIds])], forcedCategory: undefined, forcedCategoryReason: undefined };
+      });
       const truck = updated.find(t => t.id === truckId);
       if (truck) newElementIds = truck.elementIds;
       return updated;
     });
-    await supabase.from('trucks').update({ element_ids: newElementIds }).eq('id', truckId);
+    await supabase.from('trucks').update({ element_ids: newElementIds, forced_category: null, forced_category_reason: null } as any).eq('id', truckId);
+    if (hadForced) toast.warning('La catégorie forcée a été réinitialisée suite à la modification des produits');
   }, []);
 
   const removeElementFromTruck = useCallback(async (truckId: string, elementId: string) => {
     let newElementIds: string[] = [];
+    let hadForced = false;
     setTrucksState(prev => {
-      const updated = prev.map(t =>
-        t.id === truckId ? { ...t, elementIds: t.elementIds.filter(eid => eid !== elementId) } : t
-      );
+      const updated = prev.map(t => {
+        if (t.id !== truckId) return t;
+        if (t.forcedCategory) hadForced = true;
+        return { ...t, elementIds: t.elementIds.filter(eid => eid !== elementId), forcedCategory: undefined, forcedCategoryReason: undefined };
+      });
       const truck = updated.find(t => t.id === truckId);
       if (truck) newElementIds = truck.elementIds;
       return updated;
     });
-    await supabase.from('trucks').update({ element_ids: newElementIds }).eq('id', truckId);
+    await supabase.from('trucks').update({ element_ids: newElementIds, forced_category: null, forced_category_reason: null } as any).eq('id', truckId);
+    if (hadForced) toast.warning('La catégorie forcée a été réinitialisée suite à la modification des produits');
   }, []);
 
   const getElementById = useCallback((id: string) => elements.find(el => el.id === id), [elements]);
