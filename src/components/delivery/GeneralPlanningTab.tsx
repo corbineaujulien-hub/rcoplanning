@@ -51,7 +51,7 @@ export default function GeneralPlanningTab() {
   const exportExcel = () => {
     const data = trucks.map(t => {
       const els = getTruckElements(t.id);
-      const cat = getTransportCategory(els);
+      const cat = getEffectiveCategory(t, els);
       return {
         'Date': t.date,
         'Horaire': t.time,
