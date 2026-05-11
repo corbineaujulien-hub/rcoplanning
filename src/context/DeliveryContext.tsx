@@ -143,6 +143,18 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           firstTeamId = defaultTeam.id;
         }
 
+        // Load forecast slots
+        const { data: fs } = await supabase.from('forecast_slots').select('*').eq('project_id', projectId).order('date_start');
+        if (fs) {
+          setForecastSlotsState(fs.map((s: any) => ({
+            id: s.id,
+            projectId: s.project_id,
+            dateStart: s.date_start,
+            dateEnd: s.date_end,
+            forecastedTrucks: (s.forecasted_trucks as any[]) || [],
+          })));
+        }
+
         // Auto-assign unassigned trucks to first team
         if (trks) {
           const unassigned = trks.filter(t => !t.team_id);
