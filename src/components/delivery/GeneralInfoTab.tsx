@@ -86,9 +86,13 @@ export default function GeneralInfoTab() {
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Conducteur de travaux RECTOR</Label>
-            <Select value={projectInfo.conductor} onValueChange={v => update('conductor', v)}>
+            <Select
+              value={projectInfo.conductor ? projectInfo.conductor : '__unassigned__'}
+              onValueChange={v => update('conductor', v === '__unassigned__' ? '' : v)}
+            >
               <SelectTrigger><SelectValue placeholder="Sélectionner un conducteur" /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="__unassigned__">Conducteur de travaux à désigner</SelectItem>
                 {CONDUCTORS.map(c => (
                   <SelectItem key={c.name} value={`${c.name} – ${c.phone}`}>
                     {c.name} – {c.phone}
@@ -99,9 +103,13 @@ export default function GeneralInfoTab() {
           </div>
           <div className="space-y-2">
             <Label>Sous-traitant poseur</Label>
-            <Select value={projectInfo.subcontractor} onValueChange={v => update('subcontractor', v)}>
+            <Select
+              value={projectInfo.subcontractor ? projectInfo.subcontractor : '__unassigned__'}
+              onValueChange={v => update('subcontractor', v === '__unassigned__' ? '' : v)}
+            >
               <SelectTrigger><SelectValue placeholder="Sélectionner un sous-traitant" /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="__unassigned__">Poseur à désigner</SelectItem>
                 {SUBCONTRACTORS.map(s => (
                   <SelectItem key={s} value={s}>{s}</SelectItem>
                 ))}
