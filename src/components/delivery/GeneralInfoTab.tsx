@@ -184,6 +184,14 @@ export default function GeneralInfoTab() {
         </CardContent>
       </Card>
 
+      <ForecastSlotsCard
+        slots={forecastSlots}
+        onAdd={addForecastSlot}
+        onUpdate={updateForecastSlot}
+        onDelete={deleteForecastSlot}
+        knownUsines={Array.from(new Set(elements.map(e => e.factory).filter(Boolean))).sort()}
+      />
+
       {/* Discreet Saturday toggle */}
       <div className="flex items-center justify-end gap-3 px-2">
         <Calendar className="h-4 w-4 text-muted-foreground" />
