@@ -252,6 +252,23 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           setTeamsState(prev => prev.filter(tm => tm.id !== t.id));
         }
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'forecast_slots', filter: `project_id=eq.${projectId}` }, (payload) => {
+        const mapRow = (s: any): ForecastSlot => ({
+          id: s.id, projectId: s.project_id,
+          dateStart: s.date_start, dateEnd: s.date_end,
+          forecastedTrucks: (s.forecasted_trucks as any[]) || [],
+        });
+        if (payload.eventType === 'INSERT') {
+          const s = payload.new as any;
+          setForecastSlotsState(prev => prev.some(x => x.id === s.id) ? prev : [...prev, mapRow(s)]);
+        } else if (payload.eventType === 'UPDATE') {
+          const s = payload.new as any;
+          setForecastSlotsState(prev => prev.map(x => x.id === s.id ? mapRow(s) : x));
+        } else if (payload.eventType === 'DELETE') {
+          const s = payload.old as any;
+          setForecastSlotsState(prev => prev.filter(x => x.id !== s.id));
+        }
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
