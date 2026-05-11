@@ -61,6 +61,33 @@ export type Database = {
           },
         ]
       }
+      forecast_slots: {
+        Row: {
+          created_at: string
+          date_end: string
+          date_start: string
+          forecasted_trucks: Json
+          id: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_end: string
+          date_start: string
+          forecasted_trucks?: Json
+          id?: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          date_end?: string
+          date_start?: string
+          forecasted_trucks?: Json
+          id?: string
+          project_id?: string
+        }
+        Relationships: []
+      }
       plans: {
         Row: {
           created_at: string | null

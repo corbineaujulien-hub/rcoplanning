@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Users, Calendar, LogOut } from 'lucide-react';
+import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Users, Calendar, LogOut, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProjectsPresence } from '@/hooks/useProjectsPresence';
 import {
@@ -301,6 +301,15 @@ export default function Home() {
             <Truck className="h-7 w-7" />
             <h1 className="text-lg font-bold tracking-tight">RECTOR – Planification des livraisons</h1>
           </div>
+          <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => navigate('/planning-charge')}
+          >
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Planning de charge
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -310,6 +319,7 @@ export default function Home() {
             <LogOut className="h-4 w-4 mr-2" />
             Déconnexion
           </Button>
+          </div>
         </div>
       </header>
 

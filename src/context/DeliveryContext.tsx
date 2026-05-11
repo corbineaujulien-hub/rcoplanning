@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { ProjectInfo, BeamElement, Truck, Plan, Team, DEFAULT_PROJECT_INFO } from '@/types/delivery';
+import { ProjectInfo, BeamElement, Truck, Plan, Team, DEFAULT_PROJECT_INFO, ForecastSlot } from '@/types/delivery';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -9,6 +9,7 @@ interface DeliveryContextType {
   trucks: Truck[];
   plans: Plan[];
   teams: Team[];
+  forecastSlots: ForecastSlot[];
   projectId: string;
   loading: boolean;
   setProjectInfo: (info: ProjectInfo) => void;
@@ -33,6 +34,9 @@ interface DeliveryContextType {
   addTeam: (team: Team) => void;
   updateTeam: (id: string, updates: Partial<Team>) => void;
   deleteTeam: (id: string) => void;
+  addForecastSlot: (slot: ForecastSlot) => void;
+  updateForecastSlot: (id: string, updates: Partial<ForecastSlot>) => void;
+  deleteForecastSlot: (id: string) => void;
   initialDate: Date;
   compositionTabOpened: boolean;
   setCompositionTabOpened: (v: boolean) => void;
@@ -56,6 +60,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
   const [trucks, setTrucksState] = useState<Truck[]>([]);
   const [plans, setPlansState] = useState<Plan[]>([]);
   const [teams, setTeamsState] = useState<Team[]>([]);
+  const [forecastSlots, setForecastSlotsState] = useState<ForecastSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [compositionTabOpened, setCompositionTabOpened] = useState(false);
   const [savedViewMode, setSavedViewMode] = useState<'month' | 'week' | 'day'>('month');
@@ -136,6 +141,18 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           });
           setTeamsState([defaultTeam]);
           firstTeamId = defaultTeam.id;
+        }
+
+        // Load forecast slots
+        const { data: fs } = await supabase.from('forecast_slots').select('*').eq('project_id', projectId).order('date_start');
+        if (fs) {
+          setForecastSlotsState(fs.map((s: any) => ({
+            id: s.id,
+            projectId: s.project_id,
+            dateStart: s.date_start,
+            dateEnd: s.date_end,
+            forecastedTrucks: (s.forecasted_trucks as any[]) || [],
+          })));
         }
 
         // Auto-assign unassigned trucks to first team
@@ -233,6 +250,23 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
         } else if (payload.eventType === 'DELETE') {
           const t = payload.old as any;
           setTeamsState(prev => prev.filter(tm => tm.id !== t.id));
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'forecast_slots', filter: `project_id=eq.${projectId}` }, (payload) => {
+        const mapRow = (s: any): ForecastSlot => ({
+          id: s.id, projectId: s.project_id,
+          dateStart: s.date_start, dateEnd: s.date_end,
+          forecastedTrucks: (s.forecasted_trucks as any[]) || [],
+        });
+        if (payload.eventType === 'INSERT') {
+          const s = payload.new as any;
+          setForecastSlotsState(prev => prev.some(x => x.id === s.id) ? prev : [...prev, mapRow(s)]);
+        } else if (payload.eventType === 'UPDATE') {
+          const s = payload.new as any;
+          setForecastSlotsState(prev => prev.map(x => x.id === s.id ? mapRow(s) : x));
+        } else if (payload.eventType === 'DELETE') {
+          const s = payload.old as any;
+          setForecastSlotsState(prev => prev.filter(x => x.id !== s.id));
         }
       })
       .subscribe();
@@ -448,6 +482,30 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
     await supabase.from('teams').delete().eq('id', id);
   }, []);
 
+  // Forecast slot mutations
+  const addForecastSlot = useCallback(async (slot: ForecastSlot) => {
+    setForecastSlotsState(prev => [...prev, slot]);
+    await supabase.from('forecast_slots').insert({
+      id: slot.id, project_id: projectId,
+      date_start: slot.dateStart, date_end: slot.dateEnd,
+      forecasted_trucks: slot.forecastedTrucks as any,
+    });
+  }, [projectId]);
+
+  const updateForecastSlot = useCallback(async (id: string, updates: Partial<ForecastSlot>) => {
+    setForecastSlotsState(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    const dbUpdates: any = {};
+    if (updates.dateStart !== undefined) dbUpdates.date_start = updates.dateStart;
+    if (updates.dateEnd !== undefined) dbUpdates.date_end = updates.dateEnd;
+    if (updates.forecastedTrucks !== undefined) dbUpdates.forecasted_trucks = updates.forecastedTrucks;
+    await supabase.from('forecast_slots').update(dbUpdates).eq('id', id);
+  }, []);
+
+  const deleteForecastSlot = useCallback(async (id: string) => {
+    setForecastSlotsState(prev => prev.filter(s => s.id !== id));
+    await supabase.from('forecast_slots').delete().eq('id', id);
+  }, []);
+
   // Compute initial date: if earliest truck date > today, use it; otherwise today
   const initialDate = useMemo(() => {
     const parseDateLocal = (dateStr: string) => {
@@ -472,12 +530,13 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
 
   return (
     <DeliveryContext.Provider value={{
-      projectInfo, elements, trucks, plans, teams, projectId, loading,
+      projectInfo, elements, trucks, plans, teams, forecastSlots, projectId, loading,
       setProjectInfo, setElements, addElements, updateElement, deleteElement,
       addTruck, updateTruck, deleteTruck, deleteAllTrucks, addElementsToTruck, removeElementFromTruck,
       getElementById, getTruckElements, getUnassignedElements, isElementAssigned, getTrucksForDate,
       addPlan, updatePlan, deletePlan,
       addTeam, updateTeam, deleteTeam,
+      addForecastSlot, updateForecastSlot, deleteForecastSlot,
       initialDate, compositionTabOpened, setCompositionTabOpened, savedViewMode, setSavedViewMode, savedCurrentDate, setSavedCurrentDate,
     }}>
       {children}
