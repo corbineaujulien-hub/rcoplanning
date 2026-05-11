@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
-import { CONDUCTORS, SUBCONTRACTORS, Team } from '@/types/delivery';
+import { CONDUCTORS, SUBCONTRACTORS, Team, TRANSPORT_CATEGORIES, TransportCategory, ForecastSlot, ForecastedTruck } from '@/types/delivery';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { Building2, User, Phone, MapPin, FileText, HardHat, Calendar, Users, Plus, Trash2, Pencil, Check, X } from 'lucide-react';
+import { Building2, User, Phone, MapPin, FileText, HardHat, Calendar, Users, Plus, Trash2, Pencil, Check, X, CalendarDays } from 'lucide-react';
 
 export default function GeneralInfoTab() {
-  const { projectInfo, setProjectInfo, teams, addTeam, updateTeam, deleteTeam } = useDelivery();
+  const { projectInfo, setProjectInfo, teams, addTeam, updateTeam, deleteTeam, forecastSlots, addForecastSlot, updateForecastSlot, deleteForecastSlot, elements } = useDelivery();
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
 
