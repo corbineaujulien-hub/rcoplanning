@@ -453,6 +453,30 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
     await supabase.from('teams').delete().eq('id', id);
   }, []);
 
+  // Forecast slot mutations
+  const addForecastSlot = useCallback(async (slot: ForecastSlot) => {
+    setForecastSlotsState(prev => [...prev, slot]);
+    await supabase.from('forecast_slots').insert({
+      id: slot.id, project_id: projectId,
+      date_start: slot.dateStart, date_end: slot.dateEnd,
+      forecasted_trucks: slot.forecastedTrucks as any,
+    });
+  }, [projectId]);
+
+  const updateForecastSlot = useCallback(async (id: string, updates: Partial<ForecastSlot>) => {
+    setForecastSlotsState(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    const dbUpdates: any = {};
+    if (updates.dateStart !== undefined) dbUpdates.date_start = updates.dateStart;
+    if (updates.dateEnd !== undefined) dbUpdates.date_end = updates.dateEnd;
+    if (updates.forecastedTrucks !== undefined) dbUpdates.forecasted_trucks = updates.forecastedTrucks;
+    await supabase.from('forecast_slots').update(dbUpdates).eq('id', id);
+  }, []);
+
+  const deleteForecastSlot = useCallback(async (id: string) => {
+    setForecastSlotsState(prev => prev.filter(s => s.id !== id));
+    await supabase.from('forecast_slots').delete().eq('id', id);
+  }, []);
+
   // Compute initial date: if earliest truck date > today, use it; otherwise today
   const initialDate = useMemo(() => {
     const parseDateLocal = (dateStr: string) => {
@@ -477,12 +501,13 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
 
   return (
     <DeliveryContext.Provider value={{
-      projectInfo, elements, trucks, plans, teams, projectId, loading,
+      projectInfo, elements, trucks, plans, teams, forecastSlots, projectId, loading,
       setProjectInfo, setElements, addElements, updateElement, deleteElement,
       addTruck, updateTruck, deleteTruck, deleteAllTrucks, addElementsToTruck, removeElementFromTruck,
       getElementById, getTruckElements, getUnassignedElements, isElementAssigned, getTrucksForDate,
       addPlan, updatePlan, deletePlan,
       addTeam, updateTeam, deleteTeam,
+      addForecastSlot, updateForecastSlot, deleteForecastSlot,
       initialDate, compositionTabOpened, setCompositionTabOpened, savedViewMode, setSavedViewMode, savedCurrentDate, setSavedCurrentDate,
     }}>
       {children}
