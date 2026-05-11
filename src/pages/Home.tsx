@@ -113,7 +113,11 @@ export default function Home() {
         if (searchName && !(p.site_name || '').toLowerCase().includes(searchLower) && !(p.otp_number || '').toLowerCase().includes(searchLower) && !(p.client_name || '').toLowerCase().includes(searchLower)) return false;
       }
       if (exclude !== 'conductor' && filterConductor !== 'all' && p.conductor !== filterConductor) return false;
-      if (exclude !== 'subcontractor' && filterSubcontractor !== 'all' && p.subcontractor !== filterSubcontractor) return false;
+      if (exclude !== 'subcontractor' && filterSubcontractor !== 'all') {
+        if (filterSubcontractor === '__unassigned__') {
+          if (p.subcontractor && p.subcontractor !== 'Poseur à désigner') return false;
+        } else if (p.subcontractor !== filterSubcontractor) return false;
+      }
       if (exclude !== 'bdd') {
         if (filterBdd === 'complete' && !p.database_complete) return false;
         if (filterBdd === 'incomplete' && p.database_complete) return false;
@@ -225,7 +229,10 @@ export default function Home() {
         const searchLower = searchName.toLowerCase();
         const matchesName = !searchName || (p.site_name || '').toLowerCase().includes(searchLower) || (p.otp_number || '').toLowerCase().includes(searchLower) || (p.client_name || '').toLowerCase().includes(searchLower);
         const matchesConductor = filterConductor === 'all' || p.conductor === filterConductor;
-        const matchesSubcontractor = filterSubcontractor === 'all' || p.subcontractor === filterSubcontractor;
+        const matchesSubcontractor = filterSubcontractor === 'all'
+          || (filterSubcontractor === '__unassigned__'
+            ? (!p.subcontractor || p.subcontractor === 'Poseur à désigner')
+            : p.subcontractor === filterSubcontractor);
         const matchesBdd = filterBdd === 'all' || (filterBdd === 'complete' ? p.database_complete : !p.database_complete);
         return matchesName && matchesConductor && matchesSubcontractor && matchesBdd;
       })
@@ -357,6 +364,7 @@ export default function Home() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tous les poseurs</SelectItem>
+                  <SelectItem value="__unassigned__">Poseur à désigner</SelectItem>
                   {subcontractors.map(s => (
                     <SelectItem key={s} value={s}>{s}</SelectItem>
                   ))}
