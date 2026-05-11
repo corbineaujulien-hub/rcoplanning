@@ -91,6 +91,20 @@ export const SUBCONTRACTORS = [
   'DUTHIL', 'JP&B CONSTRUCTION', 'LB MONTAGE', 'MD', 'MPI', 'SAUVAGEON', 'SG POSE'
 ] as const;
 
+export interface ForecastedTruck {
+  usine: string;
+  category: TransportCategory;
+  count: number;
+}
+
+export interface ForecastSlot {
+  id: string;
+  projectId: string;
+  dateStart: string; // YYYY-MM-DD
+  dateEnd: string;   // YYYY-MM-DD
+  forecastedTrucks: ForecastedTruck[];
+}
+
 export const TRANSPORT_CATEGORIES: Record<TransportCategory, TransportInfo> = {
   standard: { category: 'standard', label: 'Plateau standard', maxLength: 13.5, maxWeight: 28 },
   cat1: { category: 'cat1', label: 'Convoi catégorie 1', maxLength: 16.5, maxWeight: 28 },
