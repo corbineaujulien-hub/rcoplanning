@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { ProjectInfo, BeamElement, Truck, Plan, Team, DEFAULT_PROJECT_INFO } from '@/types/delivery';
+import { ProjectInfo, BeamElement, Truck, Plan, Team, DEFAULT_PROJECT_INFO, ForecastSlot } from '@/types/delivery';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -9,6 +9,7 @@ interface DeliveryContextType {
   trucks: Truck[];
   plans: Plan[];
   teams: Team[];
+  forecastSlots: ForecastSlot[];
   projectId: string;
   loading: boolean;
   setProjectInfo: (info: ProjectInfo) => void;
@@ -33,6 +34,9 @@ interface DeliveryContextType {
   addTeam: (team: Team) => void;
   updateTeam: (id: string, updates: Partial<Team>) => void;
   deleteTeam: (id: string) => void;
+  addForecastSlot: (slot: ForecastSlot) => void;
+  updateForecastSlot: (id: string, updates: Partial<ForecastSlot>) => void;
+  deleteForecastSlot: (id: string) => void;
   initialDate: Date;
   compositionTabOpened: boolean;
   setCompositionTabOpened: (v: boolean) => void;
@@ -56,6 +60,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
   const [trucks, setTrucksState] = useState<Truck[]>([]);
   const [plans, setPlansState] = useState<Plan[]>([]);
   const [teams, setTeamsState] = useState<Team[]>([]);
+  const [forecastSlots, setForecastSlotsState] = useState<ForecastSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [compositionTabOpened, setCompositionTabOpened] = useState(false);
   const [savedViewMode, setSavedViewMode] = useState<'month' | 'week' | 'day'>('month');
