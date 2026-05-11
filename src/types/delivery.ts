@@ -88,7 +88,7 @@ export const CONDUCTORS = [
 ] as const;
 
 export const SUBCONTRACTORS = [
-  'DUTHIL', 'MD', 'MPI', 'SG POSE', 'SAUVAGEON', 'LB MONTAGE'
+  'DUTHIL', 'JP&B CONSTRUCTION', 'LB MONTAGE', 'MD', 'MPI', 'SAUVAGEON', 'SG POSE'
 ] as const;
 
 export const TRANSPORT_CATEGORIES: Record<TransportCategory, TransportInfo> = {
