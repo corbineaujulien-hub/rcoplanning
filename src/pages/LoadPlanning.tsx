@@ -648,6 +648,11 @@ export default function LoadPlanning() {
               forecastWeeks={forecastWeeks}
               onToggleForecastWeek={toggleProjectForecastWeek}
               onClearForecastWeeks={clearProjectForecastWeeks}
+              onAddForecastTeam={(pid) => {
+                const proj = projects.find(p => p.id === pid);
+                setProjectForecastTeamCount(pid, (proj?.forecast_team_count ?? 1) + 1);
+              }}
+              onRemoveForecastTeam={removeProjectForecastTeam}
             />
 
             <LoadSummary
