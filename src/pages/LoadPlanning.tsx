@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover';
 import { ArrowLeft, BarChart3, FileDown, FileSpreadsheet, RotateCcw, X, ChevronRight, ChevronDown } from 'lucide-react';
 import ForecastWeeksStrip from '@/components/delivery/ForecastWeeksStrip';
 import { toast } from 'sonner';
@@ -932,12 +932,12 @@ function GanttView({
                     }}
                   >
                     <Popover open={isPopOpen} onOpenChange={(o) => !o && setPopoverProjectId(null)}>
-                      <PopoverTrigger asChild>
+                      <PopoverAnchor asChild>
                         <div>
                           <div className="font-medium truncate max-w-[260px]">{cp.project.site_name || 'Sans nom'}</div>
                           <div className="text-[10px] text-muted-foreground">{cp.project.otp_number || '—'}</div>
                         </div>
-                      </PopoverTrigger>
+                      </PopoverAnchor>
                       <PopoverContent
                         className="w-auto max-w-[90vw] p-3"
                         align="start"
