@@ -471,6 +471,29 @@ export default function LoadPlanning() {
     else toast.success('Mise à jour enregistrée');
   }, []);
 
+  const toggleProjectForecastWeek = useCallback(async (projectId: string, year: number, weekNumber: number) => {
+    const existing = forecastWeeks.find(w => w.projectId === projectId && w.year === year && w.weekNumber === weekNumber);
+    if (existing) {
+      setForecastWeeks(prev => prev.filter(w => w.id !== existing.id));
+      const { error } = await (supabase.from as any)('forecast_weeks').delete().eq('id', existing.id);
+      if (error) toast.error('Erreur : ' + error.message);
+    } else {
+      const id = crypto.randomUUID();
+      const nw: ForecastWeek = { id, projectId, year, weekNumber };
+      setForecastWeeks(prev => [...prev, nw]);
+      const { error } = await (supabase.from as any)('forecast_weeks').insert({
+        id, project_id: projectId, year, week_number: weekNumber,
+      });
+      if (error) toast.error('Erreur : ' + error.message);
+    }
+  }, [forecastWeeks]);
+
+  const clearProjectForecastWeeks = useCallback(async (projectId: string) => {
+    setForecastWeeks(prev => prev.filter(w => w.projectId !== projectId));
+    const { error } = await (supabase.from as any)('forecast_weeks').delete().eq('project_id', projectId);
+    if (error) toast.error('Erreur : ' + error.message);
+  }, []);
+
   const resetFilters = () => {
     setFilterCdt('all'); setFilterPoseur('all'); setFilterUsine('all'); setFilterStatus('all'); setSearchText('');
   };
@@ -585,6 +608,10 @@ export default function LoadPlanning() {
               projects={sortedGanttProjects}
               todayKey={todayWeekKey}
               onUpdateField={updateProjectField}
+              tokens={tokens}
+              forecastWeeks={forecastWeeks}
+              onToggleForecastWeek={toggleProjectForecastWeek}
+              onClearForecastWeeks={clearProjectForecastWeeks}
             />
 
             <LoadSummary
