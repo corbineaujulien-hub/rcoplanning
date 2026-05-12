@@ -880,14 +880,21 @@ function LoadSummary({
 
 function GanttView({
   weeks, monthGroups, projects, todayKey, onUpdateField,
+  tokens, forecastWeeks, onToggleForecastWeek, onClearForecastWeeks,
 }: {
   weeks: ISOWeek[];
   monthGroups: MonthGroup[];
   projects: ProjectComputed[];
   todayKey: string;
   onUpdateField: (id: string, field: 'conductor' | 'subcontractor', v: string) => void;
+  tokens: Record<string, string>;
+  forecastWeeks: ForecastWeek[];
+  onToggleForecastWeek: (projectId: string, year: number, weekNumber: number) => void;
+  onClearForecastWeeks: (projectId: string) => void;
 }) {
   const [editing, setEditing] = useState<{ id: string; field: 'conductor' | 'subcontractor' } | null>(null);
+  const [popoverProjectId, setPopoverProjectId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   return (
     <Card>
@@ -909,11 +916,57 @@ function GanttView({
             )}
             {projects.map(cp => {
               const color = getPoseurColor(cp.poseur);
+              const projSelected = forecastWeeks
+                .filter(w => w.projectId === cp.project.id)
+                .map(w => `${w.year}-${w.weekNumber}`);
+              const isPopOpen = popoverProjectId === cp.project.id;
               return (
                 <tr key={cp.project.id} className="hover:bg-muted/30">
-                  <td className="sticky left-0 bg-background z-10 p-1 border-b">
-                    <div className="font-medium truncate max-w-[260px]">{cp.project.site_name || 'Sans nom'}</div>
-                    <div className="text-[10px] text-muted-foreground">{cp.project.otp_number || '—'}</div>
+                  <td
+                    className="sticky left-0 bg-background z-10 p-1 border-b cursor-pointer"
+                    title="Double-clic pour ouvrir le chantier"
+                    onDoubleClick={() => {
+                      const tk = tokens[cp.project.id];
+                      if (tk) navigate(`/p/${tk}`);
+                      else toast.error('Lien projet introuvable');
+                    }}
+                  >
+                    <Popover open={isPopOpen} onOpenChange={(o) => !o && setPopoverProjectId(null)}>
+                      <PopoverTrigger asChild>
+                        <div>
+                          <div className="font-medium truncate max-w-[260px]">{cp.project.site_name || 'Sans nom'}</div>
+                          <div className="text-[10px] text-muted-foreground">{cp.project.otp_number || '—'}</div>
+                        </div>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        className="w-auto max-w-[90vw] p-3"
+                        align="start"
+                        side="bottom"
+                        onClick={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-between gap-3 mb-2">
+                          <div className="text-sm font-semibold">
+                            Planning prévisionnel — {cp.project.otp_number || '—'} {cp.project.site_name || ''}
+                          </div>
+                          <Button variant="ghost" size="sm" onClick={() => setPopoverProjectId(null)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Button variant="outline" size="sm" onClick={() => onClearForecastWeeks(cp.project.id)}>
+                            Tout désélectionner
+                          </Button>
+                          <span className="text-xs text-muted-foreground ml-auto">
+                            {projSelected.length} semaine{projSelected.length > 1 ? 's' : ''} sélectionnée{projSelected.length > 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        <ForecastWeeksStrip
+                          selected={projSelected}
+                          onToggle={(y, w) => onToggleForecastWeek(cp.project.id, y, w)}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </td>
                   <td className="sticky left-[280px] bg-background z-10 p-1 border-b" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'conductor' })}>
                     {editing?.id === cp.project.id && editing.field === 'conductor' ? (
@@ -957,16 +1010,22 @@ function GanttView({
                     const v = cell?.count || 0;
                     const isForecast = cell?.source === 'forecast';
                     return (
-                      <td key={w.key} className={`p-0 border-b text-center align-middle ${w.key === todayKey ? 'bg-accent/10' : ''}`}>
+                      <td
+                        key={w.key}
+                        className={`p-0 border-b text-center align-middle cursor-pointer ${w.key === todayKey ? 'bg-accent/10' : ''}`}
+                        onDoubleClick={(e) => { e.stopPropagation(); setPopoverProjectId(cp.project.id); }}
+                        title="Double-clic pour modifier le planning prévisionnel"
+                      >
                         {v > 0 && (
                           <div
-                            className="text-[10px] font-bold text-white py-1 mx-0.5 rounded-sm"
+                            className="text-[10px] font-bold py-1 mx-0.5 rounded-sm"
                             title={`${cp.project.site_name} — ${w.label}: ${v} camion(s) ${isForecast ? '(prévisionnel)' : '(réel)'}`}
                             style={{
                               background: isForecast
                                 ? `repeating-linear-gradient(45deg, ${color}, ${color} 4px, rgba(255,255,255,0.45) 4px, rgba(255,255,255,0.45) 8px)`
                                 : color,
                               opacity: isForecast ? 0.85 : 1,
+                              color: isForecast ? '#1f2937' : '#ffffff',
                             }}
                           >
                             {Math.round(v * 10) / 10}{isForecast ? 'P' : ''}
