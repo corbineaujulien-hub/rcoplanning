@@ -826,21 +826,23 @@ function LoadSummary({
             <tr>
               <th className="sticky left-0 bg-background z-10 text-left p-1 border-b min-w-[220px]"></th>
               <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} />
+              <th className="sticky right-0 bg-background z-10 text-center p-1 border-b border-l min-w-[50px] font-semibold">Total</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
-              <tr><td colSpan={weeks.length + 1} className="p-2 text-muted-foreground italic">Aucune donnée</td></tr>
+              <tr><td colSpan={weeks.length + 2} className="p-2 text-muted-foreground italic">Aucune donnée</td></tr>
             )}
             {rows.map((r, idx) => {
               const isOpen = expanded.has(r.key);
               const isSentinel = sentinels.includes(r.key);
               const sepRow = isSentinel && idx === firstSentinelIdx && idx > 0;
+              const rowTotal = weeks.reduce((s, w) => s + (r.perWeek[w.key] || 0), 0);
               return (
                 <Fragment key={r.key}>
                   {sepRow && (
                     <tr>
-                      <td colSpan={weeks.length + 1} className="border-t border-border p-0 h-[2px]" />
+                      <td colSpan={weeks.length + 2} className="border-t border-border p-0 h-[2px]" />
                     </tr>
                   )}
                   <tr
@@ -862,10 +864,22 @@ function LoadSummary({
                         </td>
                       );
                     })}
+                    <td className="sticky right-0 bg-background z-10 p-1 border-b border-l text-center font-bold">
+                      {fmt(rowTotal)}
+                    </td>
                   </tr>
                   {isOpen && r.projectIds.map(pid => {
                     const cp = projById.get(pid);
                     if (!cp) return null;
+                    const subTotal = weeks.reduce((s, w) => {
+                      const cell = cp.weeks[w.key];
+                      if (!cell) return s;
+                      if (groupBy === 'usine') {
+                        const cats = cell.byUsineCat[r.key];
+                        return s + (cats ? Object.values(cats).reduce((a, b) => a + b, 0) : 0);
+                      }
+                      return s + cell.count;
+                    }, 0);
                     return (
                       <tr key={`${r.key}-${pid}`} className="bg-muted/30 text-[10px]">
                         <td className="sticky left-0 bg-muted/30 z-10 p-1 pl-6 border-b text-muted-foreground">
@@ -888,6 +902,9 @@ function LoadSummary({
                             </td>
                           );
                         })}
+                        <td className="sticky right-0 bg-muted/30 z-10 p-1 border-b border-l text-center font-semibold">
+                          {fmt(subTotal)}
+                        </td>
                       </tr>
                     );
                   })}
@@ -901,7 +918,8 @@ function LoadSummary({
                 rows.forEach(r => { s += r.perWeek[w.key] || 0; });
                 totals[w.key] = s;
               });
-              const max = Math.max(0, ...Object.values(totals));
+              const grandTotal = Object.values(totals).reduce((a, b) => a + b, 0);
+              const max = Math.max(0, ...Object.values(totals), grandTotal);
               return (
                 <tr className="font-bold bg-muted/40">
                   <td className="sticky left-0 bg-muted/40 z-10 p-1 border-t">Total</td>
@@ -913,6 +931,9 @@ function LoadSummary({
                       </td>
                     );
                   })}
+                  <td className="sticky right-0 bg-muted/40 z-10 p-1 border-t border-l text-center" style={heatStyle(grandTotal, max)}>
+                    {fmt(grandTotal)}
+                  </td>
                 </tr>
               );
             })()}
