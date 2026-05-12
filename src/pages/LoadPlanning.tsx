@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover';
 import { ArrowLeft, BarChart3, FileDown, FileSpreadsheet, RotateCcw, X, ChevronRight, ChevronDown } from 'lucide-react';
+import ForecastWeeksStrip from '@/components/delivery/ForecastWeeksStrip';
 import { toast } from 'sonner';
 import {
   TransportCategory, CONDUCTORS, SUBCONTRACTORS, ForecastedTransport, ForecastWeek,
@@ -175,6 +177,7 @@ export default function LoadPlanning() {
   const [trucks, setTrucks] = useState<TruckRow[]>([]);
   const [elements, setElements] = useState<ElementRow[]>([]);
   const [forecastWeeks, setForecastWeeks] = useState<ForecastWeek[]>([]);
+  const [tokens, setTokens] = useState<Record<string, string>>({});
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const defaultStart = useMemo(() => { const d = new Date(today); d.setMonth(d.getMonth() - 1); return d; }, [today]);
@@ -193,11 +196,12 @@ export default function LoadPlanning() {
     const load = async () => {
       setLoading(true);
       try {
-        const [pData, tData, eData, fData] = await Promise.all([
+        const [pData, tData, eData, fData, lData] = await Promise.all([
           supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, archived, database_complete, forecasted_transports'),
           fetchAllPaginated<TruckRow>('trucks', 'id, project_id, date, element_ids, forced_category, team_id'),
           fetchAllPaginated<ElementRow>('beam_elements', 'id, project_id, product_type, length, weight, factory'),
           fetchAllPaginated<any>('forecast_weeks', 'id, project_id, year, week_number'),
+          fetchAllPaginated<any>('project_access_links', 'project_id, token'),
         ]);
         setProjects(((pData.data as any[]) || []).map(p => ({
           ...p,
@@ -218,6 +222,9 @@ export default function LoadPlanning() {
         setForecastWeeks((fData as any[]).map(s => ({
           id: s.id, projectId: s.project_id, year: s.year, weekNumber: s.week_number,
         })));
+        const tokMap: Record<string, string> = {};
+        (lData as any[]).forEach(l => { if (l.project_id && l.token && !tokMap[l.project_id]) tokMap[l.project_id] = l.token; });
+        setTokens(tokMap);
       } catch (err: any) {
         toast.error('Erreur de chargement : ' + err.message);
       } finally {
@@ -464,6 +471,29 @@ export default function LoadPlanning() {
     else toast.success('Mise à jour enregistrée');
   }, []);
 
+  const toggleProjectForecastWeek = useCallback(async (projectId: string, year: number, weekNumber: number) => {
+    const existing = forecastWeeks.find(w => w.projectId === projectId && w.year === year && w.weekNumber === weekNumber);
+    if (existing) {
+      setForecastWeeks(prev => prev.filter(w => w.id !== existing.id));
+      const { error } = await (supabase.from as any)('forecast_weeks').delete().eq('id', existing.id);
+      if (error) toast.error('Erreur : ' + error.message);
+    } else {
+      const id = crypto.randomUUID();
+      const nw: ForecastWeek = { id, projectId, year, weekNumber };
+      setForecastWeeks(prev => [...prev, nw]);
+      const { error } = await (supabase.from as any)('forecast_weeks').insert({
+        id, project_id: projectId, year, week_number: weekNumber,
+      });
+      if (error) toast.error('Erreur : ' + error.message);
+    }
+  }, [forecastWeeks]);
+
+  const clearProjectForecastWeeks = useCallback(async (projectId: string) => {
+    setForecastWeeks(prev => prev.filter(w => w.projectId !== projectId));
+    const { error } = await (supabase.from as any)('forecast_weeks').delete().eq('project_id', projectId);
+    if (error) toast.error('Erreur : ' + error.message);
+  }, []);
+
   const resetFilters = () => {
     setFilterCdt('all'); setFilterPoseur('all'); setFilterUsine('all'); setFilterStatus('all'); setSearchText('');
   };
@@ -578,6 +608,10 @@ export default function LoadPlanning() {
               projects={sortedGanttProjects}
               todayKey={todayWeekKey}
               onUpdateField={updateProjectField}
+              tokens={tokens}
+              forecastWeeks={forecastWeeks}
+              onToggleForecastWeek={toggleProjectForecastWeek}
+              onClearForecastWeeks={clearProjectForecastWeeks}
             />
 
             <LoadSummary
@@ -846,14 +880,21 @@ function LoadSummary({
 
 function GanttView({
   weeks, monthGroups, projects, todayKey, onUpdateField,
+  tokens, forecastWeeks, onToggleForecastWeek, onClearForecastWeeks,
 }: {
   weeks: ISOWeek[];
   monthGroups: MonthGroup[];
   projects: ProjectComputed[];
   todayKey: string;
   onUpdateField: (id: string, field: 'conductor' | 'subcontractor', v: string) => void;
+  tokens: Record<string, string>;
+  forecastWeeks: ForecastWeek[];
+  onToggleForecastWeek: (projectId: string, year: number, weekNumber: number) => void;
+  onClearForecastWeeks: (projectId: string) => void;
 }) {
   const [editing, setEditing] = useState<{ id: string; field: 'conductor' | 'subcontractor' } | null>(null);
+  const [popoverProjectId, setPopoverProjectId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   return (
     <Card>
@@ -875,11 +916,57 @@ function GanttView({
             )}
             {projects.map(cp => {
               const color = getPoseurColor(cp.poseur);
+              const projSelected = forecastWeeks
+                .filter(w => w.projectId === cp.project.id)
+                .map(w => `${w.year}-${w.weekNumber}`);
+              const isPopOpen = popoverProjectId === cp.project.id;
               return (
                 <tr key={cp.project.id} className="hover:bg-muted/30">
-                  <td className="sticky left-0 bg-background z-10 p-1 border-b">
-                    <div className="font-medium truncate max-w-[260px]">{cp.project.site_name || 'Sans nom'}</div>
-                    <div className="text-[10px] text-muted-foreground">{cp.project.otp_number || '—'}</div>
+                  <td
+                    className="sticky left-0 bg-background z-10 p-1 border-b cursor-pointer"
+                    title="Double-clic pour ouvrir le chantier"
+                    onDoubleClick={() => {
+                      const tk = tokens[cp.project.id];
+                      if (tk) navigate(`/p/${tk}`);
+                      else toast.error('Lien projet introuvable');
+                    }}
+                  >
+                    <Popover open={isPopOpen} onOpenChange={(o) => !o && setPopoverProjectId(null)}>
+                      <PopoverAnchor asChild>
+                        <div>
+                          <div className="font-medium truncate max-w-[260px]">{cp.project.site_name || 'Sans nom'}</div>
+                          <div className="text-[10px] text-muted-foreground">{cp.project.otp_number || '—'}</div>
+                        </div>
+                      </PopoverAnchor>
+                      <PopoverContent
+                        className="w-auto max-w-[90vw] p-3"
+                        align="start"
+                        side="bottom"
+                        onClick={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-between gap-3 mb-2">
+                          <div className="text-sm font-semibold">
+                            Planning prévisionnel — {cp.project.otp_number || '—'} {cp.project.site_name || ''}
+                          </div>
+                          <Button variant="ghost" size="sm" onClick={() => setPopoverProjectId(null)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Button variant="outline" size="sm" onClick={() => onClearForecastWeeks(cp.project.id)}>
+                            Tout désélectionner
+                          </Button>
+                          <span className="text-xs text-muted-foreground ml-auto">
+                            {projSelected.length} semaine{projSelected.length > 1 ? 's' : ''} sélectionnée{projSelected.length > 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        <ForecastWeeksStrip
+                          selected={projSelected}
+                          onToggle={(y, w) => onToggleForecastWeek(cp.project.id, y, w)}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </td>
                   <td className="sticky left-[280px] bg-background z-10 p-1 border-b" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'conductor' })}>
                     {editing?.id === cp.project.id && editing.field === 'conductor' ? (
@@ -923,16 +1010,22 @@ function GanttView({
                     const v = cell?.count || 0;
                     const isForecast = cell?.source === 'forecast';
                     return (
-                      <td key={w.key} className={`p-0 border-b text-center align-middle ${w.key === todayKey ? 'bg-accent/10' : ''}`}>
+                      <td
+                        key={w.key}
+                        className={`p-0 border-b text-center align-middle cursor-pointer ${w.key === todayKey ? 'bg-accent/10' : ''}`}
+                        onDoubleClick={(e) => { e.stopPropagation(); setPopoverProjectId(cp.project.id); }}
+                        title="Double-clic pour modifier le planning prévisionnel"
+                      >
                         {v > 0 && (
                           <div
-                            className="text-[10px] font-bold text-white py-1 mx-0.5 rounded-sm"
+                            className="text-[10px] font-bold py-1 mx-0.5 rounded-sm"
                             title={`${cp.project.site_name} — ${w.label}: ${v} camion(s) ${isForecast ? '(prévisionnel)' : '(réel)'}`}
                             style={{
                               background: isForecast
                                 ? `repeating-linear-gradient(45deg, ${color}, ${color} 4px, rgba(255,255,255,0.45) 4px, rgba(255,255,255,0.45) 8px)`
                                 : color,
                               opacity: isForecast ? 0.85 : 1,
+                              color: isForecast ? '#1f2937' : '#ffffff',
                             }}
                           >
                             {Math.round(v * 10) / 10}{isForecast ? 'P' : ''}
