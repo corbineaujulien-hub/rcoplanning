@@ -93,6 +93,7 @@ export type Database = {
           created_at: string
           id: string
           project_id: string
+          team_index: number
           week_number: number
           year: number
         }
@@ -100,6 +101,7 @@ export type Database = {
           created_at?: string
           id?: string
           project_id: string
+          team_index?: number
           week_number: number
           year: number
         }
@@ -107,6 +109,7 @@ export type Database = {
           created_at?: string
           id?: string
           project_id?: string
+          team_index?: number
           week_number?: number
           year?: number
         }
@@ -198,6 +201,9 @@ export type Database = {
           created_at: string | null
           database_comment: string | null
           database_complete: boolean
+          forecast_period_end: string | null
+          forecast_period_start: string | null
+          forecast_team_count: number
           forecasted_transports: Json
           id: string
           otp_number: string | null
@@ -216,6 +222,9 @@ export type Database = {
           created_at?: string | null
           database_comment?: string | null
           database_complete?: boolean
+          forecast_period_end?: string | null
+          forecast_period_start?: string | null
+          forecast_team_count?: number
           forecasted_transports?: Json
           id?: string
           otp_number?: string | null
@@ -234,6 +243,9 @@ export type Database = {
           created_at?: string | null
           database_comment?: string | null
           database_complete?: boolean
+          forecast_period_end?: string | null
+          forecast_period_start?: string | null
+          forecast_team_count?: number
           forecasted_transports?: Json
           id?: string
           otp_number?: string | null
