@@ -9,11 +9,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ArrowLeft, BarChart3, FileDown, FileSpreadsheet, RotateCcw, X, ChevronRight, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  TransportCategory, CONDUCTORS, SUBCONTRACTORS, ForecastSlot, ForecastedTruck,
+  TransportCategory, CONDUCTORS, SUBCONTRACTORS, ForecastedTransport, ForecastWeek,
 } from '@/types/delivery';
 import {
   getWeeksBetween, getWeekKeyForDate, getPoseurColor, UNASSIGNED_POSEUR,
-  weekOverlapsRange, ISOWeek,
+  ISOWeek,
 } from '@/utils/loadPlanningUtils';
 import { exportLoadPlanningPdf } from '@/utils/loadPlanningPdfUtils';
 import { exportLoadPlanningExcel } from '@/utils/loadPlanningExcelUtils';
@@ -30,6 +30,7 @@ interface ProjectRow {
   subcontractor: string | null;
   archived: boolean;
   database_complete: boolean;
+  forecasted_transports: ForecastedTransport[] | null;
 }
 
 interface TruckRow {
@@ -139,6 +140,15 @@ function stripPhone(s: string): string {
   return (s || '').split(' – ')[0].split(' - ')[0].trim();
 }
 
+function simpleISOWeekStart(year: number, week: number): Date {
+  // Returns Monday of given ISO week (approximation good enough for sorting)
+  const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+  const day = simple.getUTCDay() || 7;
+  if (day <= 4) simple.setUTCDate(simple.getUTCDate() - day + 1);
+  else simple.setUTCDate(simple.getUTCDate() + 8 - day);
+  return simple;
+}
+
 function sortWithSentinelLast<T>(arr: T[], keyFn: (x: T) => string, sentinels: string[]): T[] {
   return [...arr].sort((a, b) => {
     const ka = keyFn(a), kb = keyFn(b);
@@ -164,7 +174,7 @@ export default function LoadPlanning() {
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [trucks, setTrucks] = useState<TruckRow[]>([]);
   const [elements, setElements] = useState<ElementRow[]>([]);
-  const [forecastSlots, setForecastSlots] = useState<ForecastSlot[]>([]);
+  const [forecastWeeks, setForecastWeeks] = useState<ForecastWeek[]>([]);
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const defaultStart = useMemo(() => { const d = new Date(today); d.setMonth(d.getMonth() - 1); return d; }, [today]);
@@ -184,12 +194,15 @@ export default function LoadPlanning() {
       setLoading(true);
       try {
         const [pData, tData, eData, fData] = await Promise.all([
-          supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, archived, database_complete'),
+          supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, archived, database_complete, forecasted_transports'),
           fetchAllPaginated<TruckRow>('trucks', 'id, project_id, date, element_ids, forced_category, team_id'),
           fetchAllPaginated<ElementRow>('beam_elements', 'id, project_id, product_type, length, weight, factory'),
-          fetchAllPaginated<any>('forecast_slots', 'id, project_id, date_start, date_end, forecasted_trucks'),
+          fetchAllPaginated<any>('forecast_weeks', 'id, project_id, year, week_number'),
         ]);
-        setProjects((pData.data as ProjectRow[]) || []);
+        setProjects(((pData.data as any[]) || []).map(p => ({
+          ...p,
+          forecasted_transports: (p.forecasted_transports as ForecastedTransport[]) || [],
+        })) as ProjectRow[]);
         setTrucks((tData as any[]).map(t => ({
           id: t.id, project_id: t.project_id, date: t.date,
           element_ids: (t.element_ids as string[]) || [],
@@ -202,10 +215,8 @@ export default function LoadPlanning() {
           length: Number(e.length) || 0, weight: Number(e.weight) || 0,
           factory: e.factory || '',
         })));
-        setForecastSlots((fData as any[]).map(s => ({
-          id: s.id, projectId: s.project_id,
-          dateStart: s.date_start, dateEnd: s.date_end,
-          forecastedTrucks: (s.forecasted_trucks as ForecastedTruck[]) || [],
+        setForecastWeeks((fData as any[]).map(s => ({
+          id: s.id, projectId: s.project_id, year: s.year, weekNumber: s.week_number,
         })));
       } catch (err: any) {
         toast.error('Erreur de chargement : ' + err.message);
@@ -233,7 +244,8 @@ export default function LoadPlanning() {
   const computedProjects: ProjectComputed[] = useMemo(() => {
     return projects.map(project => {
       const projTrucks = trucks.filter(t => t.project_id === project.id && t.date);
-      const projForecasts = forecastSlots.filter(s => s.projectId === project.id);
+      const projWeeks = forecastWeeks.filter(s => s.projectId === project.id);
+      const projTransports = project.forecasted_transports || [];
 
       const realByWeek = new Map<string, Record<string, Record<TransportCategory, number>>>();
       const teamsByWeek = new Map<string, Set<string>>();
@@ -254,24 +266,37 @@ export default function LoadPlanning() {
         teamsByWeek.get(wk)!.add(t.team_id || '__notrack__');
       });
 
+      // Forecast: distribute total project transports evenly across selected forecast weeks (within visible range)
+      const visibleForecastWeeks = projWeeks
+        .map(fw => weeks.find(w => w.year === fw.year && w.week === fw.weekNumber))
+        .filter(Boolean) as ISOWeek[];
       const forecastByWeek = new Map<string, Record<string, Record<TransportCategory, number>>>();
-      projForecasts.forEach(slot => {
-        const slotWeeks = weeks.filter(w => weekOverlapsRange(w, slot.dateStart, slot.dateEnd));
-        if (slotWeeks.length === 0) return;
-        const perWeek = slot.forecastedTrucks.map(ft => ({
-          ...ft,
-          countPerWeek: ft.count / slotWeeks.length,
-        }));
-        slotWeeks.forEach(w => {
-          if (!forecastByWeek.has(w.key)) forecastByWeek.set(w.key, {});
-          const wk = forecastByWeek.get(w.key)!;
-          perWeek.forEach(ft => {
-            usinesSet.add(ft.usine);
-            if (!wk[ft.usine]) wk[ft.usine] = { standard: 0, cat1: 0, cat2: 0, cat3: 0 };
-            wk[ft.usine][ft.category] += ft.countPerWeek;
-          });
+      if (visibleForecastWeeks.length > 0) {
+        const n = visibleForecastWeeks.length;
+        const validTransports = projTransports.filter(t => t.usine && t.usine.trim());
+        const totalTrucks = validTransports.reduce(
+          (s, t) => s + (t.standard || 0) + (t.cat1 || 0) + (t.cat2 || 0) + (t.cat3 || 0) + (t.exceptional || 0),
+          0,
+        );
+        visibleForecastWeeks.forEach(w => {
+          const wk: Record<string, Record<TransportCategory, number>> = {};
+          if (totalTrucks > 0) {
+            validTransports.forEach(t => {
+              usinesSet.add(t.usine);
+              wk[t.usine] = {
+                standard: (t.standard || 0) / n,
+                cat1: (t.cat1 || 0) / n,
+                cat2: (t.cat2 || 0) / n,
+                cat3: ((t.cat3 || 0) + (t.exceptional || 0)) / n,
+              };
+            });
+          } else {
+            // Week selected but no transports — placeholder so CDT/Poseur teams still counted
+            wk[UNASSIGNED_USINE] = { standard: 0, cat1: 0, cat2: 0, cat3: 0 };
+          }
+          forecastByWeek.set(w.key, wk);
         });
-      });
+      }
 
       const weekCells: Record<string, WeekCell> = {};
       weeks.forEach(w => {
@@ -309,7 +334,7 @@ export default function LoadPlanning() {
         usines: usinesSet,
       };
     });
-  }, [projects, trucks, forecastSlots, elementsById, weeks]);
+  }, [projects, trucks, forecastWeeks, elementsById, weeks]);
 
   // Filtering — archived treated like active. Supports excluding a single filter
   // (used to compute available values in dropdowns for cumulative behaviour).
@@ -348,12 +373,13 @@ export default function LoadPlanning() {
       if (!cur || t.date < cur) real.set(t.project_id, t.date);
     });
     const fc = new Map<string, string>();
-    forecastSlots.forEach(s => {
-      const cur = fc.get(s.projectId);
-      if (!cur || s.dateStart < cur) fc.set(s.projectId, s.dateStart);
+    forecastWeeks.forEach(fw => {
+      const simple = simpleISOWeekStart(fw.year, fw.weekNumber).toISOString().slice(0, 10);
+      const cur = fc.get(fw.projectId);
+      if (!cur || simple < cur) fc.set(fw.projectId, simple);
     });
     return { real, fc };
-  }, [trucks, forecastSlots]);
+  }, [trucks, forecastWeeks]);
 
   const sortedGanttProjects = useMemo(() => {
     return [...filteredProjects].sort((a, b) => {

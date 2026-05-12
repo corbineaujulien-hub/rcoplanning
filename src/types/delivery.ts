@@ -10,6 +10,7 @@ export interface ProjectInfo {
   showSaturdays?: boolean;
   databaseComplete?: boolean;
   databaseComment?: string;
+  forecastedTransports?: ForecastedTransport[];
 }
 
 export interface BeamElement {
@@ -105,6 +106,34 @@ export interface ForecastSlot {
   forecastedTrucks: ForecastedTruck[];
 }
 
+// New forecast model: selected ISO weeks per project
+export interface ForecastWeek {
+  id: string;
+  projectId: string;
+  year: number;
+  weekNumber: number;
+}
+
+// Extended forecast transport categories (includes "exceptionnel")
+export type ForecastTransportCategory = 'standard' | 'cat1' | 'cat2' | 'cat3' | 'exceptional';
+
+export const FORECAST_TRANSPORT_CATEGORIES: { key: ForecastTransportCategory; label: string }[] = [
+  { key: 'standard', label: 'Standard' },
+  { key: 'cat1', label: 'Convoi cat.1' },
+  { key: 'cat2', label: 'Convoi cat.2' },
+  { key: 'cat3', label: 'Convoi cat.3' },
+  { key: 'exceptional', label: 'Convoi exceptionnel' },
+];
+
+export interface ForecastedTransport {
+  usine: string;
+  standard: number;
+  cat1: number;
+  cat2: number;
+  cat3: number;
+  exceptional: number;
+}
+
 export const TRANSPORT_CATEGORIES: Record<TransportCategory, TransportInfo> = {
   standard: { category: 'standard', label: 'Plateau standard', maxLength: 13.5, maxWeight: 28 },
   cat1: { category: 'cat1', label: 'Convoi catégorie 1', maxLength: 16.5, maxWeight: 28 },
@@ -124,4 +153,5 @@ export const DEFAULT_PROJECT_INFO: ProjectInfo = {
   showSaturdays: false,
   databaseComplete: false,
   databaseComment: '',
+  forecastedTransports: [],
 };

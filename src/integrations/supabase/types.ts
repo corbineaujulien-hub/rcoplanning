@@ -88,6 +88,30 @@ export type Database = {
         }
         Relationships: []
       }
+      forecast_weeks: {
+        Row: {
+          created_at: string
+          id: string
+          project_id: string
+          week_number: number
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id: string
+          week_number: number
+          year: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string
+          week_number?: number
+          year?: number
+        }
+        Relationships: []
+      }
       plans: {
         Row: {
           created_at: string | null
@@ -174,6 +198,7 @@ export type Database = {
           created_at: string | null
           database_comment: string | null
           database_complete: boolean
+          forecasted_transports: Json
           id: string
           otp_number: string | null
           show_saturdays: boolean | null
@@ -191,6 +216,7 @@ export type Database = {
           created_at?: string | null
           database_comment?: string | null
           database_complete?: boolean
+          forecasted_transports?: Json
           id?: string
           otp_number?: string | null
           show_saturdays?: boolean | null
@@ -208,6 +234,7 @@ export type Database = {
           created_at?: string | null
           database_comment?: string | null
           database_complete?: boolean
+          forecasted_transports?: Json
           id?: string
           otp_number?: string | null
           show_saturdays?: boolean | null

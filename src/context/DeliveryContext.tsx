@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { ProjectInfo, BeamElement, Truck, Plan, Team, DEFAULT_PROJECT_INFO, ForecastSlot } from '@/types/delivery';
+import { ProjectInfo, BeamElement, Truck, Plan, Team, DEFAULT_PROJECT_INFO, ForecastWeek, ForecastedTransport } from '@/types/delivery';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -9,7 +9,7 @@ interface DeliveryContextType {
   trucks: Truck[];
   plans: Plan[];
   teams: Team[];
-  forecastSlots: ForecastSlot[];
+  forecastWeeks: ForecastWeek[];
   projectId: string;
   loading: boolean;
   setProjectInfo: (info: ProjectInfo) => void;
@@ -34,9 +34,10 @@ interface DeliveryContextType {
   addTeam: (team: Team) => void;
   updateTeam: (id: string, updates: Partial<Team>) => void;
   deleteTeam: (id: string) => void;
-  addForecastSlot: (slot: ForecastSlot) => void;
-  updateForecastSlot: (id: string, updates: Partial<ForecastSlot>) => void;
-  deleteForecastSlot: (id: string) => void;
+  toggleForecastWeek: (year: number, weekNumber: number) => void;
+  setForecastWeeksBulk: (weeks: { year: number; weekNumber: number }[]) => void;
+  clearForecastWeeks: () => void;
+  setForecastedTransports: (transports: ForecastedTransport[]) => void;
   initialDate: Date;
   compositionTabOpened: boolean;
   setCompositionTabOpened: (v: boolean) => void;
@@ -60,7 +61,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
   const [trucks, setTrucksState] = useState<Truck[]>([]);
   const [plans, setPlansState] = useState<Plan[]>([]);
   const [teams, setTeamsState] = useState<Team[]>([]);
-  const [forecastSlots, setForecastSlotsState] = useState<ForecastSlot[]>([]);
+  const [forecastWeeks, setForecastWeeksState] = useState<ForecastWeek[]>([]);
   const [loading, setLoading] = useState(true);
   const [compositionTabOpened, setCompositionTabOpened] = useState(false);
   const [savedViewMode, setSavedViewMode] = useState<'month' | 'week' | 'day'>('month');
@@ -80,6 +81,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
             showSaturdays: proj.show_saturdays || false,
             databaseComplete: (proj as any).database_complete || false,
             databaseComment: (proj as any).database_comment || '',
+            forecastedTransports: ((proj as any).forecasted_transports as ForecastedTransport[]) || [],
           });
         }
 
@@ -143,15 +145,11 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           firstTeamId = defaultTeam.id;
         }
 
-        // Load forecast slots
-        const { data: fs } = await supabase.from('forecast_slots').select('*').eq('project_id', projectId).order('date_start');
-        if (fs) {
-          setForecastSlotsState(fs.map((s: any) => ({
-            id: s.id,
-            projectId: s.project_id,
-            dateStart: s.date_start,
-            dateEnd: s.date_end,
-            forecastedTrucks: (s.forecasted_trucks as any[]) || [],
+        // Load forecast weeks
+        const { data: fw } = await (supabase.from as any)('forecast_weeks').select('*').eq('project_id', projectId);
+        if (fw) {
+          setForecastWeeksState((fw as any[]).map((s: any) => ({
+            id: s.id, projectId: s.project_id, year: s.year, weekNumber: s.week_number,
           })));
         }
 
@@ -189,6 +187,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
             showSaturdays: p.show_saturdays || false,
             databaseComplete: (p as any).database_complete || false,
             databaseComment: (p as any).database_comment || '',
+            forecastedTransports: ((p as any).forecasted_transports as ForecastedTransport[]) || [],
           });
         }
       })
@@ -252,21 +251,19 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           setTeamsState(prev => prev.filter(tm => tm.id !== t.id));
         }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'forecast_slots', filter: `project_id=eq.${projectId}` }, (payload) => {
-        const mapRow = (s: any): ForecastSlot => ({
-          id: s.id, projectId: s.project_id,
-          dateStart: s.date_start, dateEnd: s.date_end,
-          forecastedTrucks: (s.forecasted_trucks as any[]) || [],
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'forecast_weeks', filter: `project_id=eq.${projectId}` }, (payload) => {
+        const mapRow = (s: any): ForecastWeek => ({
+          id: s.id, projectId: s.project_id, year: s.year, weekNumber: s.week_number,
         });
         if (payload.eventType === 'INSERT') {
           const s = payload.new as any;
-          setForecastSlotsState(prev => prev.some(x => x.id === s.id) ? prev : [...prev, mapRow(s)]);
+          setForecastWeeksState(prev => prev.some(x => x.id === s.id) ? prev : [...prev, mapRow(s)]);
         } else if (payload.eventType === 'UPDATE') {
           const s = payload.new as any;
-          setForecastSlotsState(prev => prev.map(x => x.id === s.id ? mapRow(s) : x));
+          setForecastWeeksState(prev => prev.map(x => x.id === s.id ? mapRow(s) : x));
         } else if (payload.eventType === 'DELETE') {
           const s = payload.old as any;
-          setForecastSlotsState(prev => prev.filter(x => x.id !== s.id));
+          setForecastWeeksState(prev => prev.filter(x => x.id !== s.id));
         }
       })
       .subscribe();
@@ -285,6 +282,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
       show_saturdays: info.showSaturdays,
       database_complete: info.databaseComplete,
       database_comment: info.databaseComment,
+      forecasted_transports: info.forecastedTransports || [],
       updated_at: new Date().toISOString(),
     } as any).eq('id', projectId);
   }, [projectId]);
@@ -482,29 +480,50 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
     await supabase.from('teams').delete().eq('id', id);
   }, []);
 
-  // Forecast slot mutations
-  const addForecastSlot = useCallback(async (slot: ForecastSlot) => {
-    setForecastSlotsState(prev => [...prev, slot]);
-    await supabase.from('forecast_slots').insert({
-      id: slot.id, project_id: projectId,
-      date_start: slot.dateStart, date_end: slot.dateEnd,
-      forecasted_trucks: slot.forecastedTrucks as any,
-    });
+  // Forecast week mutations
+  const toggleForecastWeek = useCallback(async (year: number, weekNumber: number) => {
+    const existing = forecastWeeks.find(w => w.year === year && w.weekNumber === weekNumber);
+    if (existing) {
+      setForecastWeeksState(prev => prev.filter(w => w.id !== existing.id));
+      await (supabase.from as any)('forecast_weeks').delete().eq('id', existing.id);
+    } else {
+      const nw: ForecastWeek = { id: crypto.randomUUID(), projectId, year, weekNumber };
+      setForecastWeeksState(prev => [...prev, nw]);
+      await (supabase.from as any)('forecast_weeks').insert({
+        id: nw.id, project_id: projectId, year, week_number: weekNumber,
+      });
+    }
+  }, [forecastWeeks, projectId]);
+
+  const setForecastWeeksBulk = useCallback(async (weeksList: { year: number; weekNumber: number }[]) => {
+    const existingKeys = new Set(forecastWeeks.map(w => `${w.year}-${w.weekNumber}`));
+    const toAdd = weeksList.filter(w => !existingKeys.has(`${w.year}-${w.weekNumber}`));
+    if (toAdd.length === 0) return;
+    const rows = toAdd.map(w => ({
+      id: crypto.randomUUID(), project_id: projectId, year: w.year, week_number: w.weekNumber,
+    }));
+    setForecastWeeksState(prev => [
+      ...prev,
+      ...rows.map(r => ({ id: r.id, projectId, year: r.year, weekNumber: r.week_number })),
+    ]);
+    const BATCH = 500;
+    for (let i = 0; i < rows.length; i += BATCH) {
+      await (supabase.from as any)('forecast_weeks').insert(rows.slice(i, i + BATCH));
+    }
+  }, [forecastWeeks, projectId]);
+
+  const clearForecastWeeks = useCallback(async () => {
+    setForecastWeeksState([]);
+    await (supabase.from as any)('forecast_weeks').delete().eq('project_id', projectId);
   }, [projectId]);
 
-  const updateForecastSlot = useCallback(async (id: string, updates: Partial<ForecastSlot>) => {
-    setForecastSlotsState(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
-    const dbUpdates: any = {};
-    if (updates.dateStart !== undefined) dbUpdates.date_start = updates.dateStart;
-    if (updates.dateEnd !== undefined) dbUpdates.date_end = updates.dateEnd;
-    if (updates.forecastedTrucks !== undefined) dbUpdates.forecasted_trucks = updates.forecastedTrucks;
-    await supabase.from('forecast_slots').update(dbUpdates).eq('id', id);
-  }, []);
-
-  const deleteForecastSlot = useCallback(async (id: string) => {
-    setForecastSlotsState(prev => prev.filter(s => s.id !== id));
-    await supabase.from('forecast_slots').delete().eq('id', id);
-  }, []);
+  const setForecastedTransports = useCallback(async (transports: ForecastedTransport[]) => {
+    setProjectInfoState(prev => ({ ...prev, forecastedTransports: transports }));
+    await supabase.from('projects').update({
+      forecasted_transports: transports as any,
+      updated_at: new Date().toISOString(),
+    } as any).eq('id', projectId);
+  }, [projectId]);
 
   // Compute initial date: if earliest truck date > today, use it; otherwise today
   const initialDate = useMemo(() => {
@@ -530,13 +549,13 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
 
   return (
     <DeliveryContext.Provider value={{
-      projectInfo, elements, trucks, plans, teams, forecastSlots, projectId, loading,
+      projectInfo, elements, trucks, plans, teams, forecastWeeks, projectId, loading,
       setProjectInfo, setElements, addElements, updateElement, deleteElement,
       addTruck, updateTruck, deleteTruck, deleteAllTrucks, addElementsToTruck, removeElementFromTruck,
       getElementById, getTruckElements, getUnassignedElements, isElementAssigned, getTrucksForDate,
       addPlan, updatePlan, deletePlan,
       addTeam, updateTeam, deleteTeam,
-      addForecastSlot, updateForecastSlot, deleteForecastSlot,
+      toggleForecastWeek, setForecastWeeksBulk, clearForecastWeeks, setForecastedTransports,
       initialDate, compositionTabOpened, setCompositionTabOpened, savedViewMode, setSavedViewMode, savedCurrentDate, setSavedCurrentDate,
     }}>
       {children}
