@@ -826,21 +826,23 @@ function LoadSummary({
             <tr>
               <th className="sticky left-0 bg-background z-10 text-left p-1 border-b min-w-[220px]"></th>
               <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} />
+              <th className="sticky right-0 bg-background z-10 text-center p-1 border-b border-l min-w-[50px] font-semibold">Total</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
-              <tr><td colSpan={weeks.length + 1} className="p-2 text-muted-foreground italic">Aucune donnée</td></tr>
+              <tr><td colSpan={weeks.length + 2} className="p-2 text-muted-foreground italic">Aucune donnée</td></tr>
             )}
             {rows.map((r, idx) => {
               const isOpen = expanded.has(r.key);
               const isSentinel = sentinels.includes(r.key);
               const sepRow = isSentinel && idx === firstSentinelIdx && idx > 0;
+              const rowTotal = weeks.reduce((s, w) => s + (r.perWeek[w.key] || 0), 0);
               return (
                 <Fragment key={r.key}>
                   {sepRow && (
                     <tr>
-                      <td colSpan={weeks.length + 1} className="border-t border-border p-0 h-[2px]" />
+                      <td colSpan={weeks.length + 2} className="border-t border-border p-0 h-[2px]" />
                     </tr>
                   )}
                   <tr
@@ -862,10 +864,22 @@ function LoadSummary({
                         </td>
                       );
                     })}
+                    <td className="sticky right-0 bg-background z-10 p-1 border-b border-l text-center font-bold">
+                      {fmt(rowTotal)}
+                    </td>
                   </tr>
                   {isOpen && r.projectIds.map(pid => {
                     const cp = projById.get(pid);
                     if (!cp) return null;
+                    const subTotal = weeks.reduce((s, w) => {
+                      const cell = cp.weeks[w.key];
+                      if (!cell) return s;
+                      if (groupBy === 'usine') {
+                        const cats = cell.byUsineCat[r.key];
+                        return s + (cats ? Object.values(cats).reduce((a, b) => a + b, 0) : 0);
+                      }
+                      return s + cell.count;
+                    }, 0);
                     return (
                       <tr key={`${r.key}-${pid}`} className="bg-muted/30 text-[10px]">
                         <td className="sticky left-0 bg-muted/30 z-10 p-1 pl-6 border-b text-muted-foreground">
@@ -888,6 +902,9 @@ function LoadSummary({
                             </td>
                           );
                         })}
+                        <td className="sticky right-0 bg-muted/30 z-10 p-1 border-b border-l text-center font-semibold">
+                          {fmt(subTotal)}
+                        </td>
                       </tr>
                     );
                   })}
@@ -901,7 +918,8 @@ function LoadSummary({
                 rows.forEach(r => { s += r.perWeek[w.key] || 0; });
                 totals[w.key] = s;
               });
-              const max = Math.max(0, ...Object.values(totals));
+              const grandTotal = Object.values(totals).reduce((a, b) => a + b, 0);
+              const max = Math.max(0, ...Object.values(totals), grandTotal);
               return (
                 <tr className="font-bold bg-muted/40">
                   <td className="sticky left-0 bg-muted/40 z-10 p-1 border-t">Total</td>
@@ -913,6 +931,9 @@ function LoadSummary({
                       </td>
                     );
                   })}
+                  <td className="sticky right-0 bg-muted/40 z-10 p-1 border-t border-l text-center" style={heatStyle(grandTotal, max)}>
+                    {fmt(grandTotal)}
+                  </td>
                 </tr>
               );
             })()}
@@ -956,17 +977,19 @@ function GanttView({
               <th className="sticky left-[280px] bg-background z-10 text-left p-1 border-b min-w-[160px]">CDT</th>
               <th className="sticky left-[440px] bg-background z-10 text-left p-1 border-b min-w-[140px]">Poseur</th>
               <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} />
+              <th className="sticky right-0 bg-background z-10 text-center p-1 border-b border-l min-w-[50px] font-semibold">Total</th>
             </tr>
           </thead>
           <tbody>
             {projects.length === 0 && (
-              <tr><td colSpan={weeks.length + 3} className="p-2 text-muted-foreground italic text-center">Aucun chantier</td></tr>
+              <tr><td colSpan={weeks.length + 4} className="p-2 text-muted-foreground italic text-center">Aucun chantier</td></tr>
             )}
             {projects.map(cp => {
               const color = getPoseurColor(cp.poseur);
               const teamCount = (cp.project as any).forecast_team_count ?? 1;
               const projWeeksAll = forecastWeeks.filter(w => w.projectId === cp.project.id);
               const isPopOpen = popoverProjectId === cp.project.id;
+              const projectTotal = weeks.reduce((s, w) => s + (cp.weeks[w.key]?.count || 0), 0);
               return (
                 <tr key={cp.project.id} className="hover:bg-muted/30">
                   <td
@@ -1003,10 +1026,8 @@ function GanttView({
                         <div className="space-y-2">
                           {Array.from({ length: teamCount }).map((_, ti) => {
                             const sel = projWeeksAll.filter(w => (w.teamIndex ?? 0) === ti).map(w => `${w.year}-${w.weekNumber}`);
-                            const label = ti === 0 ? 'Équipe principale' : `Équipe complémentaire ${ti}`;
                             return (
                               <div key={ti} className="flex items-center gap-2">
-                                <span className="text-xs font-medium w-[180px] shrink-0">{label}</span>
                                 <div className="flex-1 min-w-0">
                                   <ForecastWeeksStrip
                                     selected={sel}
@@ -1014,17 +1035,23 @@ function GanttView({
                                   />
                                 </div>
                                 {ti > 0 && (
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
-                                    onClick={() => { if (confirm('Supprimer cette équipe complémentaire ?')) onRemoveForecastTeam(cp.project.id, ti); }}>
-                                    <X className="h-3.5 w-3.5" />
-                                  </Button>
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
+                                      onClick={() => { if (confirm('Supprimer cette équipe ?')) onRemoveForecastTeam(cp.project.id, ti); }}>
+                                      <X className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <span className="text-xs font-medium w-5 text-center shrink-0">{ti + 1}</span>
+                                  </>
+                                )}
+                                {ti === 0 && teamCount > 1 && (
+                                  <span className="text-xs font-medium w-5 text-center shrink-0 ml-7">1</span>
                                 )}
                               </div>
                             );
                           })}
                           <div className="flex items-center justify-between pt-1">
                             <Button variant="outline" size="sm" onClick={() => onAddForecastTeam(cp.project.id)}>
-                              + Équipe complémentaire
+                              + Équipe
                             </Button>
                             <Button variant="outline" size="sm" onClick={() => onClearForecastWeeks(cp.project.id)}>
                               Tout désélectionner
@@ -1096,16 +1123,19 @@ function GanttView({
                           >
                             {isForecast ? (
                               <span style={{ background: 'rgba(255,255,255,0.75)', padding: '1px 3px', borderRadius: 2 }}>
-                                {Math.round(v * 10) / 10}P
+                                {Math.ceil(v)}
                               </span>
                             ) : (
-                              <>{Math.round(v * 10) / 10}</>
+                              <>{Math.ceil(v)}</>
                             )}
                           </div>
                         )}
                       </td>
                     );
                   })}
+                  <td className="sticky right-0 bg-background z-10 p-1 border-b border-l text-center font-bold">
+                    {projectTotal > 0 ? Math.ceil(projectTotal) : ''}
+                  </td>
                 </tr>
               );
             })}
@@ -1116,7 +1146,8 @@ function GanttView({
                 projects.forEach(cp => { s += cp.weeks[w.key]?.count || 0; });
                 totals[w.key] = s;
               });
-              const max = Math.max(0, ...Object.values(totals));
+              const grandTotal = Object.values(totals).reduce((a, b) => a + b, 0);
+              const max = Math.max(0, ...Object.values(totals), grandTotal);
               return (
                 <tr className="font-bold bg-muted/40">
                   <td colSpan={3} className="sticky left-0 bg-muted/40 z-10 p-1 border-t">Total camions</td>
@@ -1124,10 +1155,13 @@ function GanttView({
                     const v = totals[w.key];
                     return (
                       <td key={w.key} className="p-1 border-t text-center" style={heatStyle(v, max)}>
-                        {v ? Math.round(v * 10) / 10 : ''}
+                        {v ? Math.ceil(v) : ''}
                       </td>
                     );
                   })}
+                  <td className="sticky right-0 bg-muted/40 z-10 p-1 border-t border-l text-center" style={heatStyle(grandTotal, max)}>
+                    {grandTotal ? Math.ceil(grandTotal) : ''}
+                  </td>
                 </tr>
               );
             })()}

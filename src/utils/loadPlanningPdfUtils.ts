@@ -50,7 +50,7 @@ export async function exportLoadPlanningPdf(args: ExportArgs) {
     title: string,
     rows: { key: string; perWeek: Record<string, number> }[],
     colorByKey?: (k: string) => string,
-    ceil = false,
+    _ceil = false,
   ) => {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
@@ -62,6 +62,7 @@ export async function exportLoadPlanningPdf(args: ExportArgs) {
     weeks.forEach((w, i) => {
       doc.text(w.label, margin + labelW + i * colW + colW / 2, y + 3, { align: 'center' });
     });
+    doc.text('Total', margin + labelW + weeks.length * colW + colW / 2, y + 3, { align: 'center' });
     y += 4;
     doc.setFont('helvetica', 'normal');
     rows.forEach(r => {
@@ -72,10 +73,17 @@ export async function exportLoadPlanningPdf(args: ExportArgs) {
         doc.rect(margin, y - 2, 2, 2.5, 'F');
       }
       doc.text(r.key.slice(0, 28), margin + 3, y);
+      let total = 0;
       weeks.forEach((w, i) => {
         const v = r.perWeek[w.key] || 0;
-        if (v) doc.text(String(ceil ? Math.ceil(v) : Math.round(v * 10) / 10), margin + labelW + i * colW + colW / 2, y, { align: 'center' });
+        total += v;
+        if (v) doc.text(String(Math.ceil(v)), margin + labelW + i * colW + colW / 2, y, { align: 'center' });
       });
+      if (total) {
+        doc.setFont('helvetica', 'bold');
+        doc.text(String(Math.ceil(total)), margin + labelW + weeks.length * colW + colW / 2, y, { align: 'center' });
+        doc.setFont('helvetica', 'normal');
+      }
       y += 3.2;
     });
     y += 2;
@@ -94,24 +102,32 @@ export async function exportLoadPlanningPdf(args: ExportArgs) {
   doc.setFontSize(6);
   doc.text('Chantier', margin, y);
   weeks.forEach((w, i) => doc.text(w.label, margin + labelW + i * colW + colW / 2, y, { align: 'center' }));
+  doc.text('Total', margin + labelW + weeks.length * colW + colW / 2, y, { align: 'center' });
   y += 2;
   projects.forEach(cp => {
     if (y > pageH - 6) { doc.addPage(); y = 10; }
     doc.setFont('helvetica', 'normal');
     doc.text((cp.project.site_name || cp.project.otp_number || '').slice(0, 32), margin, y + 2);
     const [r, g, b] = hslToRgb(getPoseurColor(cp.poseur));
+    let total = 0;
     weeks.forEach((w, i) => {
       const cell = cp.weeks[w.key];
       if (!cell || cell.count === 0) return;
+      total += cell.count;
       const x = margin + labelW + i * colW;
       const isForecast = cell.source === 'forecast';
       doc.setFillColor(r, g, b);
       if (isForecast) doc.setFillColor(Math.min(r + 60, 255), Math.min(g + 60, 255), Math.min(b + 60, 255));
       doc.rect(x + 0.3, y, colW - 0.6, 3, 'F');
       doc.setTextColor(255, 255, 255);
-      doc.text(String(Math.round(cell.count * 10) / 10), x + colW / 2, y + 2, { align: 'center' });
+      doc.text(String(Math.ceil(cell.count)), x + colW / 2, y + 2, { align: 'center' });
       doc.setTextColor(0, 0, 0);
     });
+    if (total) {
+      doc.setFont('helvetica', 'bold');
+      doc.text(String(Math.ceil(total)), margin + labelW + weeks.length * colW + colW / 2, y + 2, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
+    }
     y += 4;
   });
 

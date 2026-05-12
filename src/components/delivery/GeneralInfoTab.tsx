@@ -282,10 +282,8 @@ function ForecastWeeksCard({
         <div className="space-y-2">
           {Array.from({ length: teamCount }).map((_, ti) => {
             const sel = forecastWeeks.filter(w => (w.teamIndex ?? 0) === ti).map(w => `${w.year}-${w.weekNumber}`);
-            const label = ti === 0 ? 'Équipe principale' : `Équipe complémentaire ${ti}`;
             return (
               <div key={ti} className="flex items-center gap-2">
-                <span className="text-xs font-medium w-[200px] shrink-0">{label}</span>
                 <div className="flex-1 min-w-0">
                   <ForecastWeeksStrip
                     selected={sel}
@@ -295,16 +293,22 @@ function ForecastWeeksCard({
                   />
                 </div>
                 {ti > 0 && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"
-                    onClick={() => { if (confirm('Supprimer cette équipe complémentaire ?')) onRemoveTeam(ti); }}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"
+                      onClick={() => { if (confirm('Supprimer cette équipe ?')) onRemoveTeam(ti); }}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    <span className="text-xs font-medium w-5 text-center shrink-0">{ti + 1}</span>
+                  </>
+                )}
+                {ti === 0 && teamCount > 1 && (
+                  <span className="text-xs font-medium w-5 text-center shrink-0 ml-8">1</span>
                 )}
               </div>
             );
           })}
           <Button variant="outline" size="sm" onClick={onAddTeam}>
-            <Plus className="h-4 w-4 mr-1" /> Ajouter une équipe complémentaire
+            <Plus className="h-4 w-4 mr-1" /> Ajouter une équipe
           </Button>
         </div>
       </CardContent>
