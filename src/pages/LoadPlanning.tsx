@@ -1003,10 +1003,8 @@ function GanttView({
                         <div className="space-y-2">
                           {Array.from({ length: teamCount }).map((_, ti) => {
                             const sel = projWeeksAll.filter(w => (w.teamIndex ?? 0) === ti).map(w => `${w.year}-${w.weekNumber}`);
-                            const label = ti === 0 ? 'Équipe principale' : `Équipe complémentaire ${ti}`;
                             return (
                               <div key={ti} className="flex items-center gap-2">
-                                <span className="text-xs font-medium w-[180px] shrink-0">{label}</span>
                                 <div className="flex-1 min-w-0">
                                   <ForecastWeeksStrip
                                     selected={sel}
@@ -1014,17 +1012,23 @@ function GanttView({
                                   />
                                 </div>
                                 {ti > 0 && (
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
-                                    onClick={() => { if (confirm('Supprimer cette équipe complémentaire ?')) onRemoveForecastTeam(cp.project.id, ti); }}>
-                                    <X className="h-3.5 w-3.5" />
-                                  </Button>
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
+                                      onClick={() => { if (confirm('Supprimer cette équipe ?')) onRemoveForecastTeam(cp.project.id, ti); }}>
+                                      <X className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <span className="text-xs font-medium w-5 text-center shrink-0">{ti + 1}</span>
+                                  </>
+                                )}
+                                {ti === 0 && teamCount > 1 && (
+                                  <span className="text-xs font-medium w-5 text-center shrink-0 ml-7">1</span>
                                 )}
                               </div>
                             );
                           })}
                           <div className="flex items-center justify-between pt-1">
                             <Button variant="outline" size="sm" onClick={() => onAddForecastTeam(cp.project.id)}>
-                              + Équipe complémentaire
+                              + Équipe
                             </Button>
                             <Button variant="outline" size="sm" onClick={() => onClearForecastWeeks(cp.project.id)}>
                               Tout désélectionner
