@@ -926,6 +926,7 @@ function LoadSummary({
 function GanttView({
   weeks, monthGroups, projects, todayKey, onUpdateField,
   tokens, forecastWeeks, onToggleForecastWeek, onClearForecastWeeks,
+  onAddForecastTeam, onRemoveForecastTeam,
 }: {
   weeks: ISOWeek[];
   monthGroups: MonthGroup[];
@@ -934,8 +935,10 @@ function GanttView({
   onUpdateField: (id: string, field: 'conductor' | 'subcontractor', v: string) => void;
   tokens: Record<string, string>;
   forecastWeeks: ForecastWeek[];
-  onToggleForecastWeek: (projectId: string, year: number, weekNumber: number) => void;
+  onToggleForecastWeek: (projectId: string, year: number, weekNumber: number, teamIndex?: number) => void;
   onClearForecastWeeks: (projectId: string) => void;
+  onAddForecastTeam: (projectId: string) => void;
+  onRemoveForecastTeam: (projectId: string, teamIndex: number) => void;
 }) {
   const [editing, setEditing] = useState<{ id: string; field: 'conductor' | 'subcontractor' } | null>(null);
   const [popoverProjectId, setPopoverProjectId] = useState<string | null>(null);
@@ -961,9 +964,8 @@ function GanttView({
             )}
             {projects.map(cp => {
               const color = getPoseurColor(cp.poseur);
-              const projSelected = forecastWeeks
-                .filter(w => w.projectId === cp.project.id)
-                .map(w => `${w.year}-${w.weekNumber}`);
+              const teamCount = (cp.project as any).forecast_team_count ?? 1;
+              const projWeeksAll = forecastWeeks.filter(w => w.projectId === cp.project.id);
               const isPopOpen = popoverProjectId === cp.project.id;
               return (
                 <tr key={cp.project.id} className="hover:bg-muted/30">
@@ -984,7 +986,7 @@ function GanttView({
                         </div>
                       </PopoverAnchor>
                       <PopoverContent
-                        className="w-auto max-w-[90vw] p-3"
+                        className="w-auto max-w-[95vw] p-3"
                         align="start"
                         side="bottom"
                         onClick={(e) => e.stopPropagation()}
@@ -998,18 +1000,37 @@ function GanttView({
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <Button variant="outline" size="sm" onClick={() => onClearForecastWeeks(cp.project.id)}>
-                            Tout désélectionner
-                          </Button>
-                          <span className="text-xs text-muted-foreground ml-auto">
-                            {projSelected.length} semaine{projSelected.length > 1 ? 's' : ''} sélectionnée{projSelected.length > 1 ? 's' : ''}
-                          </span>
+                        <div className="space-y-2">
+                          {Array.from({ length: teamCount }).map((_, ti) => {
+                            const sel = projWeeksAll.filter(w => (w.teamIndex ?? 0) === ti).map(w => `${w.year}-${w.weekNumber}`);
+                            const label = ti === 0 ? 'Équipe principale' : `Équipe complémentaire ${ti}`;
+                            return (
+                              <div key={ti} className="flex items-center gap-2">
+                                <span className="text-xs font-medium w-[180px] shrink-0">{label}</span>
+                                <div className="flex-1 min-w-0">
+                                  <ForecastWeeksStrip
+                                    selected={sel}
+                                    onToggle={(y, w) => onToggleForecastWeek(cp.project.id, y, w, ti)}
+                                  />
+                                </div>
+                                {ti > 0 && (
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
+                                    onClick={() => { if (confirm('Supprimer cette équipe complémentaire ?')) onRemoveForecastTeam(cp.project.id, ti); }}>
+                                    <X className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
+                            );
+                          })}
+                          <div className="flex items-center justify-between pt-1">
+                            <Button variant="outline" size="sm" onClick={() => onAddForecastTeam(cp.project.id)}>
+                              + Équipe complémentaire
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => onClearForecastWeeks(cp.project.id)}>
+                              Tout désélectionner
+                            </Button>
+                          </div>
                         </div>
-                        <ForecastWeeksStrip
-                          selected={projSelected}
-                          onToggle={(y, w) => onToggleForecastWeek(cp.project.id, y, w)}
-                        />
                       </PopoverContent>
                     </Popover>
                   </td>
