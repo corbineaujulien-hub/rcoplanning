@@ -149,6 +149,15 @@ function sortWithSentinelLast<T>(arr: T[], keyFn: (x: T) => string, sentinels: s
   });
 }
 
+function heatStyle(v: number, max: number): React.CSSProperties {
+  if (!v || !max) return {};
+  const ratio = v / max;
+  let bg = '#86efac';
+  if (ratio >= 0.66) bg = '#fca5a5';
+  else if (ratio >= 0.33) bg = '#fed7aa';
+  return { background: bg };
+}
+
 export default function LoadPlanning() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
