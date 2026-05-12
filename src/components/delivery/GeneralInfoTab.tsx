@@ -292,6 +292,9 @@ function ForecastWeeksCard({
                     toDate={toDate}
                   />
                 </div>
+                <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0">
+                  {sel.length} sem.
+                </span>
                 {ti > 0 && (
                   <>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"
@@ -307,6 +310,11 @@ function ForecastWeeksCard({
               </div>
             );
           })}
+          {teamCount > 1 && (
+            <p className="text-xs font-medium text-right pr-2">
+              Total : {forecastWeeks.length} semaine(s) toutes équipes confondues
+            </p>
+          )}
           <Button variant="outline" size="sm" onClick={onAddTeam}>
             <Plus className="h-4 w-4 mr-1" /> Ajouter une équipe
           </Button>
