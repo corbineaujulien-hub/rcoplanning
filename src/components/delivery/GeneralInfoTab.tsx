@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Building2, User, Phone, MapPin, FileText, HardHat, Calendar, Users, Plus, Trash2, Pencil, Check, X, CalendarDays, Truck as TruckIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import ForecastWeeksStrip from '@/components/delivery/ForecastWeeksStrip';
 
 export default function GeneralInfoTab() {
   const {
