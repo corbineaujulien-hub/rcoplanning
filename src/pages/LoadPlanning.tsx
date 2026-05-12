@@ -779,7 +779,7 @@ function LoadSummary({
                           }
                           return (
                             <td key={w.key} className={`p-1 border-b text-center ${w.key === todayKey ? 'bg-accent/10' : ''}`}>
-                              {v ? Math.round(v * 10) / 10 : '—'}
+                              {v ? Math.round(v * 10) / 10 : ''}
                             </td>
                           );
                         })}
@@ -789,6 +789,28 @@ function LoadSummary({
                 </Fragment>
               );
             })}
+            {rows.length > 0 && (() => {
+              const totals: Record<string, number> = {};
+              weeks.forEach(w => {
+                let s = 0;
+                rows.forEach(r => { s += r.perWeek[w.key] || 0; });
+                totals[w.key] = s;
+              });
+              const max = Math.max(0, ...Object.values(totals));
+              return (
+                <tr className="font-bold bg-muted/40">
+                  <td className="sticky left-0 bg-muted/40 z-10 p-1 border-t">Total</td>
+                  {weeks.map(w => {
+                    const v = totals[w.key];
+                    return (
+                      <td key={w.key} className="p-1 border-t text-center" style={heatStyle(v, max)}>
+                        {v ? Math.round(v * 10) / 10 : ''}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })()}
           </tbody>
         </table>
       </CardContent>
