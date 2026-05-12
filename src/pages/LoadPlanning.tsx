@@ -274,9 +274,18 @@ export default function LoadPlanning() {
         teamsByWeek.get(wk)!.add(t.team_id || '__notrack__');
       });
 
-      // Forecast: distribute total project transports evenly across selected forecast weeks (within visible range)
-      const visibleForecastWeeks = projWeeks
-        .map(fw => weeks.find(w => w.year === fw.year && w.week === fw.weekNumber))
+      // Forecast: distribute total project transports evenly across DISTINCT selected weeks (any team) within visible range.
+      // Count number of distinct teams per week to drive CDT/Poseur load.
+      const teamsByForecastWeek = new Map<string, Set<number>>();
+      projWeeks.forEach(fw => {
+        const w = weeks.find(x => x.year === fw.year && x.week === fw.weekNumber);
+        if (!w) return;
+        if (!teamsByForecastWeek.has(w.key)) teamsByForecastWeek.set(w.key, new Set());
+        teamsByForecastWeek.get(w.key)!.add(fw.teamIndex ?? 0);
+      });
+      const visibleForecastWeekKeys = Array.from(teamsByForecastWeek.keys());
+      const visibleForecastWeeks = visibleForecastWeekKeys
+        .map(k => weeks.find(w => w.key === k))
         .filter(Boolean) as ISOWeek[];
       const forecastByWeek = new Map<string, Record<string, Record<TransportCategory, number>>>();
       if (visibleForecastWeeks.length > 0) {
@@ -329,7 +338,7 @@ export default function LoadPlanning() {
             byUsineCat[usine] = { ...cats };
             for (const c of Object.values(cats)) count += c;
           }
-          teams = count > 0 ? 1 : 0;
+          teams = teamsByForecastWeek.get(w.key)?.size || 0;
         }
         weekCells[w.key] = { count: Math.round(count * 10) / 10, teams, source, byUsineCat };
       });
