@@ -221,6 +221,7 @@ export default function LoadPlanning() {
         })));
         setForecastWeeks((fData as any[]).map(s => ({
           id: s.id, projectId: s.project_id, year: s.year, weekNumber: s.week_number,
+          teamIndex: s.team_index ?? 0,
         })));
         const tokMap: Record<string, string> = {};
         (lData as any[]).forEach(l => { if (l.project_id && l.token && !tokMap[l.project_id]) tokMap[l.project_id] = l.token; });
@@ -471,18 +472,18 @@ export default function LoadPlanning() {
     else toast.success('Mise à jour enregistrée');
   }, []);
 
-  const toggleProjectForecastWeek = useCallback(async (projectId: string, year: number, weekNumber: number) => {
-    const existing = forecastWeeks.find(w => w.projectId === projectId && w.year === year && w.weekNumber === weekNumber);
+  const toggleProjectForecastWeek = useCallback(async (projectId: string, year: number, weekNumber: number, teamIndex: number = 0) => {
+    const existing = forecastWeeks.find(w => w.projectId === projectId && w.year === year && w.weekNumber === weekNumber && (w.teamIndex ?? 0) === teamIndex);
     if (existing) {
       setForecastWeeks(prev => prev.filter(w => w.id !== existing.id));
       const { error } = await (supabase.from as any)('forecast_weeks').delete().eq('id', existing.id);
       if (error) toast.error('Erreur : ' + error.message);
     } else {
       const id = crypto.randomUUID();
-      const nw: ForecastWeek = { id, projectId, year, weekNumber };
+      const nw: ForecastWeek = { id, projectId, year, weekNumber, teamIndex };
       setForecastWeeks(prev => [...prev, nw]);
       const { error } = await (supabase.from as any)('forecast_weeks').insert({
-        id, project_id: projectId, year, week_number: weekNumber,
+        id, project_id: projectId, year, week_number: weekNumber, team_index: teamIndex,
       });
       if (error) toast.error('Erreur : ' + error.message);
     }
