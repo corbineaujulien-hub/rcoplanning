@@ -311,27 +311,65 @@ export default function LoadPlanning() {
     });
   }, [projects, trucks, forecastSlots, elementsById, weeks]);
 
-  // Filtering — archived treated like active
-  const filteredProjects = useMemo(() => {
+  // Filtering — archived treated like active. Supports excluding a single filter
+  // (used to compute available values in dropdowns for cumulative behaviour).
+  const filterFn = useCallback((cp: ProjectComputed, exclude?: 'cdt' | 'poseur' | 'usine' | 'status') => {
     const q = searchText.trim().toLowerCase();
-    return computedProjects.filter(cp => {
-      if (filterCdt !== 'all' && cp.conductor !== filterCdt) return false;
-      if (filterPoseur !== 'all' && cp.poseur !== filterPoseur) return false;
-      if (filterUsine !== 'all' && !cp.usines.has(filterUsine)) return false;
+    if (exclude !== 'cdt' && filterCdt !== 'all' && cp.conductor !== filterCdt) return false;
+    if (exclude !== 'poseur' && filterPoseur !== 'all' && cp.poseur !== filterPoseur) return false;
+    if (exclude !== 'usine' && filterUsine !== 'all' && !cp.usines.has(filterUsine)) return false;
+    if (exclude !== 'status') {
       const sources = Object.values(cp.weeks).map(w => w.source).filter(s => s !== 'none');
       if (filterStatus === 'planned' && !sources.includes('real')) return false;
       if (filterStatus === 'forecast' && sources.length > 0 && sources.every(s => s === 'real')) return false;
-      if (q) {
-        const hay = [
-          cp.project.otp_number || '',
-          cp.project.site_name || '',
-          cp.project.client_name || '',
-        ].join(' ').toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
+    }
+    if (q) {
+      const hay = [
+        cp.project.otp_number || '',
+        cp.project.site_name || '',
+        cp.project.client_name || '',
+      ].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  }, [filterCdt, filterPoseur, filterUsine, filterStatus, searchText]);
+
+  const filteredProjects = useMemo(
+    () => computedProjects.filter(cp => filterFn(cp)),
+    [computedProjects, filterFn],
+  );
+
+  // Sort Gantt by earliest planned (real) truck, then earliest forecast slot, then no date.
+  const projectFirstDate = useMemo(() => {
+    const real = new Map<string, string>();
+    trucks.forEach(t => {
+      if (!t.date) return;
+      const cur = real.get(t.project_id);
+      if (!cur || t.date < cur) real.set(t.project_id, t.date);
     });
-  }, [computedProjects, filterCdt, filterPoseur, filterUsine, filterStatus, searchText]);
+    const fc = new Map<string, string>();
+    forecastSlots.forEach(s => {
+      const cur = fc.get(s.projectId);
+      if (!cur || s.dateStart < cur) fc.set(s.projectId, s.dateStart);
+    });
+    return { real, fc };
+  }, [trucks, forecastSlots]);
+
+  const sortedGanttProjects = useMemo(() => {
+    return [...filteredProjects].sort((a, b) => {
+      const ra = projectFirstDate.real.get(a.project.id);
+      const rb = projectFirstDate.real.get(b.project.id);
+      if (ra && rb) return ra.localeCompare(rb);
+      if (ra) return -1;
+      if (rb) return 1;
+      const fa = projectFirstDate.fc.get(a.project.id);
+      const fb = projectFirstDate.fc.get(b.project.id);
+      if (fa && fb) return fa.localeCompare(fb);
+      if (fa) return -1;
+      if (fb) return 1;
+      return 0;
+    });
+  }, [filteredProjects, projectFirstDate]);
 
   // Aggregations
   const loadByCdt = useMemo(
@@ -365,19 +403,33 @@ export default function LoadPlanning() {
     return sortWithSentinelLast(rows, r => r.key, [UNASSIGNED_USINE]);
   }, [filteredProjects, weeks]);
 
-  const allCdts = useMemo(
-    () => sortWithSentinelLast(Array.from(new Set(computedProjects.map(p => p.conductor))), s => s, [UNASSIGNED_CDT]),
-    [computedProjects],
-  );
-  const allPoseurs = useMemo(
-    () => sortWithSentinelLast(Array.from(new Set(computedProjects.map(p => p.poseur))), s => s, [UNASSIGNED_POSEUR]),
-    [computedProjects],
-  );
+  // Cumulative dropdowns — values available given other active filters
+  const allCdts = useMemo(() => {
+    const list = computedProjects.filter(cp => filterFn(cp, 'cdt')).map(p => p.conductor);
+    return sortWithSentinelLast(Array.from(new Set(list)), s => s, [UNASSIGNED_CDT]);
+  }, [computedProjects, filterFn]);
+  const allPoseurs = useMemo(() => {
+    const list = computedProjects.filter(cp => filterFn(cp, 'poseur')).map(p => p.poseur);
+    return sortWithSentinelLast(Array.from(new Set(list)), s => s, [UNASSIGNED_POSEUR]);
+  }, [computedProjects, filterFn]);
   const allUsines = useMemo(() => {
     const s = new Set<string>();
-    computedProjects.forEach(p => p.usines.forEach(u => s.add(u)));
+    computedProjects.filter(cp => filterFn(cp, 'usine')).forEach(p => p.usines.forEach(u => s.add(u)));
     return sortWithSentinelLast(Array.from(s), x => x, [UNASSIGNED_USINE]);
-  }, [computedProjects]);
+  }, [computedProjects, filterFn]);
+  const availableStatus = useMemo(() => {
+    const set = new Set<'planned' | 'forecast'>();
+    computedProjects.filter(cp => filterFn(cp, 'status')).forEach(cp => {
+      const sources = Object.values(cp.weeks).map(w => w.source).filter(s => s !== 'none');
+      if (sources.includes('real')) set.add('planned');
+      if (sources.length > 0 && !sources.every(s => s === 'real')) set.add('forecast');
+    });
+    return set;
+  }, [computedProjects, filterFn]);
+
+  const hasActiveFilters =
+    filterCdt !== 'all' || filterPoseur !== 'all' || filterUsine !== 'all' ||
+    filterStatus !== 'all' || searchText.trim() !== '';
 
   const updateProjectField = useCallback(async (projectId: string, field: 'conductor' | 'subcontractor', value: string) => {
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, [field]: value } : p));
