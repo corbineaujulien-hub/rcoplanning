@@ -1,16 +1,21 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
-import { CONDUCTORS, SUBCONTRACTORS, Team, TRANSPORT_CATEGORIES, TransportCategory, ForecastSlot, ForecastedTruck } from '@/types/delivery';
+import { CONDUCTORS, SUBCONTRACTORS, Team, ForecastedTransport, FORECAST_TRANSPORT_CATEGORIES, ForecastTransportCategory } from '@/types/delivery';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { Building2, User, Phone, MapPin, FileText, HardHat, Calendar, Users, Plus, Trash2, Pencil, Check, X, CalendarDays } from 'lucide-react';
+import { Building2, User, Phone, MapPin, FileText, HardHat, Calendar, Users, Plus, Trash2, Pencil, Check, X, CalendarDays, Truck as TruckIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export default function GeneralInfoTab() {
-  const { projectInfo, setProjectInfo, teams, addTeam, updateTeam, deleteTeam, forecastSlots, addForecastSlot, updateForecastSlot, deleteForecastSlot, elements } = useDelivery();
+  const {
+    projectInfo, setProjectInfo, teams, addTeam, updateTeam, deleteTeam,
+    forecastWeeks, toggleForecastWeek, setForecastWeeksBulk, clearForecastWeeks,
+    setForecastedTransports,
+  } = useDelivery();
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
 
@@ -184,12 +189,16 @@ export default function GeneralInfoTab() {
         </CardContent>
       </Card>
 
-      <ForecastSlotsCard
-        slots={forecastSlots}
-        onAdd={addForecastSlot}
-        onUpdate={updateForecastSlot}
-        onDelete={deleteForecastSlot}
-        knownUsines={Array.from(new Set(elements.map(e => e.factory).filter(Boolean))).sort()}
+      <ForecastWeeksCard
+        selected={forecastWeeks.map(w => `${w.year}-${w.weekNumber}`)}
+        onToggle={toggleForecastWeek}
+        onSelectAll={setForecastWeeksBulk}
+        onClear={clearForecastWeeks}
+      />
+
+      <ForecastedTransportsCard
+        transports={projectInfo.forecastedTransports || []}
+        onChange={setForecastedTransports}
       />
 
       {/* Discreet Saturday toggle */}
@@ -206,31 +215,105 @@ export default function GeneralInfoTab() {
   );
 }
 
-// --- Forecast slots sub-component ---
-const CATS: TransportCategory[] = ['standard', 'cat1', 'cat2', 'cat3'];
+// =================== Forecast Weeks Calendar ===================
 
-interface ForecastSlotsCardProps {
-  slots: ForecastSlot[];
-  onAdd: (slot: ForecastSlot) => void;
-  onUpdate: (id: string, updates: Partial<ForecastSlot>) => void;
-  onDelete: (id: string) => void;
-  knownUsines: string[];
+function getISOWeekInfo(date: Date): { year: number; week: number } {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return { year: d.getUTCFullYear(), week };
 }
 
-function ForecastSlotsCard({ slots, onAdd, onUpdate, onDelete, knownUsines }: ForecastSlotsCardProps) {
-  const handleAdd = () => {
-    const today = new Date().toISOString().slice(0, 10);
-    const slot: ForecastSlot = {
-      id: crypto.randomUUID(),
-      projectId: '',
-      dateStart: today,
-      dateEnd: today,
-      forecastedTrucks: [],
-    };
-    onAdd(slot);
-  };
+function startOfISOWeek(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
 
-  const sorted = [...slots].sort((a, b) => a.dateStart.localeCompare(b.dateStart));
+interface MonthRow {
+  label: string;
+  year: number;
+  month: number;
+  weeks: { year: number; weekNumber: number; key: string; split: boolean; dateRange: string; start: Date; end: Date }[];
+}
+
+function buildSlidingMonths(): MonthRow[] {
+  const today = new Date();
+  const startMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  // Build all weeks from startOfISOWeek(startMonth) to end of month +11
+  const endMonth = new Date(today.getFullYear(), today.getMonth() + 12, 0); // last day of 12th month
+  const weekCursor = startOfISOWeek(startMonth);
+
+  const months: MonthRow[] = [];
+  for (let i = 0; i < 12; i++) {
+    const m = new Date(today.getFullYear(), today.getMonth() + i, 1);
+    months.push({
+      label: m.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }).replace(/^./, c => c.toUpperCase()),
+      year: m.getFullYear(),
+      month: m.getMonth(),
+      weeks: [],
+    });
+  }
+
+  const fmtDay = (d: Date) =>
+    `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+  const cur = new Date(weekCursor);
+  while (cur.getTime() <= endMonth.getTime()) {
+    const wEnd = new Date(cur);
+    wEnd.setDate(wEnd.getDate() + 6);
+    // Determine majority month
+    const counts: Record<string, { y: number; m: number; n: number }> = {};
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(cur);
+      d.setDate(d.getDate() + i);
+      const k = `${d.getFullYear()}-${d.getMonth()}`;
+      if (!counts[k]) counts[k] = { y: d.getFullYear(), m: d.getMonth(), n: 0 };
+      counts[k].n++;
+    }
+    const entries = Object.values(counts).sort((a, b) => b.n - a.n);
+    const owner = entries[0];
+    const split = entries.length > 1;
+    const info = getISOWeekInfo(cur);
+    const target = months.find(mm => mm.year === owner.y && mm.month === owner.m);
+    if (target) {
+      target.weeks.push({
+        year: info.year,
+        weekNumber: info.week,
+        key: `${info.year}-${info.week}`,
+        split,
+        dateRange: `Du ${fmtDay(cur)} au ${fmtDay(wEnd)}`,
+        start: new Date(cur),
+        end: new Date(wEnd),
+      });
+    }
+    cur.setDate(cur.getDate() + 7);
+  }
+
+  return months;
+}
+
+function ForecastWeeksCard({
+  selected, onToggle, onSelectAll, onClear,
+}: {
+  selected: string[];
+  onToggle: (year: number, weekNumber: number) => void;
+  onSelectAll: (weeks: { year: number; weekNumber: number }[]) => void;
+  onClear: () => void;
+}) {
+  const months = useMemo(() => buildSlidingMonths(), []);
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
+
+  const allWeeks = useMemo(() => {
+    const list: { year: number; weekNumber: number }[] = [];
+    months.forEach(m => m.weeks.forEach(w => list.push({ year: w.year, weekNumber: w.weekNumber })));
+    return list;
+  }, [months]);
 
   return (
     <Card>
@@ -240,147 +323,179 @@ function ForecastSlotsCard({ slots, onAdd, onUpdate, onDelete, knownUsines }: Fo
           Planning prévisionnel
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Renseignez les créneaux d'intervention prévisionnels et le nombre de camions prévus par usine et catégorie de transport. Ces données alimentent le planning de charge global.
+          Cochez les semaines d'intervention prévisionnelles. Ces données alimentent le planning de charge global.
         </p>
-        {sorted.length === 0 && (
-          <div className="text-sm text-muted-foreground italic text-center py-4 border border-dashed rounded-md">
-            Aucun créneau prévisionnel pour le moment.
-          </div>
-        )}
-        {sorted.map(slot => (
-          <ForecastSlotEditor
-            key={slot.id}
-            slot={slot}
-            knownUsines={knownUsines}
-            onUpdate={(u) => onUpdate(slot.id, u)}
-            onDelete={() => onDelete(slot.id)}
-          />
-        ))}
-        <Button variant="outline" size="sm" onClick={handleAdd} className="w-full">
-          <Plus className="h-4 w-4 mr-1" /> Ajouter un créneau
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-interface ForecastSlotEditorProps {
-  slot: ForecastSlot;
-  knownUsines: string[];
-  onUpdate: (updates: Partial<ForecastSlot>) => void;
-  onDelete: () => void;
-}
-
-function ForecastSlotEditor({ slot, knownUsines, onUpdate, onDelete }: ForecastSlotEditorProps) {
-  const [newUsine, setNewUsine] = useState('');
-
-  const usinesInSlot = Array.from(new Set(slot.forecastedTrucks.map(t => t.usine)));
-
-  const setCount = (usine: string, category: TransportCategory, count: number) => {
-    const others = slot.forecastedTrucks.filter(t => !(t.usine === usine && t.category === category));
-    const next: ForecastedTruck[] = count > 0
-      ? [...others, { usine, category, count }]
-      : others;
-    onUpdate({ forecastedTrucks: next });
-  };
-
-  const getCount = (usine: string, category: TransportCategory) =>
-    slot.forecastedTrucks.find(t => t.usine === usine && t.category === category)?.count ?? 0;
-
-  const addUsine = () => {
-    const name = newUsine.trim();
-    if (!name || usinesInSlot.includes(name)) return;
-    onUpdate({ forecastedTrucks: [...slot.forecastedTrucks, { usine: name, category: 'standard', count: 0 }] });
-    setNewUsine('');
-  };
-
-  const removeUsine = (usine: string) => {
-    onUpdate({ forecastedTrucks: slot.forecastedTrucks.filter(t => t.usine !== usine) });
-  };
-
-  return (
-    <div className="border rounded-md p-3 space-y-3 bg-muted/20">
-      <div className="flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-2">
-          <Label className="text-xs">Du</Label>
-          <Input
-            type="date"
-            value={slot.dateStart}
-            onChange={e => onUpdate({ dateStart: e.target.value })}
-            className="h-8 w-[150px]"
-          />
+          <Button variant="outline" size="sm" onClick={() => onSelectAll(allWeeks)}>
+            Tout sélectionner
+          </Button>
+          <Button variant="outline" size="sm" onClick={onClear}>
+            Tout désélectionner
+          </Button>
+          <span className="text-xs text-muted-foreground ml-auto">
+            {selectedSet.size} semaine{selectedSet.size > 1 ? 's' : ''} sélectionnée{selectedSet.size > 1 ? 's' : ''}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <Label className="text-xs">au</Label>
-          <Input
-            type="date"
-            value={slot.dateEnd}
-            onChange={e => onUpdate({ dateEnd: e.target.value })}
-            className="h-8 w-[150px]"
-          />
-        </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto text-destructive" onClick={onDelete}>
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {usinesInSlot.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left p-1 font-medium">Usine</th>
-                {CATS.map(c => (
-                  <th key={c} className="p-1 text-center font-medium">{TRANSPORT_CATEGORIES[c].label}</th>
-                ))}
-                <th className="w-8" />
-              </tr>
-            </thead>
+        <div className="overflow-x-auto border rounded-md">
+          <table className="w-full text-xs border-collapse">
             <tbody>
-              {usinesInSlot.map(usine => (
-                <tr key={usine} className="border-b last:border-0">
-                  <td className="p-1 font-medium">{usine}</td>
-                  {CATS.map(c => (
-                    <td key={c} className="p-1 text-center">
-                      <Input
-                        type="number"
-                        min={0}
-                        value={getCount(usine, c)}
-                        onChange={e => setCount(usine, c, Math.max(0, Number(e.target.value) || 0))}
-                        className="h-7 w-16 text-center text-xs mx-auto"
-                      />
-                    </td>
-                  ))}
-                  <td className="p-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeUsine(usine)}>
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
+              {months.map(m => (
+                <tr key={`${m.year}-${m.month}`} className="border-b last:border-0">
+                  <td className="p-2 font-medium bg-muted/40 border-r whitespace-nowrap min-w-[140px]">
+                    {m.label}
                   </td>
+                  {m.weeks.map(w => {
+                    const isSel = selectedSet.has(w.key);
+                    return (
+                      <td key={w.key} className={cn('p-1 text-center align-middle', w.split && 'border-l border-dashed border-muted-foreground/50')}>
+                        <button
+                          type="button"
+                          onClick={() => onToggle(w.year, w.weekNumber)}
+                          title={w.dateRange}
+                          className={cn(
+                            'w-12 h-9 rounded border text-[11px] font-medium transition-colors',
+                            isSel
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-background hover:bg-muted border-input',
+                          )}
+                        >
+                          S{w.weekNumber}
+                        </button>
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
+      </CardContent>
+    </Card>
+  );
+}
 
-      <div className="flex items-center gap-2">
-        <Input
-          list={`usines-${slot.id}`}
-          value={newUsine}
-          onChange={e => setNewUsine(e.target.value)}
-          placeholder="Nom de l'usine"
-          className="h-8 text-sm flex-1"
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addUsine(); } }}
-        />
-        <datalist id={`usines-${slot.id}`}>
-          {knownUsines.map(u => <option key={u} value={u} />)}
-        </datalist>
-        <Button variant="outline" size="sm" onClick={addUsine} disabled={!newUsine.trim()}>
-          <Plus className="h-4 w-4 mr-1" /> Usine
+// =================== Forecasted Transports ===================
+
+function ForecastedTransportsCard({
+  transports, onChange,
+}: {
+  transports: ForecastedTransport[];
+  onChange: (t: ForecastedTransport[]) => void;
+}) {
+  const [draft, setDraft] = useState<ForecastedTransport[]>(transports);
+
+  // Sync external -> draft when transports change
+  useMemo(() => { setDraft(transports); }, [transports]);
+
+  const update = (idx: number, patch: Partial<ForecastedTransport>) => {
+    setDraft(prev => prev.map((t, i) => i === idx ? { ...t, ...patch } : t));
+  };
+
+  const commit = () => onChange(draft);
+
+  const addRow = () => {
+    const next = [...draft, { usine: '', standard: 0, cat1: 0, cat2: 0, cat3: 0, exceptional: 0 }];
+    setDraft(next);
+    onChange(next);
+  };
+
+  const removeRow = (idx: number) => {
+    const next = draft.filter((_, i) => i !== idx);
+    setDraft(next);
+    onChange(next);
+  };
+
+  const rowTotal = (t: ForecastedTransport) =>
+    (t.standard || 0) + (t.cat1 || 0) + (t.cat2 || 0) + (t.cat3 || 0) + (t.exceptional || 0);
+
+  const colTotals: Record<ForecastTransportCategory, number> = {
+    standard: 0, cat1: 0, cat2: 0, cat3: 0, exceptional: 0,
+  };
+  draft.forEach(t => FORECAST_TRANSPORT_CATEGORIES.forEach(c => { colTotals[c.key] += (t as any)[c.key] || 0; }));
+  const grandTotal = Object.values(colTotals).reduce((a, b) => a + b, 0);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <TruckIcon className="h-5 w-5 text-accent" />
+          Transports prévisionnels
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Renseignez le nombre prévisionnel de camions par usine et par catégorie de transport.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left p-2 font-medium">Usine</th>
+                {FORECAST_TRANSPORT_CATEGORIES.map(c => (
+                  <th key={c.key} className="p-2 text-center font-medium">{c.label}</th>
+                ))}
+                <th className="p-2 text-center font-medium">Total</th>
+                <th className="w-8" />
+              </tr>
+            </thead>
+            <tbody>
+              {draft.length === 0 && (
+                <tr>
+                  <td colSpan={FORECAST_TRANSPORT_CATEGORIES.length + 3} className="p-3 text-center text-muted-foreground italic">
+                    Aucune usine renseignée
+                  </td>
+                </tr>
+              )}
+              {draft.map((t, idx) => (
+                <tr key={idx} className="border-b last:border-0">
+                  <td className="p-1">
+                    <Input
+                      value={t.usine}
+                      onChange={e => update(idx, { usine: e.target.value })}
+                      onBlur={commit}
+                      placeholder="Ex : Usine Nord"
+                      className="h-8 text-xs"
+                    />
+                  </td>
+                  {FORECAST_TRANSPORT_CATEGORIES.map(c => (
+                    <td key={c.key} className="p-1 text-center">
+                      <Input
+                        type="number"
+                        min={0}
+                        value={(t as any)[c.key] ?? 0}
+                        onChange={e => update(idx, { [c.key]: Math.max(0, Number(e.target.value) || 0) } as any)}
+                        onBlur={commit}
+                        className="h-8 w-16 text-center text-xs mx-auto"
+                      />
+                    </td>
+                  ))}
+                  <td className="p-1 text-center font-semibold">{rowTotal(t)}</td>
+                  <td className="p-1">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeRow(idx)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+              {draft.length > 0 && (
+                <tr className="font-bold bg-muted/40">
+                  <td className="p-2">Total général</td>
+                  {FORECAST_TRANSPORT_CATEGORIES.map(c => (
+                    <td key={c.key} className="p-2 text-center">{colTotals[c.key]}</td>
+                  ))}
+                  <td className="p-2 text-center">{grandTotal}</td>
+                  <td />
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <Button variant="outline" size="sm" onClick={addRow}>
+          <Plus className="h-4 w-4 mr-1" /> Ajouter une usine
         </Button>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
