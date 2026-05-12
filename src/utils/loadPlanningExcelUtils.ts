@@ -18,9 +18,14 @@ interface ExportArgs {
   periodEnd: string;
 }
 
-function buildLoadSheet(rows: { key: string; perWeek: Record<string, number> }[], weeks: ISOWeek[]): any[][] {
+function buildLoadSheet(
+  rows: { key: string; perWeek: Record<string, number> }[],
+  weeks: ISOWeek[],
+  ceil = false,
+): any[][] {
   const header = ['', ...weeks.map(w => w.label)];
-  const data = rows.map(r => [r.key, ...weeks.map(w => Math.round((r.perWeek[w.key] || 0) * 10) / 10 || '')]);
+  const fmt = (v: number) => v ? (ceil ? Math.ceil(v) : Math.round(v * 10) / 10) : '';
+  const data = rows.map(r => [r.key, ...weeks.map(w => fmt(r.perWeek[w.key] || 0))]);
   return [header, ...data];
 }
 
@@ -44,7 +49,7 @@ export async function exportLoadPlanningExcel(args: ExportArgs) {
 
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(buildLoadSheet(loadByCdt, weeks)), 'Charge CDT');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(buildLoadSheet(loadByPoseur, weeks)), 'Charge Poseur');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(buildLoadSheet(loadByUsine, weeks)), 'Charge Usine');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(buildLoadSheet(loadByUsine, weeks, true)), 'Charge Usine');
 
   XLSX.writeFile(wb, `planning_charge_${periodStart}_${periodEnd}.xlsx`);
 }
