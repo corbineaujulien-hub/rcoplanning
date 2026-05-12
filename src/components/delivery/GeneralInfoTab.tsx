@@ -193,7 +193,6 @@ export default function GeneralInfoTab() {
       <ForecastWeeksCard
         selected={forecastWeeks.map(w => `${w.year}-${w.weekNumber}`)}
         onToggle={toggleForecastWeek}
-        onSelectAll={setForecastWeeksBulk}
         onClear={clearForecastWeeks}
       />
 
@@ -219,11 +218,10 @@ export default function GeneralInfoTab() {
 // =================== Forecast Weeks Strip ===================
 
 function ForecastWeeksCard({
-  selected, onToggle, onSelectAll, onClear,
+  selected, onToggle, onClear,
 }: {
   selected: string[];
   onToggle: (year: number, weekNumber: number) => void;
-  onSelectAll: (weeks: { year: number; weekNumber: number }[]) => void;
   onClear: () => void;
 }) {
   const selectedSet = useMemo(() => new Set(selected), [selected]);
