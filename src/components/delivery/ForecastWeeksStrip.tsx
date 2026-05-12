@@ -34,13 +34,24 @@ export interface StripMonth {
   weeks: StripWeek[];
 }
 
-export function buildSlidingStripMonths(monthsCount = 12, startOffset = 0): StripMonth[] {
+export function buildSlidingStripMonths(
+  monthsCount = 12,
+  startOffset = 0,
+  fromDate?: Date,
+  toDate?: Date,
+): StripMonth[] {
   const today = new Date();
-  const startMonth = new Date(today.getFullYear(), today.getMonth() + startOffset, 1);
-  const endMonth = new Date(today.getFullYear(), today.getMonth() + startOffset + monthsCount, 0);
+  const startMonth = fromDate
+    ? new Date(fromDate.getFullYear(), fromDate.getMonth(), 1)
+    : new Date(today.getFullYear(), today.getMonth() + startOffset, 1);
+  const endMonth = toDate
+    ? new Date(toDate.getFullYear(), toDate.getMonth() + 1, 0)
+    : new Date(today.getFullYear(), today.getMonth() + startOffset + monthsCount, 0);
+  const totalMonths = (endMonth.getFullYear() - startMonth.getFullYear()) * 12 +
+    (endMonth.getMonth() - startMonth.getMonth()) + 1;
 
   const months: StripMonth[] = [];
-  for (let i = 0; i < monthsCount; i++) {
+  for (let i = 0; i < totalMonths; i++) {
     const m = new Date(startMonth.getFullYear(), startMonth.getMonth() + i, 1);
     months.push({
       label: m.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })
@@ -90,13 +101,18 @@ interface Props {
   cellHeight?: number;
   monthsCount?: number;
   startOffset?: number;
+  fromDate?: Date;
+  toDate?: Date;
 }
 
 export default function ForecastWeeksStrip({
   selected, onToggle, cellWidth = 32, cellHeight = 32, monthsCount = 12, startOffset = 0,
+  fromDate, toDate,
 }: Props) {
-  const months = useMemo(() => buildSlidingStripMonths(monthsCount, startOffset),
-    [monthsCount, startOffset]);
+  const months = useMemo(
+    () => buildSlidingStripMonths(monthsCount, startOffset, fromDate, toDate),
+    [monthsCount, startOffset, fromDate?.getTime(), toDate?.getTime()],
+  );
   const selectedSet = useMemo(() => new Set(selected), [selected]);
 
   return (

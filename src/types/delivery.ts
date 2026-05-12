@@ -11,6 +11,9 @@ export interface ProjectInfo {
   databaseComplete?: boolean;
   databaseComment?: string;
   forecastedTransports?: ForecastedTransport[];
+  forecastTeamCount?: number;
+  forecastPeriodStart?: string | null;
+  forecastPeriodEnd?: string | null;
 }
 
 export interface BeamElement {
@@ -112,6 +115,7 @@ export interface ForecastWeek {
   projectId: string;
   year: number;
   weekNumber: number;
+  teamIndex: number;
 }
 
 // Extended forecast transport categories (includes "exceptionnel")
@@ -154,4 +158,7 @@ export const DEFAULT_PROJECT_INFO: ProjectInfo = {
   databaseComplete: false,
   databaseComment: '',
   forecastedTransports: [],
+  forecastTeamCount: 1,
+  forecastPeriodStart: null,
+  forecastPeriodEnd: null,
 };

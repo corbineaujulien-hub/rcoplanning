@@ -34,9 +34,12 @@ interface DeliveryContextType {
   addTeam: (team: Team) => void;
   updateTeam: (id: string, updates: Partial<Team>) => void;
   deleteTeam: (id: string) => void;
-  toggleForecastWeek: (year: number, weekNumber: number) => void;
-  setForecastWeeksBulk: (weeks: { year: number; weekNumber: number }[]) => void;
-  clearForecastWeeks: () => void;
+  toggleForecastWeek: (year: number, weekNumber: number, teamIndex?: number) => void;
+  setForecastWeeksBulk: (weeks: { year: number; weekNumber: number; teamIndex?: number }[]) => void;
+  clearForecastWeeks: (teamIndex?: number) => void;
+  addForecastTeam: () => void;
+  removeForecastTeam: (teamIndex: number) => void;
+  setForecastPeriod: (start: string | null, end: string | null) => void;
   setForecastedTransports: (transports: ForecastedTransport[]) => void;
   initialDate: Date;
   compositionTabOpened: boolean;
@@ -82,6 +85,9 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
             databaseComplete: (proj as any).database_complete || false,
             databaseComment: (proj as any).database_comment || '',
             forecastedTransports: ((proj as any).forecasted_transports as ForecastedTransport[]) || [],
+            forecastTeamCount: (proj as any).forecast_team_count ?? 1,
+            forecastPeriodStart: (proj as any).forecast_period_start ?? null,
+            forecastPeriodEnd: (proj as any).forecast_period_end ?? null,
           });
         }
 
@@ -150,6 +156,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
         if (fw) {
           setForecastWeeksState((fw as any[]).map((s: any) => ({
             id: s.id, projectId: s.project_id, year: s.year, weekNumber: s.week_number,
+            teamIndex: s.team_index ?? 0,
           })));
         }
 
@@ -188,6 +195,9 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
             databaseComplete: (p as any).database_complete || false,
             databaseComment: (p as any).database_comment || '',
             forecastedTransports: ((p as any).forecasted_transports as ForecastedTransport[]) || [],
+            forecastTeamCount: (p as any).forecast_team_count ?? 1,
+            forecastPeriodStart: (p as any).forecast_period_start ?? null,
+            forecastPeriodEnd: (p as any).forecast_period_end ?? null,
           });
         }
       })
@@ -254,6 +264,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
       .on('postgres_changes', { event: '*', schema: 'public', table: 'forecast_weeks', filter: `project_id=eq.${projectId}` }, (payload) => {
         const mapRow = (s: any): ForecastWeek => ({
           id: s.id, projectId: s.project_id, year: s.year, weekNumber: s.week_number,
+          teamIndex: s.team_index ?? 0,
         });
         if (payload.eventType === 'INSERT') {
           const s = payload.new as any;
@@ -283,6 +294,9 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
       database_complete: info.databaseComplete,
       database_comment: info.databaseComment,
       forecasted_transports: info.forecastedTransports || [],
+      forecast_team_count: info.forecastTeamCount ?? 1,
+      forecast_period_start: info.forecastPeriodStart ?? null,
+      forecast_period_end: info.forecastPeriodEnd ?? null,
       updated_at: new Date().toISOString(),
     } as any).eq('id', projectId);
   }, [projectId]);
@@ -481,30 +495,30 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
   }, []);
 
   // Forecast week mutations
-  const toggleForecastWeek = useCallback(async (year: number, weekNumber: number) => {
-    const existing = forecastWeeks.find(w => w.year === year && w.weekNumber === weekNumber);
+  const toggleForecastWeek = useCallback(async (year: number, weekNumber: number, teamIndex: number = 0) => {
+    const existing = forecastWeeks.find(w => w.year === year && w.weekNumber === weekNumber && (w.teamIndex ?? 0) === teamIndex);
     if (existing) {
       setForecastWeeksState(prev => prev.filter(w => w.id !== existing.id));
       await (supabase.from as any)('forecast_weeks').delete().eq('id', existing.id);
     } else {
-      const nw: ForecastWeek = { id: crypto.randomUUID(), projectId, year, weekNumber };
+      const nw: ForecastWeek = { id: crypto.randomUUID(), projectId, year, weekNumber, teamIndex };
       setForecastWeeksState(prev => [...prev, nw]);
       await (supabase.from as any)('forecast_weeks').insert({
-        id: nw.id, project_id: projectId, year, week_number: weekNumber,
+        id: nw.id, project_id: projectId, year, week_number: weekNumber, team_index: teamIndex,
       });
     }
   }, [forecastWeeks, projectId]);
 
-  const setForecastWeeksBulk = useCallback(async (weeksList: { year: number; weekNumber: number }[]) => {
-    const existingKeys = new Set(forecastWeeks.map(w => `${w.year}-${w.weekNumber}`));
-    const toAdd = weeksList.filter(w => !existingKeys.has(`${w.year}-${w.weekNumber}`));
+  const setForecastWeeksBulk = useCallback(async (weeksList: { year: number; weekNumber: number; teamIndex?: number }[]) => {
+    const existingKeys = new Set(forecastWeeks.map(w => `${w.year}-${w.weekNumber}-${w.teamIndex ?? 0}`));
+    const toAdd = weeksList.filter(w => !existingKeys.has(`${w.year}-${w.weekNumber}-${w.teamIndex ?? 0}`));
     if (toAdd.length === 0) return;
     const rows = toAdd.map(w => ({
-      id: crypto.randomUUID(), project_id: projectId, year: w.year, week_number: w.weekNumber,
+      id: crypto.randomUUID(), project_id: projectId, year: w.year, week_number: w.weekNumber, team_index: w.teamIndex ?? 0,
     }));
     setForecastWeeksState(prev => [
       ...prev,
-      ...rows.map(r => ({ id: r.id, projectId, year: r.year, weekNumber: r.week_number })),
+      ...rows.map(r => ({ id: r.id, projectId, year: r.year, weekNumber: r.week_number, teamIndex: r.team_index })),
     ]);
     const BATCH = 500;
     for (let i = 0; i < rows.length; i += BATCH) {
@@ -512,9 +526,45 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
     }
   }, [forecastWeeks, projectId]);
 
-  const clearForecastWeeks = useCallback(async () => {
-    setForecastWeeksState([]);
-    await (supabase.from as any)('forecast_weeks').delete().eq('project_id', projectId);
+  const clearForecastWeeks = useCallback(async (teamIndex?: number) => {
+    if (teamIndex === undefined) {
+      setForecastWeeksState([]);
+      await (supabase.from as any)('forecast_weeks').delete().eq('project_id', projectId);
+    } else {
+      setForecastWeeksState(prev => prev.filter(w => (w.teamIndex ?? 0) !== teamIndex));
+      await (supabase.from as any)('forecast_weeks').delete().eq('project_id', projectId).eq('team_index', teamIndex);
+    }
+  }, [projectId]);
+
+  const addForecastTeam = useCallback(async () => {
+    const next = (projectInfo.forecastTeamCount ?? 1) + 1;
+    setProjectInfoState(prev => ({ ...prev, forecastTeamCount: next }));
+    await supabase.from('projects').update({ forecast_team_count: next } as any).eq('id', projectId);
+  }, [projectId, projectInfo.forecastTeamCount]);
+
+  const removeForecastTeam = useCallback(async (teamIndex: number) => {
+    if (teamIndex < 1) return;
+    // Remove this team's weeks and reindex teams above it
+    const survivingWeeks = forecastWeeks
+      .filter(w => (w.teamIndex ?? 0) !== teamIndex)
+      .map(w => ((w.teamIndex ?? 0) > teamIndex ? { ...w, teamIndex: (w.teamIndex ?? 0) - 1 } : w));
+    setForecastWeeksState(survivingWeeks);
+    await (supabase.from as any)('forecast_weeks').delete().eq('project_id', projectId).eq('team_index', teamIndex);
+    // Shift down indexes > removed
+    const above = forecastWeeks.filter(w => (w.teamIndex ?? 0) > teamIndex);
+    for (const w of above) {
+      await (supabase.from as any)('forecast_weeks').update({ team_index: (w.teamIndex ?? 0) - 1 }).eq('id', w.id);
+    }
+    const newCount = Math.max(1, (projectInfo.forecastTeamCount ?? 1) - 1);
+    setProjectInfoState(prev => ({ ...prev, forecastTeamCount: newCount }));
+    await supabase.from('projects').update({ forecast_team_count: newCount } as any).eq('id', projectId);
+  }, [forecastWeeks, projectId, projectInfo.forecastTeamCount]);
+
+  const setForecastPeriod = useCallback(async (start: string | null, end: string | null) => {
+    setProjectInfoState(prev => ({ ...prev, forecastPeriodStart: start, forecastPeriodEnd: end }));
+    await supabase.from('projects').update({
+      forecast_period_start: start, forecast_period_end: end,
+    } as any).eq('id', projectId);
   }, [projectId]);
 
   const setForecastedTransports = useCallback(async (transports: ForecastedTransport[]) => {
@@ -556,6 +606,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
       addPlan, updatePlan, deletePlan,
       addTeam, updateTeam, deleteTeam,
       toggleForecastWeek, setForecastWeeksBulk, clearForecastWeeks, setForecastedTransports,
+      addForecastTeam, removeForecastTeam, setForecastPeriod,
       initialDate, compositionTabOpened, setCompositionTabOpened, savedViewMode, setSavedViewMode, savedCurrentDate, setSavedCurrentDate,
     }}>
       {children}

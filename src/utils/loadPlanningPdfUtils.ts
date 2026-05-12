@@ -46,7 +46,12 @@ export async function exportLoadPlanningPdf(args: ExportArgs) {
   const labelW = 80;
   let y = 14;
 
-  const drawTable = (title: string, rows: { key: string; perWeek: Record<string, number> }[], colorByKey?: (k: string) => string) => {
+  const drawTable = (
+    title: string,
+    rows: { key: string; perWeek: Record<string, number> }[],
+    colorByKey?: (k: string) => string,
+    ceil = false,
+  ) => {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.text(title, margin, y);
@@ -69,7 +74,7 @@ export async function exportLoadPlanningPdf(args: ExportArgs) {
       doc.text(r.key.slice(0, 28), margin + 3, y);
       weeks.forEach((w, i) => {
         const v = r.perWeek[w.key] || 0;
-        if (v) doc.text(String(Math.round(v * 10) / 10), margin + labelW + i * colW + colW / 2, y, { align: 'center' });
+        if (v) doc.text(String(ceil ? Math.ceil(v) : Math.round(v * 10) / 10), margin + labelW + i * colW + colW / 2, y, { align: 'center' });
       });
       y += 3.2;
     });
@@ -78,7 +83,7 @@ export async function exportLoadPlanningPdf(args: ExportArgs) {
 
   drawTable('Charge / Conducteur de travaux', loadByCdt);
   drawTable('Charge / Poseur', loadByPoseur, k => getPoseurColor(k));
-  drawTable('Charge / Usine', loadByUsine);
+  drawTable('Charge / Usine', loadByUsine, undefined, true);
 
   // Gantt
   if (y > pageH - 30) { doc.addPage(); y = 10; }

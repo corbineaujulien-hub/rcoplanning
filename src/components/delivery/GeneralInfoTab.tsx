@@ -14,7 +14,8 @@ import ForecastWeeksStrip from '@/components/delivery/ForecastWeeksStrip';
 export default function GeneralInfoTab() {
   const {
     projectInfo, setProjectInfo, teams, addTeam, updateTeam, deleteTeam,
-    forecastWeeks, toggleForecastWeek, setForecastWeeksBulk, clearForecastWeeks,
+    forecastWeeks, toggleForecastWeek, clearForecastWeeks,
+    addForecastTeam, removeForecastTeam, setForecastPeriod,
     setForecastedTransports,
   } = useDelivery();
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
@@ -191,9 +192,15 @@ export default function GeneralInfoTab() {
       </Card>
 
       <ForecastWeeksCard
-        selected={forecastWeeks.map(w => `${w.year}-${w.weekNumber}`)}
+        forecastWeeks={forecastWeeks}
+        teamCount={projectInfo.forecastTeamCount ?? 1}
+        periodStart={projectInfo.forecastPeriodStart || null}
+        periodEnd={projectInfo.forecastPeriodEnd || null}
+        onSetPeriod={setForecastPeriod}
         onToggle={toggleForecastWeek}
         onClear={clearForecastWeeks}
+        onAddTeam={addForecastTeam}
+        onRemoveTeam={removeForecastTeam}
       />
 
       <ForecastedTransportsCard
@@ -218,13 +225,33 @@ export default function GeneralInfoTab() {
 // =================== Forecast Weeks Strip ===================
 
 function ForecastWeeksCard({
-  selected, onToggle, onClear,
+  forecastWeeks, teamCount, periodStart, periodEnd, onSetPeriod,
+  onToggle, onClear, onAddTeam, onRemoveTeam,
 }: {
-  selected: string[];
-  onToggle: (year: number, weekNumber: number) => void;
-  onClear: () => void;
+  forecastWeeks: { year: number; weekNumber: number; teamIndex: number }[];
+  teamCount: number;
+  periodStart: string | null;
+  periodEnd: string | null;
+  onSetPeriod: (start: string | null, end: string | null) => void;
+  onToggle: (year: number, weekNumber: number, teamIndex?: number) => void;
+  onClear: (teamIndex?: number) => void;
+  onAddTeam: () => void;
+  onRemoveTeam: (teamIndex: number) => void;
 }) {
-  const selectedSet = useMemo(() => new Set(selected), [selected]);
+  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
+  const defaultStart = useMemo(() => { const d = new Date(today); return d; }, [today]);
+  const defaultEnd = useMemo(() => { const d = new Date(today); d.setMonth(d.getMonth() + 11); return d; }, [today]);
+  const fromDate = useMemo(() => periodStart ? new Date(periodStart) : defaultStart, [periodStart, defaultStart]);
+  const toDate = useMemo(() => periodEnd ? new Date(periodEnd) : defaultEnd, [periodEnd, defaultEnd]);
+
+  const inRange = (year: number, week: number) => {
+    // Use a quick check: build week start using ISO and check membership
+    const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+    return simple >= new Date(fromDate.getFullYear(), fromDate.getMonth(), 1)
+      && simple <= new Date(toDate.getFullYear(), toDate.getMonth() + 1, 0);
+  };
+  const hiddenCount = forecastWeeks.filter(w => !inRange(w.year, w.weekNumber)).length;
+
   return (
     <Card>
       <CardHeader>
@@ -235,17 +262,51 @@ function ForecastWeeksCard({
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Cliquez sur les semaines d'intervention prévisionnelles. La sauvegarde est automatique.
+          Cliquez sur les semaines d'intervention prévisionnelles. Ajoutez des équipes complémentaires si plusieurs équipes interviennent en parallèle.
         </p>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={onClear}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Label className="text-xs">Du</Label>
+          <Input type="date" value={periodStart || ''} onChange={e => onSetPeriod(e.target.value || null, periodEnd)} className="h-8 w-[150px]" />
+          <Label className="text-xs">Au</Label>
+          <Input type="date" value={periodEnd || ''} onChange={e => onSetPeriod(periodStart, e.target.value || null)} className="h-8 w-[150px]" />
+          <Button variant="ghost" size="sm" onClick={() => onSetPeriod(null, null)}>Période par défaut (12 mois)</Button>
+          <Button variant="outline" size="sm" onClick={() => onClear()} className="ml-auto">
             Tout désélectionner
           </Button>
-          <span className="text-xs text-muted-foreground ml-auto">
-            {selectedSet.size} semaine{selectedSet.size > 1 ? 's' : ''} sélectionnée{selectedSet.size > 1 ? 's' : ''}
-          </span>
         </div>
-        <ForecastWeeksStrip selected={selected} onToggle={onToggle} />
+        {hiddenCount > 0 && (
+          <p className="text-[11px] text-muted-foreground italic">
+            {hiddenCount} semaine{hiddenCount > 1 ? 's' : ''} cochée{hiddenCount > 1 ? 's' : ''} en dehors de la période affichée.
+          </p>
+        )}
+        <div className="space-y-2">
+          {Array.from({ length: teamCount }).map((_, ti) => {
+            const sel = forecastWeeks.filter(w => (w.teamIndex ?? 0) === ti).map(w => `${w.year}-${w.weekNumber}`);
+            const label = ti === 0 ? 'Équipe principale' : `Équipe complémentaire ${ti}`;
+            return (
+              <div key={ti} className="flex items-center gap-2">
+                <span className="text-xs font-medium w-[200px] shrink-0">{label}</span>
+                <div className="flex-1 min-w-0">
+                  <ForecastWeeksStrip
+                    selected={sel}
+                    onToggle={(y, w) => onToggle(y, w, ti)}
+                    fromDate={fromDate}
+                    toDate={toDate}
+                  />
+                </div>
+                {ti > 0 && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"
+                    onClick={() => { if (confirm('Supprimer cette équipe complémentaire ?')) onRemoveTeam(ti); }}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+          <Button variant="outline" size="sm" onClick={onAddTeam}>
+            <Plus className="h-4 w-4 mr-1" /> Ajouter une équipe complémentaire
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
