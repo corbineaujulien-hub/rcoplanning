@@ -1039,11 +1039,17 @@ function GanttView({
                               background: isForecast
                                 ? `repeating-linear-gradient(45deg, ${color}, ${color} 4px, rgba(255,255,255,0.45) 4px, rgba(255,255,255,0.45) 8px)`
                                 : color,
-                              opacity: isForecast ? 0.85 : 1,
+                              opacity: 1,
                               color: isForecast ? '#1f2937' : '#ffffff',
                             }}
                           >
-                            {Math.round(v * 10) / 10}{isForecast ? 'P' : ''}
+                            {isForecast ? (
+                              <span style={{ background: 'rgba(255,255,255,0.75)', padding: '1px 3px', borderRadius: 2 }}>
+                                {Math.round(v * 10) / 10}P
+                              </span>
+                            ) : (
+                              <>{Math.round(v * 10) / 10}</>
+                            )}
                           </div>
                         )}
                       </td>
