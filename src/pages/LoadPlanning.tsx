@@ -612,6 +612,7 @@ export default function LoadPlanning() {
           <div className="text-center py-16 text-muted-foreground">Chargement…</div>
         ) : (
           <>
+            <PoseurLegend projects={filteredProjects} />
             <GanttView
               weeks={weeks}
               monthGroups={monthGroups}
@@ -657,9 +658,8 @@ export default function LoadPlanning() {
               allProjects={filteredProjects}
               groupBy="usine"
               sentinels={[UNASSIGNED_USINE]}
+              ceil
             />
-
-            <PoseurLegend projects={filteredProjects} />
           </>
         )}
       </main>
