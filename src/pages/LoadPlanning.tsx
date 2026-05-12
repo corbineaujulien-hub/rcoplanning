@@ -1,22 +1,25 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { ArrowLeft, BarChart3, FileDown, FileSpreadsheet, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ArrowLeft, BarChart3, FileDown, FileSpreadsheet, RotateCcw, X, ChevronRight, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  TransportCategory, TRANSPORT_CATEGORIES, CONDUCTORS, SUBCONTRACTORS, ForecastSlot, ForecastedTruck,
+  TransportCategory, CONDUCTORS, SUBCONTRACTORS, ForecastSlot, ForecastedTruck,
 } from '@/types/delivery';
 import {
   getWeeksBetween, getWeekKeyForDate, getPoseurColor, UNASSIGNED_POSEUR,
-  CATEGORY_LABELS, weekOverlapsRange, ISOWeek,
+  weekOverlapsRange, ISOWeek,
 } from '@/utils/loadPlanningUtils';
 import { exportLoadPlanningPdf } from '@/utils/loadPlanningPdfUtils';
 import { exportLoadPlanningExcel } from '@/utils/loadPlanningExcelUtils';
+
+const UNASSIGNED_CDT = 'CDT à désigner';
+const UNASSIGNED_USINE = 'Usine non précisée';
 
 interface ProjectRow {
   id: string;
@@ -35,6 +38,7 @@ interface TruckRow {
   date: string;
   element_ids: string[];
   forced_category: TransportCategory | null;
+  team_id: string | null;
 }
 
 interface ElementRow {
@@ -76,19 +80,73 @@ async function fetchAllPaginated<T = any>(table: string, columns: string): Promi
 
 type DataSource = 'real' | 'forecast' | 'mixed';
 
+interface WeekCell {
+  count: number; // truck count (real or forecast share)
+  teams: number; // distinct teams for the week (real) — 1 if forecast-only
+  source: DataSource | 'none';
+  byUsineCat: Record<string, Record<TransportCategory, number>>;
+}
+
 interface ProjectComputed {
   project: ProjectRow;
   poseur: string;
   conductor: string;
-  // weekKey -> { count, source, byUsine: { usine -> { cat -> count } }, hasReal, hasForecast }
   weeks: Record<string, WeekCell>;
   usines: Set<string>;
 }
 
-interface WeekCell {
-  count: number;
-  source: DataSource | 'none';
-  byUsineCat: Record<string, Record<TransportCategory, number>>;
+// ---------- Months grouping ----------
+interface MonthGroup {
+  label: string;
+  weeks: ISOWeek[];
+  splitWeekKeys: Set<string>;
+  weekRange: Record<string, { from: string; to: string }>;
+}
+
+function buildMonthGroups(weeks: ISOWeek[]): MonthGroup[] {
+  const groups: MonthGroup[] = [];
+  const fmtDay = (d: Date) =>
+    `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+  weeks.forEach(w => {
+    const counts: Record<string, { y: number; m: number; n: number }> = {};
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(w.start);
+      d.setDate(d.getDate() + i);
+      const k = `${d.getFullYear()}-${d.getMonth()}`;
+      if (!counts[k]) counts[k] = { y: d.getFullYear(), m: d.getMonth(), n: 0 };
+      counts[k].n++;
+    }
+    const entries = Object.values(counts);
+    const split = entries.length > 1;
+    entries.sort((a, b) => b.n - a.n);
+    const owner = entries[0];
+    const label = new Date(owner.y, owner.m, 1)
+      .toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+      .replace(/^./, c => c.toUpperCase());
+    let g = groups[groups.length - 1];
+    if (!g || g.label !== label) {
+      g = { label, weeks: [], splitWeekKeys: new Set(), weekRange: {} };
+      groups.push(g);
+    }
+    g.weeks.push(w);
+    g.weekRange[w.key] = { from: fmtDay(w.start), to: fmtDay(w.end) };
+    if (split) g.splitWeekKeys.add(w.key);
+  });
+  return groups;
+}
+
+function stripPhone(s: string): string {
+  return (s || '').split(' – ')[0].split(' - ')[0].trim();
+}
+
+function sortWithSentinelLast<T>(arr: T[], keyFn: (x: T) => string, sentinels: string[]): T[] {
+  return [...arr].sort((a, b) => {
+    const ka = keyFn(a), kb = keyFn(b);
+    const sa = sentinels.includes(ka) ? 1 : 0;
+    const sb = sentinels.includes(kb) ? 1 : 0;
+    if (sa !== sb) return sa - sb;
+    return ka.localeCompare(kb);
+  });
 }
 
 export default function LoadPlanning() {
@@ -99,19 +157,18 @@ export default function LoadPlanning() {
   const [elements, setElements] = useState<ElementRow[]>([]);
   const [forecastSlots, setForecastSlots] = useState<ForecastSlot[]>([]);
 
-  // Default period: 12 months sliding
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const defaultStart = useMemo(() => { const d = new Date(today); d.setMonth(d.getMonth() - 1); return d; }, [today]);
   const defaultEnd = useMemo(() => { const d = new Date(today); d.setMonth(d.getMonth() + 11); return d; }, [today]);
 
   const [periodStart, setPeriodStart] = useState<string>(defaultStart.toISOString().slice(0, 10));
   const [periodEnd, setPeriodEnd] = useState<string>(defaultEnd.toISOString().slice(0, 10));
-  const [view, setView] = useState<'gantt' | 'calendar'>('gantt');
 
   const [filterCdt, setFilterCdt] = useState('all');
   const [filterPoseur, setFilterPoseur] = useState('all');
   const [filterUsine, setFilterUsine] = useState('all');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'planned' | 'forecast' | 'archived'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'planned' | 'forecast'>('all');
+  const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -119,7 +176,7 @@ export default function LoadPlanning() {
       try {
         const [pData, tData, eData, fData] = await Promise.all([
           supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, archived, database_complete'),
-          fetchAllPaginated<TruckRow>('trucks', 'id, project_id, date, element_ids, forced_category'),
+          fetchAllPaginated<TruckRow>('trucks', 'id, project_id, date, element_ids, forced_category, team_id'),
           fetchAllPaginated<ElementRow>('beam_elements', 'id, project_id, product_type, length, weight, factory'),
           fetchAllPaginated<any>('forecast_slots', 'id, project_id, date_start, date_end, forecasted_trucks'),
         ]);
@@ -128,6 +185,7 @@ export default function LoadPlanning() {
           id: t.id, project_id: t.project_id, date: t.date,
           element_ids: (t.element_ids as string[]) || [],
           forced_category: t.forced_category || null,
+          team_id: t.team_id || null,
         })));
         setElements((eData as any[]).map(e => ({
           id: e.id, project_id: e.project_id,
@@ -161,31 +219,32 @@ export default function LoadPlanning() {
     return getWeeksBetween(s, e);
   }, [periodStart, periodEnd]);
 
-  // Compute per-project, per-week cells
+  const monthGroups = useMemo(() => buildMonthGroups(weeks), [weeks]);
+
   const computedProjects: ProjectComputed[] = useMemo(() => {
     return projects.map(project => {
       const projTrucks = trucks.filter(t => t.project_id === project.id && t.date);
       const projForecasts = forecastSlots.filter(s => s.projectId === project.id);
 
-      // Aggregate real trucks by week
       const realByWeek = new Map<string, Record<string, Record<TransportCategory, number>>>();
+      const teamsByWeek = new Map<string, Set<string>>();
       const usinesSet = new Set<string>();
       projTrucks.forEach(t => {
         const wk = getWeekKeyForDate(t.date);
         const els = (t.element_ids || []).map(id => elementsById.get(id)).filter(Boolean) as ElementRow[];
         const cat: TransportCategory = t.forced_category || computeCategory(els);
         const factories = Array.from(new Set(els.map(e => e.factory).filter(Boolean)));
-        const factoryList = factories.length > 0 ? factories : ['(non précisée)'];
+        const factoryList = factories.length > 0 ? factories : [UNASSIGNED_USINE];
         factoryList.forEach(f => usinesSet.add(f));
         if (!realByWeek.has(wk)) realByWeek.set(wk, {});
         const w = realByWeek.get(wk)!;
-        // Distribute 1 truck across factories proportionally? Keep simple: count once per factory list = primary factory
         const f = factoryList[0];
         if (!w[f]) w[f] = { standard: 0, cat1: 0, cat2: 0, cat3: 0 };
         w[f][cat] += 1;
+        if (!teamsByWeek.has(wk)) teamsByWeek.set(wk, new Set());
+        teamsByWeek.get(wk)!.add(t.team_id || '__notrack__');
       });
 
-      // Forecasts by week
       const forecastByWeek = new Map<string, Record<string, Record<TransportCategory, number>>>();
       projForecasts.forEach(slot => {
         const slotWeeks = weeks.filter(w => weekOverlapsRange(w, slot.dateStart, slot.dateEnd));
@@ -213,6 +272,7 @@ export default function LoadPlanning() {
         const hasForecast = !!fc && Object.keys(fc).length > 0;
         const byUsineCat: Record<string, Record<TransportCategory, number>> = {};
         let count = 0;
+        let teams = 0;
         let source: DataSource | 'none' = 'none';
         if (hasReal) {
           source = 'real';
@@ -220,76 +280,96 @@ export default function LoadPlanning() {
             byUsineCat[usine] = { ...cats };
             for (const c of Object.values(cats)) count += c;
           }
+          teams = teamsByWeek.get(w.key)?.size || 1;
         } else if (hasForecast) {
           source = 'forecast';
           for (const [usine, cats] of Object.entries(fc!)) {
             byUsineCat[usine] = { ...cats };
             for (const c of Object.values(cats)) count += c;
           }
+          teams = count > 0 ? 1 : 0;
         }
-        weekCells[w.key] = { count: Math.round(count * 10) / 10, source, byUsineCat };
+        weekCells[w.key] = { count: Math.round(count * 10) / 10, teams, source, byUsineCat };
       });
 
       return {
         project,
         poseur: project.subcontractor || UNASSIGNED_POSEUR,
-        conductor: project.conductor || 'CDT à désigner',
+        conductor: stripPhone(project.conductor || '') || UNASSIGNED_CDT,
         weeks: weekCells,
         usines: usinesSet,
       };
     });
   }, [projects, trucks, forecastSlots, elementsById, weeks]);
 
-  // Filtering
+  // Filtering — archived treated like active
   const filteredProjects = useMemo(() => {
+    const q = searchText.trim().toLowerCase();
     return computedProjects.filter(cp => {
-      if (filterStatus === 'archived') {
-        if (!cp.project.archived) return false;
-      } else {
-        if (cp.project.archived) return false;
-      }
       if (filterCdt !== 'all' && cp.conductor !== filterCdt) return false;
       if (filterPoseur !== 'all' && cp.poseur !== filterPoseur) return false;
       if (filterUsine !== 'all' && !cp.usines.has(filterUsine)) return false;
       const sources = Object.values(cp.weeks).map(w => w.source).filter(s => s !== 'none');
       if (filterStatus === 'planned' && !sources.includes('real')) return false;
-      if (filterStatus === 'forecast' && sources.every(s => s === 'real')) return false;
+      if (filterStatus === 'forecast' && sources.length > 0 && sources.every(s => s === 'real')) return false;
+      if (q) {
+        const hay = [
+          cp.project.otp_number || '',
+          cp.project.site_name || '',
+          cp.project.client_name || '',
+        ].join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return true;
     });
-  }, [computedProjects, filterCdt, filterPoseur, filterUsine, filterStatus]);
+  }, [computedProjects, filterCdt, filterPoseur, filterUsine, filterStatus, searchText]);
 
-  // Aggregations: load by CDT / Poseur / Usine per week
-  const loadByCdt = useMemo(() => aggregate(filteredProjects, weeks, p => p.conductor), [filteredProjects, weeks]);
-  const loadByPoseur = useMemo(() => aggregate(filteredProjects, weeks, p => p.poseur), [filteredProjects, weeks]);
+  // Aggregations
+  const loadByCdt = useMemo(
+    () => aggregateTeams(filteredProjects, weeks, p => p.conductor, [UNASSIGNED_CDT]),
+    [filteredProjects, weeks],
+  );
+  const loadByPoseur = useMemo(
+    () => aggregateTeams(filteredProjects, weeks, p => p.poseur, [UNASSIGNED_POSEUR]),
+    [filteredProjects, weeks],
+  );
   const loadByUsine = useMemo(() => {
     const byKey: Record<string, Record<string, number>> = {};
+    const projectsByKey: Record<string, Set<string>> = {};
     filteredProjects.forEach(cp => {
       weeks.forEach(w => {
         const cell = cp.weeks[w.key];
         if (!cell || cell.count === 0) return;
         for (const [usine, cats] of Object.entries(cell.byUsineCat)) {
           if (!byKey[usine]) byKey[usine] = {};
+          if (!projectsByKey[usine]) projectsByKey[usine] = new Set();
+          projectsByKey[usine].add(cp.project.id);
           for (const c of Object.values(cats)) {
             byKey[usine][w.key] = (byKey[usine][w.key] || 0) + c;
           }
         }
       });
     });
-    return Object.entries(byKey)
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([key, perWeek]) => ({ key, perWeek }));
+    const rows = Object.entries(byKey).map(([key, perWeek]) => ({
+      key, perWeek, projectIds: Array.from(projectsByKey[key] || []),
+    }));
+    return sortWithSentinelLast(rows, r => r.key, [UNASSIGNED_USINE]);
   }, [filteredProjects, weeks]);
 
-  // Lists for filters
-  const allCdts = useMemo(() => Array.from(new Set(computedProjects.map(p => p.conductor))).sort(), [computedProjects]);
-  const allPoseurs = useMemo(() => Array.from(new Set(computedProjects.map(p => p.poseur))).sort(), [computedProjects]);
+  const allCdts = useMemo(
+    () => sortWithSentinelLast(Array.from(new Set(computedProjects.map(p => p.conductor))), s => s, [UNASSIGNED_CDT]),
+    [computedProjects],
+  );
+  const allPoseurs = useMemo(
+    () => sortWithSentinelLast(Array.from(new Set(computedProjects.map(p => p.poseur))), s => s, [UNASSIGNED_POSEUR]),
+    [computedProjects],
+  );
   const allUsines = useMemo(() => {
     const s = new Set<string>();
     computedProjects.forEach(p => p.usines.forEach(u => s.add(u)));
-    return Array.from(s).sort();
+    return sortWithSentinelLast(Array.from(s), x => x, [UNASSIGNED_USINE]);
   }, [computedProjects]);
 
-  // Inline edits
   const updateProjectField = useCallback(async (projectId: string, field: 'conductor' | 'subcontractor', value: string) => {
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, [field]: value } : p));
     const { error } = await supabase.from('projects').update({ [field]: value } as any).eq('id', projectId);
@@ -298,32 +378,25 @@ export default function LoadPlanning() {
   }, []);
 
   const resetFilters = () => {
-    setFilterCdt('all'); setFilterPoseur('all'); setFilterUsine('all'); setFilterStatus('all');
+    setFilterCdt('all'); setFilterPoseur('all'); setFilterUsine('all'); setFilterStatus('all'); setSearchText('');
   };
 
   const handleExportPdf = async () => {
     try {
-      await exportLoadPlanningPdf({
-        weeks, projects: filteredProjects,
-        loadByCdt, loadByPoseur, loadByUsine,
-        periodStart, periodEnd,
-      });
+      await exportLoadPlanningPdf({ weeks, projects: filteredProjects, loadByCdt, loadByPoseur, loadByUsine, periodStart, periodEnd });
     } catch (err: any) { toast.error('Erreur export PDF : ' + err.message); }
   };
 
   const handleExportExcel = async () => {
     try {
-      await exportLoadPlanningExcel({
-        weeks, projects: filteredProjects,
-        loadByCdt, loadByPoseur, loadByUsine,
-        periodStart, periodEnd,
-      });
+      await exportLoadPlanningExcel({ weeks, projects: filteredProjects, loadByCdt, loadByPoseur, loadByUsine, periodStart, periodEnd });
     } catch (err: any) { toast.error('Erreur export Excel : ' + err.message); }
   };
 
   const todayWeekKey = getWeekKeyForDate(today.toISOString().slice(0, 10));
 
   return (
+    <TooltipProvider delayDuration={150}>
     <div className="min-h-screen bg-background flex flex-col">
       <header className="bg-primary text-primary-foreground shadow-lg">
         <div className="container py-3 flex items-center justify-between gap-4 flex-wrap max-w-none">
@@ -353,11 +426,28 @@ export default function LoadPlanning() {
       </header>
 
       <main className="flex-1 p-4 space-y-4 overflow-auto">
-        {/* Filters */}
         <Card>
           <CardContent className="pt-4 flex items-center gap-2 flex-wrap">
+            <div className="relative">
+              <Input
+                value={searchText}
+                onChange={e => setSearchText(e.target.value)}
+                placeholder="Rechercher par N° OTP, nom de chantier ou client..."
+                className="h-9 w-[340px] pr-8"
+              />
+              {searchText && (
+                <button
+                  type="button"
+                  onClick={() => setSearchText('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Effacer la recherche"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
             <Select value={filterCdt} onValueChange={setFilterCdt}>
-              <SelectTrigger className="w-[200px] h-9"><SelectValue placeholder="CDT" /></SelectTrigger>
+              <SelectTrigger className="w-[220px] h-9"><SelectValue placeholder="CDT" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les CDT</SelectItem>
                 {allCdts.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -383,20 +473,11 @@ export default function LoadPlanning() {
                 <SelectItem value="all">Tous statuts</SelectItem>
                 <SelectItem value="planned">Planifiés</SelectItem>
                 <SelectItem value="forecast">Prévisionnels</SelectItem>
-                <SelectItem value="archived">Archivés</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" size="sm" onClick={resetFilters}>
               <RotateCcw className="h-4 w-4 mr-1" /> Réinitialiser
             </Button>
-            <div className="ml-auto">
-              <Tabs value={view} onValueChange={(v: any) => setView(v)}>
-                <TabsList>
-                  <TabsTrigger value="gantt">Gantt</TabsTrigger>
-                  <TabsTrigger value="calendar">Calendrier</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
           </CardContent>
         </Card>
 
@@ -404,95 +485,249 @@ export default function LoadPlanning() {
           <div className="text-center py-16 text-muted-foreground">Chargement…</div>
         ) : (
           <>
-            {/* 3 load summary blocks */}
-            <LoadSummary title="Charge / Conducteur de travaux" rows={loadByCdt} weeks={weeks} todayKey={todayWeekKey} />
-            <LoadSummary title="Charge / Poseur" rows={loadByPoseur} weeks={weeks} todayKey={todayWeekKey} colorByKey={(k) => getPoseurColor(k)} />
-            <LoadSummary title="Charge / Usine" rows={loadByUsine} weeks={weeks} todayKey={todayWeekKey} />
+            <GanttView
+              weeks={weeks}
+              monthGroups={monthGroups}
+              projects={filteredProjects}
+              todayKey={todayWeekKey}
+              onUpdateField={updateProjectField}
+            />
 
-            {view === 'gantt' ? (
-              <GanttView
-                weeks={weeks}
-                projects={filteredProjects}
-                todayKey={todayWeekKey}
-                onUpdateField={updateProjectField}
-              />
-            ) : (
-              <CalendarView projects={filteredProjects} />
-            )}
+            <LoadSummary
+              title="Charge / Conducteur de travaux"
+              subtitle="Équipes de pose / semaine"
+              rows={loadByCdt}
+              weeks={weeks}
+              monthGroups={monthGroups}
+              todayKey={todayWeekKey}
+              allProjects={filteredProjects}
+              groupBy="cdt"
+              sentinels={[UNASSIGNED_CDT]}
+            />
+            <LoadSummary
+              title="Charge / Poseur"
+              subtitle="Équipes de pose / semaine"
+              rows={loadByPoseur}
+              weeks={weeks}
+              monthGroups={monthGroups}
+              todayKey={todayWeekKey}
+              colorByKey={(k) => getPoseurColor(k)}
+              allProjects={filteredProjects}
+              groupBy="poseur"
+              sentinels={[UNASSIGNED_POSEUR]}
+            />
+            <LoadSummary
+              title="Charge / Usine"
+              subtitle="Camions / semaine"
+              rows={loadByUsine}
+              weeks={weeks}
+              monthGroups={monthGroups}
+              todayKey={todayWeekKey}
+              allProjects={filteredProjects}
+              groupBy="usine"
+              sentinels={[UNASSIGNED_USINE]}
+            />
 
             <PoseurLegend projects={filteredProjects} />
           </>
         )}
       </main>
     </div>
+    </TooltipProvider>
   );
 }
 
-function aggregate(
+function aggregateTeams(
   projects: ProjectComputed[],
   weeks: ISOWeek[],
   keyFn: (p: ProjectComputed) => string,
-): { key: string; perWeek: Record<string, number> }[] {
+  sentinels: string[],
+): { key: string; perWeek: Record<string, number>; projectIds: string[] }[] {
   const map: Record<string, Record<string, number>> = {};
+  const projIds: Record<string, Set<string>> = {};
   projects.forEach(p => {
     const k = keyFn(p);
     if (!map[k]) map[k] = {};
+    if (!projIds[k]) projIds[k] = new Set();
+    let projHasAny = false;
     weeks.forEach(w => {
-      const c = p.weeks[w.key]?.count || 0;
-      if (c) map[k][w.key] = (map[k][w.key] || 0) + c;
+      const t = p.weeks[w.key]?.teams || 0;
+      if (t) {
+        map[k][w.key] = (map[k][w.key] || 0) + t;
+        projHasAny = true;
+      }
     });
+    if (projHasAny) projIds[k].add(p.project.id);
   });
-  return Object.entries(map)
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([key, perWeek]) => ({ key, perWeek }));
+  const rows = Object.entries(map).map(([key, perWeek]) => ({
+    key, perWeek, projectIds: Array.from(projIds[key] || []),
+  }));
+  return sortWithSentinelLast(rows, r => r.key, sentinels);
+}
+
+function MonthsHeader({ monthGroups, leftColSpan }: { monthGroups: MonthGroup[]; leftColSpan: number }) {
+  return (
+    <tr>
+      <th colSpan={leftColSpan} className="sticky left-0 bg-background z-10 border-b" />
+      {monthGroups.map((g, i) => (
+        <th
+          key={i}
+          colSpan={g.weeks.length}
+          className="p-1 border-b border-l text-center text-[11px] font-semibold capitalize bg-muted/40"
+        >
+          {g.label}
+        </th>
+      ))}
+    </tr>
+  );
+}
+
+function WeekHeaderCells({
+  weeks, monthGroups, todayKey,
+}: { weeks: ISOWeek[]; monthGroups: MonthGroup[]; todayKey: string }) {
+  const splitKeys = useMemo(() => {
+    const s = new Set<string>();
+    monthGroups.forEach(g => g.splitWeekKeys.forEach(k => s.add(k)));
+    return s;
+  }, [monthGroups]);
+  const rangeByKey = useMemo(() => {
+    const m: Record<string, { from: string; to: string }> = {};
+    monthGroups.forEach(g => Object.assign(m, g.weekRange));
+    return m;
+  }, [monthGroups]);
+  return (
+    <>
+      {weeks.map(w => {
+        const isSplit = splitKeys.has(w.key);
+        const r = rangeByKey[w.key];
+        const cls = `p-1 border-b text-center font-normal w-[36px] ${
+          w.key === todayKey ? 'bg-accent/20 font-bold' : ''
+        } ${isSplit ? 'border-l border-dashed border-l-muted-foreground/60' : ''}`;
+        if (!isSplit || !r) return <th key={w.key} className={cls}>{w.label}</th>;
+        return (
+          <th key={w.key} className={cls}>
+            <Tooltip>
+              <TooltipTrigger asChild><span className="cursor-help">{w.label}</span></TooltipTrigger>
+              <TooltipContent>Du {r.from} au {r.to}</TooltipContent>
+            </Tooltip>
+          </th>
+        );
+      })}
+    </>
+  );
 }
 
 function LoadSummary({
-  title, rows, weeks, todayKey, colorByKey,
+  title, subtitle, rows, weeks, monthGroups, todayKey, colorByKey, allProjects, groupBy, sentinels,
 }: {
   title: string;
-  rows: { key: string; perWeek: Record<string, number> }[];
+  subtitle: string;
+  rows: { key: string; perWeek: Record<string, number>; projectIds: string[] }[];
   weeks: ISOWeek[];
+  monthGroups: MonthGroup[];
   todayKey: string;
   colorByKey?: (k: string) => string;
+  allProjects: ProjectComputed[];
+  groupBy: 'cdt' | 'poseur' | 'usine';
+  sentinels: string[];
 }) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (k: string) =>
+    setExpanded(prev => {
+      const n = new Set(prev);
+      if (n.has(k)) n.delete(k); else n.add(k);
+      return n;
+    });
+  const projById = useMemo(() => {
+    const m = new Map<string, ProjectComputed>();
+    allProjects.forEach(p => m.set(p.project.id, p));
+    return m;
+  }, [allProjects]);
+  const firstSentinelIdx = rows.findIndex(r => sentinels.includes(r.key));
+
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm">{title}</CardTitle>
+        <CardTitle className="text-sm flex items-baseline gap-3">
+          <span>{title}</span>
+          <span className="text-[11px] font-normal text-muted-foreground">{subtitle}</span>
+        </CardTitle>
       </CardHeader>
       <CardContent className="overflow-x-auto">
         <table className="text-xs border-collapse">
           <thead>
+            <MonthsHeader monthGroups={monthGroups} leftColSpan={1} />
             <tr>
-              <th className="sticky left-0 bg-background z-10 text-left p-1 border-b min-w-[180px]"></th>
-              {weeks.map(w => (
-                <th key={w.key} className={`p-1 border-b text-center font-normal ${w.key === todayKey ? 'bg-accent/20 font-bold' : ''}`}>
-                  {w.label}
-                </th>
-              ))}
+              <th className="sticky left-0 bg-background z-10 text-left p-1 border-b min-w-[220px]"></th>
+              <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} />
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr><td colSpan={weeks.length + 1} className="p-2 text-muted-foreground italic">Aucune donnée</td></tr>
             )}
-            {rows.map(r => (
-              <tr key={r.key}>
-                <td className="sticky left-0 bg-background z-10 p-1 border-b font-medium flex items-center gap-1">
-                  {colorByKey && <span className="inline-block w-3 h-3 rounded-sm" style={{ background: colorByKey(r.key) }} />}
-                  {r.key}
-                </td>
-                {weeks.map(w => {
-                  const v = r.perWeek[w.key] || 0;
-                  return (
-                    <td key={w.key} className={`p-1 border-b text-center ${w.key === todayKey ? 'bg-accent/10' : ''}`}>
-                      {v ? Math.round(v * 10) / 10 : ''}
+            {rows.map((r, idx) => {
+              const isOpen = expanded.has(r.key);
+              const isSentinel = sentinels.includes(r.key);
+              const sepRow = isSentinel && idx === firstSentinelIdx && idx > 0;
+              return (
+                <Fragment key={r.key}>
+                  {sepRow && (
+                    <tr>
+                      <td colSpan={weeks.length + 1} className="border-t border-border p-0 h-[2px]" />
+                    </tr>
+                  )}
+                  <tr
+                    className="cursor-pointer select-none hover:bg-muted/20"
+                    onDoubleClick={() => toggle(r.key)}
+                  >
+                    <td className="sticky left-0 bg-background z-10 p-1 border-b font-medium">
+                      <div className="flex items-center gap-1">
+                        {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                        {colorByKey && <span className="inline-block w-3 h-3 rounded-sm" style={{ background: colorByKey(r.key) }} />}
+                        <span>{r.key}</span>
+                      </div>
                     </td>
-                  );
-                })}
-              </tr>
-            ))}
+                    {weeks.map(w => {
+                      const v = r.perWeek[w.key] || 0;
+                      return (
+                        <td key={w.key} className={`p-1 border-b text-center ${w.key === todayKey ? 'bg-accent/10' : ''}`}>
+                          {v ? Math.round(v * 10) / 10 : ''}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  {isOpen && r.projectIds.map(pid => {
+                    const cp = projById.get(pid);
+                    if (!cp) return null;
+                    return (
+                      <tr key={`${r.key}-${pid}`} className="bg-muted/30 text-[10px]">
+                        <td className="sticky left-0 bg-muted/30 z-10 p-1 pl-6 border-b text-muted-foreground">
+                          {(cp.project.otp_number || '—')} — {cp.project.site_name || 'Sans nom'}
+                        </td>
+                        {weeks.map(w => {
+                          const cell = cp.weeks[w.key];
+                          let v = 0;
+                          if (cell) {
+                            if (groupBy === 'usine') {
+                              const cats = cell.byUsineCat[r.key];
+                              if (cats) v = Object.values(cats).reduce((a, b) => a + b, 0);
+                            } else {
+                              v = cell.count;
+                            }
+                          }
+                          return (
+                            <td key={w.key} className={`p-1 border-b text-center ${w.key === todayKey ? 'bg-accent/10' : ''}`}>
+                              {v ? Math.round(v * 10) / 10 : '—'}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </CardContent>
@@ -501,9 +736,10 @@ function LoadSummary({
 }
 
 function GanttView({
-  weeks, projects, todayKey, onUpdateField,
+  weeks, monthGroups, projects, todayKey, onUpdateField,
 }: {
   weeks: ISOWeek[];
+  monthGroups: MonthGroup[];
   projects: ProjectComputed[];
   todayKey: string;
   onUpdateField: (id: string, field: 'conductor' | 'subcontractor', v: string) => void;
@@ -516,15 +752,12 @@ function GanttView({
       <CardContent className="overflow-x-auto">
         <table className="text-xs border-collapse w-full">
           <thead>
+            <MonthsHeader monthGroups={monthGroups} leftColSpan={3} />
             <tr>
               <th className="sticky left-0 bg-background z-10 text-left p-1 border-b min-w-[280px]">Chantier</th>
               <th className="sticky left-[280px] bg-background z-10 text-left p-1 border-b min-w-[160px]">CDT</th>
               <th className="sticky left-[440px] bg-background z-10 text-left p-1 border-b min-w-[140px]">Poseur</th>
-              {weeks.map(w => (
-                <th key={w.key} className={`p-1 border-b text-center font-normal w-[36px] ${w.key === todayKey ? 'bg-accent/20 font-bold' : ''}`}>
-                  {w.label}
-                </th>
-              ))}
+              <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} />
             </tr>
           </thead>
           <tbody>
@@ -554,7 +787,7 @@ function GanttView({
                         </SelectContent>
                       </Select>
                     ) : (
-                      <span className="cursor-pointer" title="Double-clic pour modifier">{cp.conductor.split(' – ')[0]}</span>
+                      <span className="cursor-pointer" title="Double-clic pour modifier">{cp.conductor}</span>
                     )}
                   </td>
                   <td className="sticky left-[440px] bg-background z-10 p-1 border-b" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'subcontractor' })}>
@@ -585,7 +818,7 @@ function GanttView({
                         {v > 0 && (
                           <div
                             className="text-[10px] font-bold text-white py-1 mx-0.5 rounded-sm"
-                            title={`${cp.project.site_name} — S${w.label}: ${v} camion(s) ${isForecast ? '(prévisionnel)' : '(réel)'}`}
+                            title={`${cp.project.site_name} — ${w.label}: ${v} camion(s) ${isForecast ? '(prévisionnel)' : '(réel)'}`}
                             style={{
                               background: isForecast
                                 ? `repeating-linear-gradient(45deg, ${color}, ${color} 4px, rgba(255,255,255,0.45) 4px, rgba(255,255,255,0.45) 8px)`
@@ -604,63 +837,6 @@ function GanttView({
             })}
           </tbody>
         </table>
-      </CardContent>
-    </Card>
-  );
-}
-
-function CalendarView({ projects }: { projects: ProjectComputed[] }) {
-  const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; });
-
-  const monthLabel = cursor.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-  const monthStart = new Date(cursor);
-  const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
-  const weeks = getWeeksBetween(monthStart, monthEnd);
-
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCursor(d => { const n = new Date(d); n.setMonth(n.getMonth() - 1); return n; })}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="capitalize">{monthLabel}</span>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCursor(d => { const n = new Date(d); n.setMonth(n.getMonth() + 1); return n; })}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {weeks.map(w => {
-          const projectsThisWeek = projects.filter(p => (p.weeks[w.key]?.count || 0) > 0);
-          return (
-            <div key={w.key} className="border rounded-md p-2">
-              <div className="text-xs font-medium mb-1">{w.label} — {w.start.toLocaleDateString('fr-FR')} → {w.end.toLocaleDateString('fr-FR')}</div>
-              <div className="flex flex-wrap gap-1">
-                {projectsThisWeek.length === 0 && <span className="text-xs text-muted-foreground italic">Aucun chantier</span>}
-                {projectsThisWeek.map(cp => {
-                  const cell = cp.weeks[w.key];
-                  const isForecast = cell.source === 'forecast';
-                  const color = getPoseurColor(cp.poseur);
-                  return (
-                    <span
-                      key={cp.project.id}
-                      className="text-[10px] px-2 py-0.5 rounded-full text-white"
-                      style={{
-                        background: isForecast
-                          ? `repeating-linear-gradient(45deg, ${color}, ${color} 3px, rgba(255,255,255,0.4) 3px, rgba(255,255,255,0.4) 6px)`
-                          : color,
-                      }}
-                      title={`${cp.project.site_name} — ${cell.count} camion(s)`}
-                    >
-                      {cp.project.site_name || cp.project.otp_number} ({Math.round(cell.count * 10) / 10}{isForecast ? 'P' : ''})
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
       </CardContent>
     </Card>
   );
