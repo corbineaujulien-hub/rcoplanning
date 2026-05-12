@@ -749,7 +749,7 @@ function WeekHeaderCells({
 }
 
 function LoadSummary({
-  title, subtitle, rows, weeks, monthGroups, todayKey, colorByKey, allProjects, groupBy, sentinels,
+  title, subtitle, rows, weeks, monthGroups, todayKey, colorByKey, allProjects, groupBy, sentinels, ceil,
 }: {
   title: string;
   subtitle: string;
@@ -761,7 +761,12 @@ function LoadSummary({
   allProjects: ProjectComputed[];
   groupBy: 'cdt' | 'poseur' | 'usine';
   sentinels: string[];
+  ceil?: boolean;
 }) {
+  const fmt = (v: number) => {
+    if (!v) return '';
+    return ceil ? Math.ceil(v) : Math.round(v * 10) / 10;
+  };
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (k: string) =>
     setExpanded(prev => {
@@ -823,7 +828,7 @@ function LoadSummary({
                       const v = r.perWeek[w.key] || 0;
                       return (
                         <td key={w.key} className={`p-1 border-b text-center ${w.key === todayKey ? 'bg-accent/10' : ''}`}>
-                          {v ? Math.round(v * 10) / 10 : ''}
+                          {fmt(v)}
                         </td>
                       );
                     })}
@@ -849,7 +854,7 @@ function LoadSummary({
                           }
                           return (
                             <td key={w.key} className={`p-1 border-b text-center ${w.key === todayKey ? 'bg-accent/10' : ''}`}>
-                              {v ? Math.round(v * 10) / 10 : ''}
+                              {fmt(v)}
                             </td>
                           );
                         })}
@@ -874,7 +879,7 @@ function LoadSummary({
                     const v = totals[w.key];
                     return (
                       <td key={w.key} className="p-1 border-t text-center" style={heatStyle(v, max)}>
-                        {v ? Math.round(v * 10) / 10 : ''}
+                        {fmt(v)}
                       </td>
                     );
                   })}
