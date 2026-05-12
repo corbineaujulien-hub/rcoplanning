@@ -406,7 +406,7 @@ export default function LoadPlanning() {
             </Button>
             <img src="/logo.png" alt="Logo" className="h-7 object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
             <BarChart3 className="h-6 w-6" />
-            <h1 className="text-lg font-bold">Planning de charge annuel</h1>
+            <h1 className="text-lg font-bold">Planning de charge</h1>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1 text-xs">
