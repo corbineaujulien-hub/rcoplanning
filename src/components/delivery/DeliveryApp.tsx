@@ -9,7 +9,7 @@ import GeneralInfoTab from '@/components/delivery/GeneralInfoTab';
 import DatabaseTab from '@/components/delivery/DatabaseTab';
 import TruckCompositionTab from '@/components/delivery/TruckCompositionTab';
 import WeeklyPlanningTab from '@/components/delivery/WeeklyPlanningTab';
-import { Truck as TruckIcon, ClipboardList, Database, Calendar, FileSpreadsheet, Home } from 'lucide-react';
+import { Truck as TruckIcon, ClipboardList, Database, Calendar, FileSpreadsheet, Home, BarChart3 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getEffectiveCategory } from '@/utils/transportUtils';
 import { TRANSPORT_CATEGORIES } from '@/types/delivery';
@@ -153,6 +153,10 @@ export default function DeliveryApp() {
           <ActiveUsersNotification projectId={projectId} />
           <Button variant="ghost" size="sm" className="text-primary-foreground/70 hover:text-primary-foreground" onClick={() => navigate('/')}>
             <Home className="h-4 w-4" />
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => navigate('/planning-charge')}>
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Planning de charge
           </Button>
         </div>
       </header>
