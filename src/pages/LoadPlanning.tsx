@@ -1102,16 +1102,19 @@ function GanttView({
                           >
                             {isForecast ? (
                               <span style={{ background: 'rgba(255,255,255,0.75)', padding: '1px 3px', borderRadius: 2 }}>
-                                {Math.round(v * 10) / 10}P
+                                {Math.ceil(v)}
                               </span>
                             ) : (
-                              <>{Math.round(v * 10) / 10}</>
+                              <>{Math.ceil(v)}</>
                             )}
                           </div>
                         )}
                       </td>
                     );
                   })}
+                  <td className="sticky right-0 bg-background z-10 p-1 border-b border-l text-center font-bold">
+                    {projectTotal > 0 ? Math.ceil(projectTotal) : ''}
+                  </td>
                 </tr>
               );
             })}
@@ -1122,7 +1125,8 @@ function GanttView({
                 projects.forEach(cp => { s += cp.weeks[w.key]?.count || 0; });
                 totals[w.key] = s;
               });
-              const max = Math.max(0, ...Object.values(totals));
+              const grandTotal = Object.values(totals).reduce((a, b) => a + b, 0);
+              const max = Math.max(0, ...Object.values(totals), grandTotal);
               return (
                 <tr className="font-bold bg-muted/40">
                   <td colSpan={3} className="sticky left-0 bg-muted/40 z-10 p-1 border-t">Total camions</td>
@@ -1130,10 +1134,13 @@ function GanttView({
                     const v = totals[w.key];
                     return (
                       <td key={w.key} className="p-1 border-t text-center" style={heatStyle(v, max)}>
-                        {v ? Math.round(v * 10) / 10 : ''}
+                        {v ? Math.ceil(v) : ''}
                       </td>
                     );
                   })}
+                  <td className="sticky right-0 bg-muted/40 z-10 p-1 border-t border-l text-center" style={heatStyle(grandTotal, max)}>
+                    {grandTotal ? Math.ceil(grandTotal) : ''}
+                  </td>
                 </tr>
               );
             })()}
