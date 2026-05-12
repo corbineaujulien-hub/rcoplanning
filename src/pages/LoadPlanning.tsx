@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, Fragment } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -532,11 +532,11 @@ export default function LoadPlanning() {
               <SelectTrigger className="w-[180px] h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous statuts</SelectItem>
-                <SelectItem value="planned">Planifiés</SelectItem>
-                <SelectItem value="forecast">Prévisionnels</SelectItem>
+                {availableStatus.has('planned') && <SelectItem value="planned">Planifiés</SelectItem>}
+                {availableStatus.has('forecast') && <SelectItem value="forecast">Prévisionnels</SelectItem>}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={resetFilters}>
+            <Button variant={hasActiveFilters ? 'default' : 'outline'} size="sm" onClick={resetFilters}>
               <RotateCcw className="h-4 w-4 mr-1" /> Réinitialiser
             </Button>
           </CardContent>
@@ -549,7 +549,7 @@ export default function LoadPlanning() {
             <GanttView
               weeks={weeks}
               monthGroups={monthGroups}
-              projects={filteredProjects}
+              projects={sortedGanttProjects}
               todayKey={todayWeekKey}
               onUpdateField={updateProjectField}
             />
