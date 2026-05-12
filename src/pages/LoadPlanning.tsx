@@ -919,7 +919,7 @@ function LoadSummary({
                 totals[w.key] = s;
               });
               const grandTotal = Object.values(totals).reduce((a, b) => a + b, 0);
-              const max = Math.max(0, ...Object.values(totals), grandTotal);
+              const max = Math.max(0, ...Object.values(totals));
               return (
                 <tr className="font-bold bg-muted/40">
                   <td className="sticky left-0 bg-muted/40 z-10 p-1 border-t">Total</td>
@@ -931,7 +931,7 @@ function LoadSummary({
                       </td>
                     );
                   })}
-                  <td className="sticky right-0 bg-muted/40 z-10 p-1 border-t border-l text-center" style={heatStyle(grandTotal, max)}>
+                  <td className="sticky right-0 bg-muted/40 z-10 p-1 border-t border-l text-center">
                     {fmt(grandTotal)}
                   </td>
                 </tr>
@@ -1147,7 +1147,7 @@ function GanttView({
                 totals[w.key] = s;
               });
               const grandTotal = Object.values(totals).reduce((a, b) => a + b, 0);
-              const max = Math.max(0, ...Object.values(totals), grandTotal);
+              const max = Math.max(0, ...Object.values(totals));
               return (
                 <tr className="font-bold bg-muted/40">
                   <td colSpan={3} className="sticky left-0 bg-muted/40 z-10 p-1 border-t">Total camions</td>
@@ -1159,7 +1159,7 @@ function GanttView({
                       </td>
                     );
                   })}
-                  <td className="sticky right-0 bg-muted/40 z-10 p-1 border-t border-l text-center" style={heatStyle(grandTotal, max)}>
+                  <td className="sticky right-0 bg-muted/40 z-10 p-1 border-t border-l text-center">
                     {grandTotal ? Math.ceil(grandTotal) : ''}
                   </td>
                 </tr>
