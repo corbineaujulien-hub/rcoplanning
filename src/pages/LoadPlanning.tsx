@@ -956,17 +956,19 @@ function GanttView({
               <th className="sticky left-[280px] bg-background z-10 text-left p-1 border-b min-w-[160px]">CDT</th>
               <th className="sticky left-[440px] bg-background z-10 text-left p-1 border-b min-w-[140px]">Poseur</th>
               <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} />
+              <th className="sticky right-0 bg-background z-10 text-center p-1 border-b border-l min-w-[50px] font-semibold">Total</th>
             </tr>
           </thead>
           <tbody>
             {projects.length === 0 && (
-              <tr><td colSpan={weeks.length + 3} className="p-2 text-muted-foreground italic text-center">Aucun chantier</td></tr>
+              <tr><td colSpan={weeks.length + 4} className="p-2 text-muted-foreground italic text-center">Aucun chantier</td></tr>
             )}
             {projects.map(cp => {
               const color = getPoseurColor(cp.poseur);
               const teamCount = (cp.project as any).forecast_team_count ?? 1;
               const projWeeksAll = forecastWeeks.filter(w => w.projectId === cp.project.id);
               const isPopOpen = popoverProjectId === cp.project.id;
+              const projectTotal = weeks.reduce((s, w) => s + (cp.weeks[w.key]?.count || 0), 0);
               return (
                 <tr key={cp.project.id} className="hover:bg-muted/30">
                   <td
