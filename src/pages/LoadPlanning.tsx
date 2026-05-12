@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, Fragment } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -147,6 +147,15 @@ function sortWithSentinelLast<T>(arr: T[], keyFn: (x: T) => string, sentinels: s
     if (sa !== sb) return sa - sb;
     return ka.localeCompare(kb);
   });
+}
+
+function heatStyle(v: number, max: number): React.CSSProperties {
+  if (!v || !max) return {};
+  const ratio = v / max;
+  let bg = '#86efac';
+  if (ratio >= 0.66) bg = '#fca5a5';
+  else if (ratio >= 0.33) bg = '#fed7aa';
+  return { background: bg };
 }
 
 export default function LoadPlanning() {
@@ -302,27 +311,65 @@ export default function LoadPlanning() {
     });
   }, [projects, trucks, forecastSlots, elementsById, weeks]);
 
-  // Filtering — archived treated like active
-  const filteredProjects = useMemo(() => {
+  // Filtering — archived treated like active. Supports excluding a single filter
+  // (used to compute available values in dropdowns for cumulative behaviour).
+  const filterFn = useCallback((cp: ProjectComputed, exclude?: 'cdt' | 'poseur' | 'usine' | 'status') => {
     const q = searchText.trim().toLowerCase();
-    return computedProjects.filter(cp => {
-      if (filterCdt !== 'all' && cp.conductor !== filterCdt) return false;
-      if (filterPoseur !== 'all' && cp.poseur !== filterPoseur) return false;
-      if (filterUsine !== 'all' && !cp.usines.has(filterUsine)) return false;
+    if (exclude !== 'cdt' && filterCdt !== 'all' && cp.conductor !== filterCdt) return false;
+    if (exclude !== 'poseur' && filterPoseur !== 'all' && cp.poseur !== filterPoseur) return false;
+    if (exclude !== 'usine' && filterUsine !== 'all' && !cp.usines.has(filterUsine)) return false;
+    if (exclude !== 'status') {
       const sources = Object.values(cp.weeks).map(w => w.source).filter(s => s !== 'none');
       if (filterStatus === 'planned' && !sources.includes('real')) return false;
       if (filterStatus === 'forecast' && sources.length > 0 && sources.every(s => s === 'real')) return false;
-      if (q) {
-        const hay = [
-          cp.project.otp_number || '',
-          cp.project.site_name || '',
-          cp.project.client_name || '',
-        ].join(' ').toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
+    }
+    if (q) {
+      const hay = [
+        cp.project.otp_number || '',
+        cp.project.site_name || '',
+        cp.project.client_name || '',
+      ].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  }, [filterCdt, filterPoseur, filterUsine, filterStatus, searchText]);
+
+  const filteredProjects = useMemo(
+    () => computedProjects.filter(cp => filterFn(cp)),
+    [computedProjects, filterFn],
+  );
+
+  // Sort Gantt by earliest planned (real) truck, then earliest forecast slot, then no date.
+  const projectFirstDate = useMemo(() => {
+    const real = new Map<string, string>();
+    trucks.forEach(t => {
+      if (!t.date) return;
+      const cur = real.get(t.project_id);
+      if (!cur || t.date < cur) real.set(t.project_id, t.date);
     });
-  }, [computedProjects, filterCdt, filterPoseur, filterUsine, filterStatus, searchText]);
+    const fc = new Map<string, string>();
+    forecastSlots.forEach(s => {
+      const cur = fc.get(s.projectId);
+      if (!cur || s.dateStart < cur) fc.set(s.projectId, s.dateStart);
+    });
+    return { real, fc };
+  }, [trucks, forecastSlots]);
+
+  const sortedGanttProjects = useMemo(() => {
+    return [...filteredProjects].sort((a, b) => {
+      const ra = projectFirstDate.real.get(a.project.id);
+      const rb = projectFirstDate.real.get(b.project.id);
+      if (ra && rb) return ra.localeCompare(rb);
+      if (ra) return -1;
+      if (rb) return 1;
+      const fa = projectFirstDate.fc.get(a.project.id);
+      const fb = projectFirstDate.fc.get(b.project.id);
+      if (fa && fb) return fa.localeCompare(fb);
+      if (fa) return -1;
+      if (fb) return 1;
+      return 0;
+    });
+  }, [filteredProjects, projectFirstDate]);
 
   // Aggregations
   const loadByCdt = useMemo(
@@ -356,19 +403,33 @@ export default function LoadPlanning() {
     return sortWithSentinelLast(rows, r => r.key, [UNASSIGNED_USINE]);
   }, [filteredProjects, weeks]);
 
-  const allCdts = useMemo(
-    () => sortWithSentinelLast(Array.from(new Set(computedProjects.map(p => p.conductor))), s => s, [UNASSIGNED_CDT]),
-    [computedProjects],
-  );
-  const allPoseurs = useMemo(
-    () => sortWithSentinelLast(Array.from(new Set(computedProjects.map(p => p.poseur))), s => s, [UNASSIGNED_POSEUR]),
-    [computedProjects],
-  );
+  // Cumulative dropdowns — values available given other active filters
+  const allCdts = useMemo(() => {
+    const list = computedProjects.filter(cp => filterFn(cp, 'cdt')).map(p => p.conductor);
+    return sortWithSentinelLast(Array.from(new Set(list)), s => s, [UNASSIGNED_CDT]);
+  }, [computedProjects, filterFn]);
+  const allPoseurs = useMemo(() => {
+    const list = computedProjects.filter(cp => filterFn(cp, 'poseur')).map(p => p.poseur);
+    return sortWithSentinelLast(Array.from(new Set(list)), s => s, [UNASSIGNED_POSEUR]);
+  }, [computedProjects, filterFn]);
   const allUsines = useMemo(() => {
     const s = new Set<string>();
-    computedProjects.forEach(p => p.usines.forEach(u => s.add(u)));
+    computedProjects.filter(cp => filterFn(cp, 'usine')).forEach(p => p.usines.forEach(u => s.add(u)));
     return sortWithSentinelLast(Array.from(s), x => x, [UNASSIGNED_USINE]);
-  }, [computedProjects]);
+  }, [computedProjects, filterFn]);
+  const availableStatus = useMemo(() => {
+    const set = new Set<'planned' | 'forecast'>();
+    computedProjects.filter(cp => filterFn(cp, 'status')).forEach(cp => {
+      const sources = Object.values(cp.weeks).map(w => w.source).filter(s => s !== 'none');
+      if (sources.includes('real')) set.add('planned');
+      if (sources.length > 0 && !sources.every(s => s === 'real')) set.add('forecast');
+    });
+    return set;
+  }, [computedProjects, filterFn]);
+
+  const hasActiveFilters =
+    filterCdt !== 'all' || filterPoseur !== 'all' || filterUsine !== 'all' ||
+    filterStatus !== 'all' || searchText.trim() !== '';
 
   const updateProjectField = useCallback(async (projectId: string, field: 'conductor' | 'subcontractor', value: string) => {
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, [field]: value } : p));
@@ -406,7 +467,7 @@ export default function LoadPlanning() {
             </Button>
             <img src="/logo.png" alt="Logo" className="h-7 object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
             <BarChart3 className="h-6 w-6" />
-            <h1 className="text-lg font-bold">Planning de charge annuel</h1>
+            <h1 className="text-lg font-bold">Planning de charge</h1>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1 text-xs">
@@ -471,11 +532,11 @@ export default function LoadPlanning() {
               <SelectTrigger className="w-[180px] h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous statuts</SelectItem>
-                <SelectItem value="planned">Planifiés</SelectItem>
-                <SelectItem value="forecast">Prévisionnels</SelectItem>
+                {availableStatus.has('planned') && <SelectItem value="planned">Planifiés</SelectItem>}
+                {availableStatus.has('forecast') && <SelectItem value="forecast">Prévisionnels</SelectItem>}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={resetFilters}>
+            <Button variant={hasActiveFilters ? 'default' : 'outline'} size="sm" onClick={resetFilters}>
               <RotateCcw className="h-4 w-4 mr-1" /> Réinitialiser
             </Button>
           </CardContent>
@@ -488,7 +549,7 @@ export default function LoadPlanning() {
             <GanttView
               weeks={weeks}
               monthGroups={monthGroups}
-              projects={filteredProjects}
+              projects={sortedGanttProjects}
               todayKey={todayWeekKey}
               onUpdateField={updateProjectField}
             />
@@ -718,7 +779,7 @@ function LoadSummary({
                           }
                           return (
                             <td key={w.key} className={`p-1 border-b text-center ${w.key === todayKey ? 'bg-accent/10' : ''}`}>
-                              {v ? Math.round(v * 10) / 10 : '—'}
+                              {v ? Math.round(v * 10) / 10 : ''}
                             </td>
                           );
                         })}
@@ -728,6 +789,28 @@ function LoadSummary({
                 </Fragment>
               );
             })}
+            {rows.length > 0 && (() => {
+              const totals: Record<string, number> = {};
+              weeks.forEach(w => {
+                let s = 0;
+                rows.forEach(r => { s += r.perWeek[w.key] || 0; });
+                totals[w.key] = s;
+              });
+              const max = Math.max(0, ...Object.values(totals));
+              return (
+                <tr className="font-bold bg-muted/40">
+                  <td className="sticky left-0 bg-muted/40 z-10 p-1 border-t">Total</td>
+                  {weeks.map(w => {
+                    const v = totals[w.key];
+                    return (
+                      <td key={w.key} className="p-1 border-t text-center" style={heatStyle(v, max)}>
+                        {v ? Math.round(v * 10) / 10 : ''}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })()}
           </tbody>
         </table>
       </CardContent>
@@ -835,6 +918,28 @@ function GanttView({
                 </tr>
               );
             })}
+            {projects.length > 0 && (() => {
+              const totals: Record<string, number> = {};
+              weeks.forEach(w => {
+                let s = 0;
+                projects.forEach(cp => { s += cp.weeks[w.key]?.count || 0; });
+                totals[w.key] = s;
+              });
+              const max = Math.max(0, ...Object.values(totals));
+              return (
+                <tr className="font-bold bg-muted/40">
+                  <td colSpan={3} className="sticky left-0 bg-muted/40 z-10 p-1 border-t">Total camions</td>
+                  {weeks.map(w => {
+                    const v = totals[w.key];
+                    return (
+                      <td key={w.key} className="p-1 border-t text-center" style={heatStyle(v, max)}>
+                        {v ? Math.round(v * 10) / 10 : ''}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })()}
           </tbody>
         </table>
       </CardContent>
