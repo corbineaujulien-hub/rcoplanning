@@ -21,11 +21,14 @@ interface ExportArgs {
 function buildLoadSheet(
   rows: { key: string; perWeek: Record<string, number> }[],
   weeks: ISOWeek[],
-  ceil = false,
+  _ceil = false,
 ): any[][] {
-  const header = ['', ...weeks.map(w => w.label)];
-  const fmt = (v: number) => v ? (ceil ? Math.ceil(v) : Math.round(v * 10) / 10) : '';
-  const data = rows.map(r => [r.key, ...weeks.map(w => fmt(r.perWeek[w.key] || 0))]);
+  const header = ['', ...weeks.map(w => w.label), 'Total'];
+  const fmt = (v: number) => v ? Math.ceil(v) : '';
+  const data = rows.map(r => {
+    const total = weeks.reduce((s, w) => s + (r.perWeek[w.key] || 0), 0);
+    return [r.key, ...weeks.map(w => fmt(r.perWeek[w.key] || 0)), fmt(total)];
+  });
   return [header, ...data];
 }
 
@@ -34,16 +37,20 @@ export async function exportLoadPlanningExcel(args: ExportArgs) {
   const wb = XLSX.utils.book_new();
 
   // Gantt
-  const ganttHeader = ['Chantier', 'OTP', 'CDT', 'Poseur', ...weeks.map(w => w.label)];
-  const ganttRows = projects.map(cp => [
-    cp.project.site_name || '', cp.project.otp_number || '',
-    cp.conductor, cp.poseur,
-    ...weeks.map(w => {
-      const c = cp.weeks[w.key];
-      if (!c || !c.count) return '';
-      return `${Math.round(c.count * 10) / 10}${c.source === 'forecast' ? ' (P)' : ''}`;
-    }),
-  ]);
+  const ganttHeader = ['Chantier', 'OTP', 'CDT', 'Poseur', ...weeks.map(w => w.label), 'Total'];
+  const ganttRows = projects.map(cp => {
+    const total = weeks.reduce((s, w) => s + (cp.weeks[w.key]?.count || 0), 0);
+    return [
+      cp.project.site_name || '', cp.project.otp_number || '',
+      cp.conductor, cp.poseur,
+      ...weeks.map(w => {
+        const c = cp.weeks[w.key];
+        if (!c || !c.count) return '';
+        return Math.ceil(c.count);
+      }),
+      total ? Math.ceil(total) : '',
+    ];
+  });
   const wsGantt = XLSX.utils.aoa_to_sheet([ganttHeader, ...ganttRows]);
   XLSX.utils.book_append_sheet(wb, wsGantt, 'Gantt');
 
