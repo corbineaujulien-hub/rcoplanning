@@ -177,6 +177,7 @@ export default function LoadPlanning() {
   const [trucks, setTrucks] = useState<TruckRow[]>([]);
   const [elements, setElements] = useState<ElementRow[]>([]);
   const [forecastWeeks, setForecastWeeks] = useState<ForecastWeek[]>([]);
+  const [tokens, setTokens] = useState<Record<string, string>>({});
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const defaultStart = useMemo(() => { const d = new Date(today); d.setMonth(d.getMonth() - 1); return d; }, [today]);
@@ -195,11 +196,12 @@ export default function LoadPlanning() {
     const load = async () => {
       setLoading(true);
       try {
-        const [pData, tData, eData, fData] = await Promise.all([
+        const [pData, tData, eData, fData, lData] = await Promise.all([
           supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, archived, database_complete, forecasted_transports'),
           fetchAllPaginated<TruckRow>('trucks', 'id, project_id, date, element_ids, forced_category, team_id'),
           fetchAllPaginated<ElementRow>('beam_elements', 'id, project_id, product_type, length, weight, factory'),
           fetchAllPaginated<any>('forecast_weeks', 'id, project_id, year, week_number'),
+          fetchAllPaginated<any>('project_access_links', 'project_id, token'),
         ]);
         setProjects(((pData.data as any[]) || []).map(p => ({
           ...p,
@@ -220,6 +222,9 @@ export default function LoadPlanning() {
         setForecastWeeks((fData as any[]).map(s => ({
           id: s.id, projectId: s.project_id, year: s.year, weekNumber: s.week_number,
         })));
+        const tokMap: Record<string, string> = {};
+        (lData as any[]).forEach(l => { if (l.project_id && l.token && !tokMap[l.project_id]) tokMap[l.project_id] = l.token; });
+        setTokens(tokMap);
       } catch (err: any) {
         toast.error('Erreur de chargement : ' + err.message);
       } finally {
