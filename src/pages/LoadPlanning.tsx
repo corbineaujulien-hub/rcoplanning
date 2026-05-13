@@ -97,6 +97,9 @@ interface ProjectComputed {
   conductor: string;
   weeks: Record<string, WeekCell>;
   usines: Set<string>;
+  totalWeight: number;
+  loadedWeight: number;
+  planningPct: number;
 }
 
 // ---------- Months grouping ----------
@@ -191,6 +194,7 @@ export default function LoadPlanning() {
   const [filterPoseur, setFilterPoseur] = useState('all');
   const [filterUsine, setFilterUsine] = useState('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'planned' | 'forecast'>('all');
+  const [filterBdd, setFilterBdd] = useState<'all' | 'complete' | 'incomplete'>('all');
   const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
@@ -256,6 +260,13 @@ export default function LoadPlanning() {
       const projTrucks = trucks.filter(t => t.project_id === project.id && t.date);
       const projWeeks = forecastWeeks.filter(s => s.projectId === project.id);
       const projTransports = project.forecasted_transports || [];
+
+      const projElements = elements.filter(e => e.project_id === project.id);
+      const totalWeight = projElements.reduce((s, e) => s + (e.weight || 0), 0);
+      const loadedSet = new Set<string>();
+      projTrucks.forEach(t => (t.element_ids || []).forEach(id => loadedSet.add(id)));
+      const loadedWeight = projElements.reduce((s, e) => loadedSet.has(e.id) ? s + (e.weight || 0) : s, 0);
+      const planningPct = totalWeight > 0 ? Math.round((loadedWeight / totalWeight) * 100) : 0;
 
       const realByWeek = new Map<string, Record<string, Record<TransportCategory, number>>>();
       const teamsByWeek = new Map<string, Set<string>>();
@@ -351,17 +362,24 @@ export default function LoadPlanning() {
         conductor: stripPhone(project.conductor || '') || UNASSIGNED_CDT,
         weeks: weekCells,
         usines: usinesSet,
+        totalWeight,
+        loadedWeight,
+        planningPct,
       };
     });
-  }, [projects, trucks, forecastWeeks, elementsById, weeks]);
+  }, [projects, trucks, forecastWeeks, elements, elementsById, weeks]);
 
   // Filtering — archived treated like active. Supports excluding a single filter
   // (used to compute available values in dropdowns for cumulative behaviour).
-  const filterFn = useCallback((cp: ProjectComputed, exclude?: 'cdt' | 'poseur' | 'usine' | 'status') => {
+  const filterFn = useCallback((cp: ProjectComputed, exclude?: 'cdt' | 'poseur' | 'usine' | 'status' | 'bdd') => {
     const q = searchText.trim().toLowerCase();
     if (exclude !== 'cdt' && filterCdt !== 'all' && cp.conductor !== filterCdt) return false;
     if (exclude !== 'poseur' && filterPoseur !== 'all' && cp.poseur !== filterPoseur) return false;
     if (exclude !== 'usine' && filterUsine !== 'all' && !cp.usines.has(filterUsine)) return false;
+    if (exclude !== 'bdd' && filterBdd !== 'all') {
+      if (filterBdd === 'complete' && !cp.project.database_complete) return false;
+      if (filterBdd === 'incomplete' && cp.project.database_complete) return false;
+    }
     if (exclude !== 'status') {
       const sources = Object.values(cp.weeks).map(w => w.source).filter(s => s !== 'none');
       if (filterStatus === 'planned' && !sources.includes('real')) return false;
@@ -376,7 +394,7 @@ export default function LoadPlanning() {
       if (!hay.includes(q)) return false;
     }
     return true;
-  }, [filterCdt, filterPoseur, filterUsine, filterStatus, searchText]);
+  }, [filterCdt, filterPoseur, filterUsine, filterStatus, filterBdd, searchText]);
 
   const filteredProjects = useMemo(
     () => computedProjects.filter(cp => filterFn(cp)),
@@ -474,7 +492,7 @@ export default function LoadPlanning() {
 
   const hasActiveFilters =
     filterCdt !== 'all' || filterPoseur !== 'all' || filterUsine !== 'all' ||
-    filterStatus !== 'all' || searchText.trim() !== '';
+    filterStatus !== 'all' || filterBdd !== 'all' || searchText.trim() !== '';
 
   const updateProjectField = useCallback(async (projectId: string, field: 'conductor' | 'subcontractor', value: string) => {
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, [field]: value } : p));
@@ -530,7 +548,7 @@ export default function LoadPlanning() {
   }, [forecastWeeks, projects, setProjectForecastTeamCount]);
 
   const resetFilters = () => {
-    setFilterCdt('all'); setFilterPoseur('all'); setFilterUsine('all'); setFilterStatus('all'); setSearchText('');
+    setFilterCdt('all'); setFilterPoseur('all'); setFilterUsine('all'); setFilterStatus('all'); setFilterBdd('all'); setSearchText('');
   };
 
   const handleExportPdf = async () => {
@@ -625,6 +643,14 @@ export default function LoadPlanning() {
                 <SelectItem value="all">Tous statuts</SelectItem>
                 {availableStatus.has('planned') && <SelectItem value="planned">Planifiés</SelectItem>}
                 {availableStatus.has('forecast') && <SelectItem value="forecast">Prévisionnels</SelectItem>}
+              </SelectContent>
+            </Select>
+            <Select value={filterBdd} onValueChange={(v: any) => setFilterBdd(v)}>
+              <SelectTrigger className={`w-[160px] h-9 ${filterBdd !== 'all' ? 'border-primary text-primary' : ''}`}><SelectValue placeholder="BDD" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">BDD : tous</SelectItem>
+                <SelectItem value="complete">BDD complète</SelectItem>
+                <SelectItem value="incomplete">BDD incomplète</SelectItem>
               </SelectContent>
             </Select>
             <Button variant={hasActiveFilters ? 'default' : 'outline'} size="sm" onClick={resetFilters}>
@@ -1005,7 +1031,11 @@ function GanttView({
                       <PopoverAnchor asChild>
                         <div>
                           <div className="font-medium truncate max-w-[260px]">{cp.project.site_name || 'Sans nom'}</div>
-                          <div className="text-[10px] text-muted-foreground">{cp.project.otp_number || '—'}</div>
+                          <div className="text-[10px] text-[#6b7280]">
+                            {cp.project.otp_number || '—'}
+                            {cp.project.database_complete && <span className="ml-1">· BDD ✅</span>}
+                            <span className="ml-1">· {cp.planningPct}%</span>
+                          </div>
                         </div>
                       </PopoverAnchor>
                       <PopoverContent
