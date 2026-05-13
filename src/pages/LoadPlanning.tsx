@@ -194,6 +194,7 @@ export default function LoadPlanning() {
   const [filterPoseur, setFilterPoseur] = useState('all');
   const [filterUsine, setFilterUsine] = useState('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'planned' | 'forecast'>('all');
+  const [filterBdd, setFilterBdd] = useState<'all' | 'complete' | 'incomplete'>('all');
   const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
@@ -370,11 +371,15 @@ export default function LoadPlanning() {
 
   // Filtering — archived treated like active. Supports excluding a single filter
   // (used to compute available values in dropdowns for cumulative behaviour).
-  const filterFn = useCallback((cp: ProjectComputed, exclude?: 'cdt' | 'poseur' | 'usine' | 'status') => {
+  const filterFn = useCallback((cp: ProjectComputed, exclude?: 'cdt' | 'poseur' | 'usine' | 'status' | 'bdd') => {
     const q = searchText.trim().toLowerCase();
     if (exclude !== 'cdt' && filterCdt !== 'all' && cp.conductor !== filterCdt) return false;
     if (exclude !== 'poseur' && filterPoseur !== 'all' && cp.poseur !== filterPoseur) return false;
     if (exclude !== 'usine' && filterUsine !== 'all' && !cp.usines.has(filterUsine)) return false;
+    if (exclude !== 'bdd' && filterBdd !== 'all') {
+      if (filterBdd === 'complete' && !cp.project.database_complete) return false;
+      if (filterBdd === 'incomplete' && cp.project.database_complete) return false;
+    }
     if (exclude !== 'status') {
       const sources = Object.values(cp.weeks).map(w => w.source).filter(s => s !== 'none');
       if (filterStatus === 'planned' && !sources.includes('real')) return false;
@@ -389,7 +394,7 @@ export default function LoadPlanning() {
       if (!hay.includes(q)) return false;
     }
     return true;
-  }, [filterCdt, filterPoseur, filterUsine, filterStatus, searchText]);
+  }, [filterCdt, filterPoseur, filterUsine, filterStatus, filterBdd, searchText]);
 
   const filteredProjects = useMemo(
     () => computedProjects.filter(cp => filterFn(cp)),
@@ -487,7 +492,7 @@ export default function LoadPlanning() {
 
   const hasActiveFilters =
     filterCdt !== 'all' || filterPoseur !== 'all' || filterUsine !== 'all' ||
-    filterStatus !== 'all' || searchText.trim() !== '';
+    filterStatus !== 'all' || filterBdd !== 'all' || searchText.trim() !== '';
 
   const updateProjectField = useCallback(async (projectId: string, field: 'conductor' | 'subcontractor', value: string) => {
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, [field]: value } : p));
@@ -543,7 +548,7 @@ export default function LoadPlanning() {
   }, [forecastWeeks, projects, setProjectForecastTeamCount]);
 
   const resetFilters = () => {
-    setFilterCdt('all'); setFilterPoseur('all'); setFilterUsine('all'); setFilterStatus('all'); setSearchText('');
+    setFilterCdt('all'); setFilterPoseur('all'); setFilterUsine('all'); setFilterStatus('all'); setFilterBdd('all'); setSearchText('');
   };
 
   const handleExportPdf = async () => {
