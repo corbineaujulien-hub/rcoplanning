@@ -260,6 +260,13 @@ export default function LoadPlanning() {
       const projWeeks = forecastWeeks.filter(s => s.projectId === project.id);
       const projTransports = project.forecasted_transports || [];
 
+      const projElements = elements.filter(e => e.project_id === project.id);
+      const totalWeight = projElements.reduce((s, e) => s + (e.weight || 0), 0);
+      const loadedSet = new Set<string>();
+      projTrucks.forEach(t => (t.element_ids || []).forEach(id => loadedSet.add(id)));
+      const loadedWeight = projElements.reduce((s, e) => loadedSet.has(e.id) ? s + (e.weight || 0) : s, 0);
+      const planningPct = totalWeight > 0 ? Math.round((loadedWeight / totalWeight) * 100) : 0;
+
       const realByWeek = new Map<string, Record<string, Record<TransportCategory, number>>>();
       const teamsByWeek = new Map<string, Set<string>>();
       const usinesSet = new Set<string>();
@@ -354,9 +361,12 @@ export default function LoadPlanning() {
         conductor: stripPhone(project.conductor || '') || UNASSIGNED_CDT,
         weeks: weekCells,
         usines: usinesSet,
+        totalWeight,
+        loadedWeight,
+        planningPct,
       };
     });
-  }, [projects, trucks, forecastWeeks, elementsById, weeks]);
+  }, [projects, trucks, forecastWeeks, elements, elementsById, weeks]);
 
   // Filtering — archived treated like active. Supports excluding a single filter
   // (used to compute available values in dropdowns for cumulative behaviour).
