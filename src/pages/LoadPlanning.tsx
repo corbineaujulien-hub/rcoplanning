@@ -645,6 +645,14 @@ export default function LoadPlanning() {
                 {availableStatus.has('forecast') && <SelectItem value="forecast">Prévisionnels</SelectItem>}
               </SelectContent>
             </Select>
+            <Select value={filterBdd} onValueChange={(v: any) => setFilterBdd(v)}>
+              <SelectTrigger className={`w-[160px] h-9 ${filterBdd !== 'all' ? 'border-primary text-primary' : ''}`}><SelectValue placeholder="BDD" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">BDD : tous</SelectItem>
+                <SelectItem value="complete">BDD complète</SelectItem>
+                <SelectItem value="incomplete">BDD incomplète</SelectItem>
+              </SelectContent>
+            </Select>
             <Button variant={hasActiveFilters ? 'default' : 'outline'} size="sm" onClick={resetFilters}>
               <RotateCcw className="h-4 w-4 mr-1" /> Réinitialiser
             </Button>
