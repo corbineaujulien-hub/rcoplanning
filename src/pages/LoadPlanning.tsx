@@ -1031,7 +1031,11 @@ function GanttView({
                       <PopoverAnchor asChild>
                         <div>
                           <div className="font-medium truncate max-w-[260px]">{cp.project.site_name || 'Sans nom'}</div>
-                          <div className="text-[10px] text-muted-foreground">{cp.project.otp_number || '—'}</div>
+                          <div className="text-[10px] text-[#6b7280]">
+                            {cp.project.otp_number || '—'}
+                            {cp.project.database_complete && <span className="ml-1">· BDD ✅</span>}
+                            <span className="ml-1">· {cp.planningPct}%</span>
+                          </div>
                         </div>
                       </PopoverAnchor>
                       <PopoverContent
