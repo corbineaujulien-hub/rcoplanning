@@ -97,6 +97,9 @@ interface ProjectComputed {
   conductor: string;
   weeks: Record<string, WeekCell>;
   usines: Set<string>;
+  totalWeight: number;
+  loadedWeight: number;
+  planningPct: number;
 }
 
 // ---------- Months grouping ----------
