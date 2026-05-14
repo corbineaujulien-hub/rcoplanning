@@ -11,7 +11,6 @@ export interface ProjectInfo {
   databaseComplete?: boolean;
   databaseComment?: string;
   forecastedTransports?: ForecastedTransport[];
-  forecastTeamCount?: number;
   forecastPeriodStart?: string | null;
   forecastPeriodEnd?: string | null;
 }
@@ -156,7 +155,6 @@ export const DEFAULT_PROJECT_INFO: ProjectInfo = {
   databaseComplete: false,
   databaseComment: '',
   forecastedTransports: [],
-  forecastTeamCount: 1,
   forecastPeriodStart: null,
   forecastPeriodEnd: null,
 };
