@@ -1463,10 +1463,19 @@ export default function TruckCompositionTab() {
               <CardTitle className="text-sm">Récapitulatif par usine et catégorie de transport</CardTitle>
             </CardHeader>
             <CardContent>
-              {planningPct < 100 && (
-                <p className="text-xs italic mb-2" style={{ color: '#f97316' }}>
-                  ⚠️ Planification incomplète ({planningPct}%) — Le comparatif prévisionnel est partiel
-                </p>
+              {(planningPct < 100 || !projectInfo.databaseComplete) && (
+                <div className="mb-2">
+                  {planningPct < 100 && (
+                    <p className="text-xs italic" style={{ color: '#f97316' }}>
+                      ⚠️ Planification incomplète ({planningPct}%) — Le comparatif prévisionnel est partiel
+                    </p>
+                  )}
+                  {!projectInfo.databaseComplete && (
+                    <p className="text-xs italic" style={{ color: '#f97316' }}>
+                      ⚠️ BDD incomplète — Le comparatif prévisionnel est partiel
+                    </p>
+                  )}
+                </div>
               )}
               <Table>
                 <TableHeader>
