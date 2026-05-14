@@ -975,7 +975,6 @@ function GanttView({
             )}
             {projects.map(cp => {
               const color = getPoseurColor(cp.poseur);
-              const teamCount = (cp.project as any).forecast_team_count ?? 1;
               const projWeeksAll = forecastWeeks.filter(w => w.projectId === cp.project.id);
               const isPopOpen = popoverProjectId === cp.project.id;
               const projectTotal = weeks.reduce((s, w) => s + (cp.weeks[w.key]?.count || 0), 0);
