@@ -34,11 +34,9 @@ interface DeliveryContextType {
   addTeam: (team: Team) => void;
   updateTeam: (id: string, updates: Partial<Team>) => void;
   deleteTeam: (id: string) => void;
-  toggleForecastWeek: (year: number, weekNumber: number, teamIndex?: number) => void;
-  setForecastWeeksBulk: (weeks: { year: number; weekNumber: number; teamIndex?: number }[]) => void;
-  clearForecastWeeks: (teamIndex?: number) => void;
-  addForecastTeam: () => void;
-  removeForecastTeam: (teamIndex: number) => void;
+  toggleForecastWeek: (year: number, weekNumber: number) => void;
+  setForecastWeeksBulk: (weeks: { year: number; weekNumber: number }[]) => void;
+  clearForecastWeeks: () => void;
   setForecastPeriod: (start: string | null, end: string | null) => void;
   setForecastedTransports: (transports: ForecastedTransport[]) => void;
   initialDate: Date;
