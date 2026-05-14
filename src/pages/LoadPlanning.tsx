@@ -33,7 +33,6 @@ interface ProjectRow {
   archived: boolean;
   database_complete: boolean;
   forecasted_transports: ForecastedTransport[] | null;
-  forecast_team_count: number;
 }
 
 interface TruckRow {
