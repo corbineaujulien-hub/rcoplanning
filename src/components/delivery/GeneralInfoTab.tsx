@@ -344,7 +344,7 @@ function ForecastedTransportsCard({
   const commit = () => onChange(draft);
 
   const addRow = () => {
-    const next = [...draft, { usine: '', standard: 0, cat1: 0, cat2: 0, cat3: 0, exceptional: 0 }];
+    const next = [...draft, { usine: '', standard: 0, cat1: 0, cat2: 0, cat3: 0 }];
     setDraft(next);
     onChange(next);
   };
