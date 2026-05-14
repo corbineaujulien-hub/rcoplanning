@@ -501,18 +501,18 @@ export default function LoadPlanning() {
     else toast.success('Mise à jour enregistrée');
   }, []);
 
-  const toggleProjectForecastWeek = useCallback(async (projectId: string, year: number, weekNumber: number, teamIndex: number = 0) => {
-    const existing = forecastWeeks.find(w => w.projectId === projectId && w.year === year && w.weekNumber === weekNumber && (w.teamIndex ?? 0) === teamIndex);
+  const toggleProjectForecastWeek = useCallback(async (projectId: string, year: number, weekNumber: number) => {
+    const existing = forecastWeeks.find(w => w.projectId === projectId && w.year === year && w.weekNumber === weekNumber);
     if (existing) {
       setForecastWeeks(prev => prev.filter(w => w.id !== existing.id));
       const { error } = await (supabase.from as any)('forecast_weeks').delete().eq('id', existing.id);
       if (error) toast.error('Erreur : ' + error.message);
     } else {
       const id = crypto.randomUUID();
-      const nw: ForecastWeek = { id, projectId, year, weekNumber, teamIndex };
+      const nw: ForecastWeek = { id, projectId, year, weekNumber, teamIndex: 0 };
       setForecastWeeks(prev => [...prev, nw]);
       const { error } = await (supabase.from as any)('forecast_weeks').insert({
-        id, project_id: projectId, year, week_number: weekNumber, team_index: teamIndex,
+        id, project_id: projectId, year, week_number: weekNumber, team_index: 0,
       });
       if (error) toast.error('Erreur : ' + error.message);
     }
@@ -523,29 +523,6 @@ export default function LoadPlanning() {
     const { error } = await (supabase.from as any)('forecast_weeks').delete().eq('project_id', projectId);
     if (error) toast.error('Erreur : ' + error.message);
   }, []);
-
-  const setProjectForecastTeamCount = useCallback(async (projectId: string, count: number) => {
-    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, forecast_team_count: count } : p));
-    const { error } = await supabase.from('projects').update({ forecast_team_count: count } as any).eq('id', projectId);
-    if (error) toast.error('Erreur : ' + error.message);
-  }, []);
-
-  const removeProjectForecastTeam = useCallback(async (projectId: string, teamIndex: number) => {
-    if (teamIndex < 1) return;
-    const above = forecastWeeks.filter(w => w.projectId === projectId && (w.teamIndex ?? 0) > teamIndex);
-    setForecastWeeks(prev => prev
-      .filter(w => !(w.projectId === projectId && (w.teamIndex ?? 0) === teamIndex))
-      .map(w => (w.projectId === projectId && (w.teamIndex ?? 0) > teamIndex)
-        ? { ...w, teamIndex: (w.teamIndex ?? 0) - 1 } : w));
-    await (supabase.from as any)('forecast_weeks').delete()
-      .eq('project_id', projectId).eq('team_index', teamIndex);
-    for (const w of above) {
-      await (supabase.from as any)('forecast_weeks').update({ team_index: (w.teamIndex ?? 0) - 1 }).eq('id', w.id);
-    }
-    const proj = projects.find(p => p.id === projectId);
-    const newCount = Math.max(1, (proj?.forecast_team_count ?? 1) - 1);
-    await setProjectForecastTeamCount(projectId, newCount);
-  }, [forecastWeeks, projects, setProjectForecastTeamCount]);
 
   const resetFilters = () => {
     setFilterCdt('all'); setFilterPoseur('all'); setFilterUsine('all'); setFilterStatus('all'); setFilterBdd('all'); setSearchText('');
