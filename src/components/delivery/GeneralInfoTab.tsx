@@ -344,7 +344,7 @@ function ForecastedTransportsCard({
   const commit = () => onChange(draft);
 
   const addRow = () => {
-    const next = [...draft, { usine: '', standard: 0, cat1: 0, cat2: 0, cat3: 0, exceptional: 0 }];
+    const next = [...draft, { usine: '', standard: 0, cat1: 0, cat2: 0, cat3: 0 }];
     setDraft(next);
     onChange(next);
   };
@@ -356,10 +356,10 @@ function ForecastedTransportsCard({
   };
 
   const rowTotal = (t: ForecastedTransport) =>
-    (t.standard || 0) + (t.cat1 || 0) + (t.cat2 || 0) + (t.cat3 || 0) + (t.exceptional || 0);
+    (t.standard || 0) + (t.cat1 || 0) + (t.cat2 || 0) + (t.cat3 || 0);
 
   const colTotals: Record<ForecastTransportCategory, number> = {
-    standard: 0, cat1: 0, cat2: 0, cat3: 0, exceptional: 0,
+    standard: 0, cat1: 0, cat2: 0, cat3: 0,
   };
   draft.forEach(t => FORECAST_TRANSPORT_CATEGORIES.forEach(c => { colTotals[c.key] += (t as any)[c.key] || 0; }));
   const grandTotal = Object.values(colTotals).reduce((a, b) => a + b, 0);
