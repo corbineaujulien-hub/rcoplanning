@@ -15,7 +15,7 @@ export default function GeneralInfoTab() {
   const {
     projectInfo, setProjectInfo, teams, addTeam, updateTeam, deleteTeam,
     forecastWeeks, toggleForecastWeek, clearForecastWeeks,
-    addForecastTeam, removeForecastTeam, setForecastPeriod,
+    setForecastPeriod,
     setForecastedTransports,
   } = useDelivery();
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
@@ -193,14 +193,11 @@ export default function GeneralInfoTab() {
 
       <ForecastWeeksCard
         forecastWeeks={forecastWeeks}
-        teamCount={projectInfo.forecastTeamCount ?? 1}
         periodStart={projectInfo.forecastPeriodStart || null}
         periodEnd={projectInfo.forecastPeriodEnd || null}
         onSetPeriod={setForecastPeriod}
         onToggle={toggleForecastWeek}
         onClear={clearForecastWeeks}
-        onAddTeam={addForecastTeam}
-        onRemoveTeam={removeForecastTeam}
       />
 
       <ForecastedTransportsCard
