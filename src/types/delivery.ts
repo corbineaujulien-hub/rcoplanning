@@ -119,14 +119,13 @@ export interface ForecastWeek {
 }
 
 // Extended forecast transport categories (includes "exceptionnel")
-export type ForecastTransportCategory = 'standard' | 'cat1' | 'cat2' | 'cat3' | 'exceptional';
+export type ForecastTransportCategory = 'standard' | 'cat1' | 'cat2' | 'cat3';
 
 export const FORECAST_TRANSPORT_CATEGORIES: { key: ForecastTransportCategory; label: string }[] = [
-  { key: 'standard', label: 'Standard' },
+  { key: 'standard', label: 'Plateau standard' },
   { key: 'cat1', label: 'Convoi cat.1' },
   { key: 'cat2', label: 'Convoi cat.2' },
   { key: 'cat3', label: 'Convoi cat.3' },
-  { key: 'exceptional', label: 'Convoi exceptionnel' },
 ];
 
 export interface ForecastedTransport {
@@ -135,7 +134,6 @@ export interface ForecastedTransport {
   cat1: number;
   cat2: number;
   cat3: number;
-  exceptional: number;
 }
 
 export const TRANSPORT_CATEGORIES: Record<TransportCategory, TransportInfo> = {
