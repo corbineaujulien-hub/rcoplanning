@@ -1023,35 +1023,14 @@ function GanttView({
                           </Button>
                         </div>
                         <div className="space-y-2">
-                          {Array.from({ length: teamCount }).map((_, ti) => {
-                            const sel = projWeeksAll.filter(w => (w.teamIndex ?? 0) === ti).map(w => `${w.year}-${w.weekNumber}`);
-                            return (
-                              <div key={ti} className="flex items-center gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <ForecastWeeksStrip
-                                    selected={sel}
-                                    onToggle={(y, w) => onToggleForecastWeek(cp.project.id, y, w, ti)}
-                                  />
-                                </div>
-                                {ti > 0 && (
-                                  <>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
-                                      onClick={() => { if (confirm('Supprimer cette équipe ?')) onRemoveForecastTeam(cp.project.id, ti); }}>
-                                      <X className="h-3.5 w-3.5" />
-                                    </Button>
-                                    <span className="text-xs font-medium w-5 text-center shrink-0">{ti + 1}</span>
-                                  </>
-                                )}
-                                {ti === 0 && teamCount > 1 && (
-                                  <span className="text-xs font-medium w-5 text-center shrink-0 ml-7">1</span>
-                                )}
-                              </div>
-                            );
-                          })}
+                          <ForecastWeeksStrip
+                            selected={projWeeksAll.map(w => `${w.year}-${w.weekNumber}`)}
+                            onToggle={(y, w) => onToggleForecastWeek(cp.project.id, y, w)}
+                          />
                           <div className="flex items-center justify-between pt-1">
-                            <Button variant="outline" size="sm" onClick={() => onAddForecastTeam(cp.project.id)}>
-                              + Équipe
-                            </Button>
+                            <span className="text-[11px] text-muted-foreground">
+                              {projWeeksAll.length} semaine{projWeeksAll.length > 1 ? 's' : ''} sélectionnée{projWeeksAll.length > 1 ? 's' : ''}
+                            </span>
                             <Button variant="outline" size="sm" onClick={() => onClearForecastWeeks(cp.project.id)}>
                               Tout désélectionner
                             </Button>
