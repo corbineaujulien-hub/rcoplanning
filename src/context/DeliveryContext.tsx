@@ -492,27 +492,27 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
     await supabase.from('teams').delete().eq('id', id);
   }, []);
 
-  // Forecast week mutations
-  const toggleForecastWeek = useCallback(async (year: number, weekNumber: number, teamIndex: number = 0) => {
-    const existing = forecastWeeks.find(w => w.year === year && w.weekNumber === weekNumber && (w.teamIndex ?? 0) === teamIndex);
+  // Forecast week mutations (single team only)
+  const toggleForecastWeek = useCallback(async (year: number, weekNumber: number) => {
+    const existing = forecastWeeks.find(w => w.year === year && w.weekNumber === weekNumber);
     if (existing) {
       setForecastWeeksState(prev => prev.filter(w => w.id !== existing.id));
       await (supabase.from as any)('forecast_weeks').delete().eq('id', existing.id);
     } else {
-      const nw: ForecastWeek = { id: crypto.randomUUID(), projectId, year, weekNumber, teamIndex };
+      const nw: ForecastWeek = { id: crypto.randomUUID(), projectId, year, weekNumber, teamIndex: 0 };
       setForecastWeeksState(prev => [...prev, nw]);
       await (supabase.from as any)('forecast_weeks').insert({
-        id: nw.id, project_id: projectId, year, week_number: weekNumber, team_index: teamIndex,
+        id: nw.id, project_id: projectId, year, week_number: weekNumber, team_index: 0,
       });
     }
   }, [forecastWeeks, projectId]);
 
-  const setForecastWeeksBulk = useCallback(async (weeksList: { year: number; weekNumber: number; teamIndex?: number }[]) => {
-    const existingKeys = new Set(forecastWeeks.map(w => `${w.year}-${w.weekNumber}-${w.teamIndex ?? 0}`));
-    const toAdd = weeksList.filter(w => !existingKeys.has(`${w.year}-${w.weekNumber}-${w.teamIndex ?? 0}`));
+  const setForecastWeeksBulk = useCallback(async (weeksList: { year: number; weekNumber: number }[]) => {
+    const existingKeys = new Set(forecastWeeks.map(w => `${w.year}-${w.weekNumber}`));
+    const toAdd = weeksList.filter(w => !existingKeys.has(`${w.year}-${w.weekNumber}`));
     if (toAdd.length === 0) return;
     const rows = toAdd.map(w => ({
-      id: crypto.randomUUID(), project_id: projectId, year: w.year, week_number: w.weekNumber, team_index: w.teamIndex ?? 0,
+      id: crypto.randomUUID(), project_id: projectId, year: w.year, week_number: w.weekNumber, team_index: 0,
     }));
     setForecastWeeksState(prev => [
       ...prev,
@@ -524,39 +524,10 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
     }
   }, [forecastWeeks, projectId]);
 
-  const clearForecastWeeks = useCallback(async (teamIndex?: number) => {
-    if (teamIndex === undefined) {
-      setForecastWeeksState([]);
-      await (supabase.from as any)('forecast_weeks').delete().eq('project_id', projectId);
-    } else {
-      setForecastWeeksState(prev => prev.filter(w => (w.teamIndex ?? 0) !== teamIndex));
-      await (supabase.from as any)('forecast_weeks').delete().eq('project_id', projectId).eq('team_index', teamIndex);
-    }
+  const clearForecastWeeks = useCallback(async () => {
+    setForecastWeeksState([]);
+    await (supabase.from as any)('forecast_weeks').delete().eq('project_id', projectId);
   }, [projectId]);
-
-  const addForecastTeam = useCallback(async () => {
-    const next = (projectInfo.forecastTeamCount ?? 1) + 1;
-    setProjectInfoState(prev => ({ ...prev, forecastTeamCount: next }));
-    await supabase.from('projects').update({ forecast_team_count: next } as any).eq('id', projectId);
-  }, [projectId, projectInfo.forecastTeamCount]);
-
-  const removeForecastTeam = useCallback(async (teamIndex: number) => {
-    if (teamIndex < 1) return;
-    // Remove this team's weeks and reindex teams above it
-    const survivingWeeks = forecastWeeks
-      .filter(w => (w.teamIndex ?? 0) !== teamIndex)
-      .map(w => ((w.teamIndex ?? 0) > teamIndex ? { ...w, teamIndex: (w.teamIndex ?? 0) - 1 } : w));
-    setForecastWeeksState(survivingWeeks);
-    await (supabase.from as any)('forecast_weeks').delete().eq('project_id', projectId).eq('team_index', teamIndex);
-    // Shift down indexes > removed
-    const above = forecastWeeks.filter(w => (w.teamIndex ?? 0) > teamIndex);
-    for (const w of above) {
-      await (supabase.from as any)('forecast_weeks').update({ team_index: (w.teamIndex ?? 0) - 1 }).eq('id', w.id);
-    }
-    const newCount = Math.max(1, (projectInfo.forecastTeamCount ?? 1) - 1);
-    setProjectInfoState(prev => ({ ...prev, forecastTeamCount: newCount }));
-    await supabase.from('projects').update({ forecast_team_count: newCount } as any).eq('id', projectId);
-  }, [forecastWeeks, projectId, projectInfo.forecastTeamCount]);
 
   const setForecastPeriod = useCallback(async (start: string | null, end: string | null) => {
     setProjectInfoState(prev => ({ ...prev, forecastPeriodStart: start, forecastPeriodEnd: end }));
@@ -604,7 +575,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
       addPlan, updatePlan, deletePlan,
       addTeam, updateTeam, deleteTeam,
       toggleForecastWeek, setForecastWeeksBulk, clearForecastWeeks, setForecastedTransports,
-      addForecastTeam, removeForecastTeam, setForecastPeriod,
+      setForecastPeriod,
       initialDate, compositionTabOpened, setCompositionTabOpened, savedViewMode, setSavedViewMode, savedCurrentDate, setSavedCurrentDate,
     }}>
       {children}
