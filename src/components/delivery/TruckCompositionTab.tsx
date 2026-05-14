@@ -1402,50 +1402,101 @@ export default function TruckCompositionTab() {
       </div>
 
       {/* Recap by factory × category */}
-      {trucks.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Récapitulatif par usine et catégorie de transport</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Usine</TableHead>
-                  {Object.values(TRANSPORT_CATEGORIES).map(c => (
-                    <TableHead key={c.category} className="text-center">{c.label}</TableHead>
-                  ))}
-                  <TableHead className="text-center font-bold">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recapData.factories.map(factory => (
-                  <TableRow key={factory}>
-                    <TableCell className="font-medium">{factory}</TableCell>
-                    {(['standard', 'cat1', 'cat2', 'cat3'] as TransportCategory[]).map(cat => (
-                      <TableCell key={cat} className="text-center">
-                        {recapData.data[factory]?.[cat] || 0}
-                      </TableCell>
+      {trucks.length > 0 && (() => {
+        const forecastList = projectInfo.forecastedTransports || [];
+        const forecastByUsine = new Map<string, Record<TransportCategory, number>>();
+        forecastList.forEach(t => {
+          if (!t.usine?.trim()) return;
+          forecastByUsine.set(t.usine.trim(), {
+            standard: t.standard || 0,
+            cat1: t.cat1 || 0,
+            cat2: t.cat2 || 0,
+            cat3: t.cat3 || 0,
+          });
+        });
+        // Merge real factories with forecast usines
+        const allFactoriesSet = new Set<string>(recapData.factories);
+        forecastByUsine.forEach((_v, k) => allFactoriesSet.add(k));
+        const allFactories = [...allFactoriesSet].sort();
+
+        // Planning %
+        const totalWeight = elements.reduce((s, e) => s + (e.weight || 0), 0);
+        const loadedIds = new Set<string>();
+        trucks.forEach(t => t.elementIds.forEach(id => loadedIds.add(id)));
+        const loadedWeight = elements.filter(e => loadedIds.has(e.id)).reduce((s, e) => s + (e.weight || 0), 0);
+        const planningPct = totalWeight > 0 ? Math.round((loadedWeight / totalWeight) * 100) : 0;
+
+        const renderCell = (factory: string, cat: TransportCategory) => {
+          const real = recapData.data[factory]?.[cat] || 0;
+          const fc = forecastByUsine.get(factory);
+          if (!fc) return <span>{real}</span>;
+          const forecast = fc[cat] || 0;
+          if (forecast === 0 && real === 0) return <span>{real}</span>;
+          const delta = real - forecast;
+          let label = '';
+          let color = '';
+          if (delta === 0) { label = '(=)'; color = '#16a34a'; }
+          else if (delta > 0) { label = `(-${delta})`; color = '#dc2626'; }
+          else { label = `(+${-delta})`; color = '#16a34a'; }
+          return (
+            <span>
+              {real}{' '}
+              <span className="text-[10px]" style={{ color }}>{label}</span>
+            </span>
+          );
+        };
+
+        return (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Récapitulatif par usine et catégorie de transport</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {planningPct < 100 && (
+                <p className="text-xs italic mb-2" style={{ color: '#f97316' }}>
+                  ⚠️ Planification incomplète ({planningPct}%) — Le comparatif prévisionnel est partiel
+                </p>
+              )}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Usine</TableHead>
+                    {Object.values(TRANSPORT_CATEGORIES).map(c => (
+                      <TableHead key={c.category} className="text-center">{c.label}</TableHead>
                     ))}
-                    <TableCell className="text-center font-bold">{recapData.data[factory]?.total || 0}</TableCell>
+                    <TableHead className="text-center font-bold">Total</TableHead>
                   </TableRow>
-                ))}
-                {recapData.factories.length > 1 && (
-                  <TableRow className="bg-muted/50 font-bold">
-                    <TableCell>Total</TableCell>
-                    {(['standard', 'cat1', 'cat2', 'cat3'] as TransportCategory[]).map(cat => (
-                      <TableCell key={cat} className="text-center">
-                        {recapData.factories.reduce((sum, f) => sum + (recapData.data[f]?.[cat] || 0), 0)}
-                      </TableCell>
-                    ))}
-                    <TableCell className="text-center">{trucks.length}</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+                </TableHeader>
+                <TableBody>
+                  {allFactories.map(factory => {
+                    const realTotal = recapData.data[factory]?.total || 0;
+                    return (
+                      <TableRow key={factory}>
+                        <TableCell className="font-medium">{factory}</TableCell>
+                        {(['standard', 'cat1', 'cat2', 'cat3'] as TransportCategory[]).map(cat => (
+                          <TableCell key={cat} className="text-center">{renderCell(factory, cat)}</TableCell>
+                        ))}
+                        <TableCell className="text-center font-bold">{realTotal}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {allFactories.length > 1 && (
+                    <TableRow className="bg-muted/50 font-bold">
+                      <TableCell>Total</TableCell>
+                      {(['standard', 'cat1', 'cat2', 'cat3'] as TransportCategory[]).map(cat => (
+                        <TableCell key={cat} className="text-center">
+                          {allFactories.reduce((sum, f) => sum + (recapData.data[f]?.[cat] || 0), 0)}
+                        </TableCell>
+                      ))}
+                      <TableCell className="text-center">{trucks.length}</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Modals */}
       <NewTruckModal open={showNewTruck} onClose={() => setShowNewTruck(false)} onConfirm={handleNewTruckConfirm} date={newTruckDate} trucks={trucks} teamTrucks={hasMultipleTeams ? filteredTrucks : undefined} />
