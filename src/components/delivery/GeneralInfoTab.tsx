@@ -15,7 +15,7 @@ export default function GeneralInfoTab() {
   const {
     projectInfo, setProjectInfo, teams, addTeam, updateTeam, deleteTeam,
     forecastWeeks, toggleForecastWeek, clearForecastWeeks,
-    addForecastTeam, removeForecastTeam, setForecastPeriod,
+    setForecastPeriod,
     setForecastedTransports,
   } = useDelivery();
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
@@ -193,14 +193,11 @@ export default function GeneralInfoTab() {
 
       <ForecastWeeksCard
         forecastWeeks={forecastWeeks}
-        teamCount={projectInfo.forecastTeamCount ?? 1}
         periodStart={projectInfo.forecastPeriodStart || null}
         periodEnd={projectInfo.forecastPeriodEnd || null}
         onSetPeriod={setForecastPeriod}
         onToggle={toggleForecastWeek}
         onClear={clearForecastWeeks}
-        onAddTeam={addForecastTeam}
-        onRemoveTeam={removeForecastTeam}
       />
 
       <ForecastedTransportsCard
@@ -225,18 +222,15 @@ export default function GeneralInfoTab() {
 // =================== Forecast Weeks Strip ===================
 
 function ForecastWeeksCard({
-  forecastWeeks, teamCount, periodStart, periodEnd, onSetPeriod,
-  onToggle, onClear, onAddTeam, onRemoveTeam,
+  forecastWeeks, periodStart, periodEnd, onSetPeriod,
+  onToggle, onClear,
 }: {
-  forecastWeeks: { year: number; weekNumber: number; teamIndex: number }[];
-  teamCount: number;
+  forecastWeeks: { year: number; weekNumber: number }[];
   periodStart: string | null;
   periodEnd: string | null;
   onSetPeriod: (start: string | null, end: string | null) => void;
-  onToggle: (year: number, weekNumber: number, teamIndex?: number) => void;
-  onClear: (teamIndex?: number) => void;
-  onAddTeam: () => void;
-  onRemoveTeam: (teamIndex: number) => void;
+  onToggle: (year: number, weekNumber: number) => void;
+  onClear: () => void;
 }) {
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const defaultStart = useMemo(() => { const d = new Date(today); return d; }, [today]);
@@ -262,7 +256,7 @@ function ForecastWeeksCard({
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Cliquez sur les semaines d'intervention prévisionnelles. Ajoutez des équipes complémentaires si plusieurs équipes interviennent en parallèle.
+          Cliquez sur les semaines d'intervention prévisionnelles.
         </p>
         <div className="flex items-center gap-2 flex-wrap">
           <Label className="text-xs">Du</Label>
@@ -279,45 +273,16 @@ function ForecastWeeksCard({
             {hiddenCount} semaine{hiddenCount > 1 ? 's' : ''} cochée{hiddenCount > 1 ? 's' : ''} en dehors de la période affichée.
           </p>
         )}
-        <div className="space-y-2">
-          {Array.from({ length: teamCount }).map((_, ti) => {
-            const sel = forecastWeeks.filter(w => (w.teamIndex ?? 0) === ti).map(w => `${w.year}-${w.weekNumber}`);
-            return (
-              <div key={ti} className="flex items-center gap-2">
-                <div className="flex-1 min-w-0">
-                  <ForecastWeeksStrip
-                    selected={sel}
-                    onToggle={(y, w) => onToggle(y, w, ti)}
-                    fromDate={fromDate}
-                    toDate={toDate}
-                  />
-                </div>
-                <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0">
-                  {sel.length} sem.
-                </span>
-                {ti > 0 && (
-                  <>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"
-                      onClick={() => { if (confirm('Supprimer cette équipe ?')) onRemoveTeam(ti); }}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                    <span className="text-xs font-medium w-5 text-center shrink-0">{ti + 1}</span>
-                  </>
-                )}
-                {ti === 0 && teamCount > 1 && (
-                  <span className="text-xs font-medium w-5 text-center shrink-0 ml-8">1</span>
-                )}
-              </div>
-            );
-          })}
-          {teamCount > 1 && (
-            <p className="text-xs font-medium text-right pr-2">
-              Total : {forecastWeeks.length} semaine(s) toutes équipes confondues
-            </p>
-          )}
-          <Button variant="outline" size="sm" onClick={onAddTeam}>
-            <Plus className="h-4 w-4 mr-1" /> Ajouter une équipe
-          </Button>
+        <div className="space-y-1">
+          <ForecastWeeksStrip
+            selected={forecastWeeks.map(w => `${w.year}-${w.weekNumber}`)}
+            onToggle={(y, w) => onToggle(y, w)}
+            fromDate={fromDate}
+            toDate={toDate}
+          />
+          <p className="text-[11px] text-muted-foreground text-right">
+            {forecastWeeks.length} semaine{forecastWeeks.length > 1 ? 's' : ''} sélectionnée{forecastWeeks.length > 1 ? 's' : ''}
+          </p>
         </div>
       </CardContent>
     </Card>

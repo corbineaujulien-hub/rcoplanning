@@ -33,7 +33,6 @@ interface ProjectRow {
   archived: boolean;
   database_complete: boolean;
   forecasted_transports: ForecastedTransport[] | null;
-  forecast_team_count: number;
 }
 
 interface TruckRow {
@@ -202,7 +201,7 @@ export default function LoadPlanning() {
       setLoading(true);
       try {
         const [pData, tData, eData, fData, lData] = await Promise.all([
-          supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, archived, database_complete, forecasted_transports, forecast_team_count'),
+          supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, archived, database_complete, forecasted_transports'),
           fetchAllPaginated<TruckRow>('trucks', 'id, project_id, date, element_ids, forced_category, team_id'),
           fetchAllPaginated<ElementRow>('beam_elements', 'id, project_id, product_type, length, weight, factory'),
           fetchAllPaginated<any>('forecast_weeks', 'id, project_id, year, week_number'),
@@ -211,7 +210,6 @@ export default function LoadPlanning() {
         setProjects(((pData.data as any[]) || []).map(p => ({
           ...p,
           forecasted_transports: (p.forecasted_transports as ForecastedTransport[]) || [],
-          forecast_team_count: p.forecast_team_count ?? 1,
         })) as ProjectRow[]);
         setTrucks((tData as any[]).map(t => ({
           id: t.id, project_id: t.project_id, date: t.date,
@@ -287,17 +285,13 @@ export default function LoadPlanning() {
         teamsByWeek.get(wk)!.add(t.team_id || '__notrack__');
       });
 
-      // Forecast: distribute total project transports evenly across DISTINCT selected weeks (any team) within visible range.
-      // Count number of distinct teams per week to drive CDT/Poseur load.
-      const teamsByForecastWeek = new Map<string, Set<number>>();
+      // Forecast: distribute total project transports evenly across DISTINCT selected weeks within visible range.
+      const visibleForecastWeekKeys = new Set<string>();
       projWeeks.forEach(fw => {
         const w = weeks.find(x => x.year === fw.year && x.week === fw.weekNumber);
-        if (!w) return;
-        if (!teamsByForecastWeek.has(w.key)) teamsByForecastWeek.set(w.key, new Set());
-        teamsByForecastWeek.get(w.key)!.add(fw.teamIndex ?? 0);
+        if (w) visibleForecastWeekKeys.add(w.key);
       });
-      const visibleForecastWeekKeys = Array.from(teamsByForecastWeek.keys());
-      const visibleForecastWeeks = visibleForecastWeekKeys
+      const visibleForecastWeeks = Array.from(visibleForecastWeekKeys)
         .map(k => weeks.find(w => w.key === k))
         .filter(Boolean) as ISOWeek[];
       const forecastByWeek = new Map<string, Record<string, Record<TransportCategory, number>>>();
@@ -351,7 +345,7 @@ export default function LoadPlanning() {
             byUsineCat[usine] = { ...cats };
             for (const c of Object.values(cats)) count += c;
           }
-          teams = teamsByForecastWeek.get(w.key)?.size || 0;
+          teams = visibleForecastWeekKeys.has(w.key) ? 1 : 0;
         }
         weekCells[w.key] = { count: Math.round(count * 10) / 10, teams, source, byUsineCat };
       });
@@ -501,18 +495,18 @@ export default function LoadPlanning() {
     else toast.success('Mise à jour enregistrée');
   }, []);
 
-  const toggleProjectForecastWeek = useCallback(async (projectId: string, year: number, weekNumber: number, teamIndex: number = 0) => {
-    const existing = forecastWeeks.find(w => w.projectId === projectId && w.year === year && w.weekNumber === weekNumber && (w.teamIndex ?? 0) === teamIndex);
+  const toggleProjectForecastWeek = useCallback(async (projectId: string, year: number, weekNumber: number) => {
+    const existing = forecastWeeks.find(w => w.projectId === projectId && w.year === year && w.weekNumber === weekNumber);
     if (existing) {
       setForecastWeeks(prev => prev.filter(w => w.id !== existing.id));
       const { error } = await (supabase.from as any)('forecast_weeks').delete().eq('id', existing.id);
       if (error) toast.error('Erreur : ' + error.message);
     } else {
       const id = crypto.randomUUID();
-      const nw: ForecastWeek = { id, projectId, year, weekNumber, teamIndex };
+      const nw: ForecastWeek = { id, projectId, year, weekNumber, teamIndex: 0 };
       setForecastWeeks(prev => [...prev, nw]);
       const { error } = await (supabase.from as any)('forecast_weeks').insert({
-        id, project_id: projectId, year, week_number: weekNumber, team_index: teamIndex,
+        id, project_id: projectId, year, week_number: weekNumber, team_index: 0,
       });
       if (error) toast.error('Erreur : ' + error.message);
     }
@@ -523,29 +517,6 @@ export default function LoadPlanning() {
     const { error } = await (supabase.from as any)('forecast_weeks').delete().eq('project_id', projectId);
     if (error) toast.error('Erreur : ' + error.message);
   }, []);
-
-  const setProjectForecastTeamCount = useCallback(async (projectId: string, count: number) => {
-    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, forecast_team_count: count } : p));
-    const { error } = await supabase.from('projects').update({ forecast_team_count: count } as any).eq('id', projectId);
-    if (error) toast.error('Erreur : ' + error.message);
-  }, []);
-
-  const removeProjectForecastTeam = useCallback(async (projectId: string, teamIndex: number) => {
-    if (teamIndex < 1) return;
-    const above = forecastWeeks.filter(w => w.projectId === projectId && (w.teamIndex ?? 0) > teamIndex);
-    setForecastWeeks(prev => prev
-      .filter(w => !(w.projectId === projectId && (w.teamIndex ?? 0) === teamIndex))
-      .map(w => (w.projectId === projectId && (w.teamIndex ?? 0) > teamIndex)
-        ? { ...w, teamIndex: (w.teamIndex ?? 0) - 1 } : w));
-    await (supabase.from as any)('forecast_weeks').delete()
-      .eq('project_id', projectId).eq('team_index', teamIndex);
-    for (const w of above) {
-      await (supabase.from as any)('forecast_weeks').update({ team_index: (w.teamIndex ?? 0) - 1 }).eq('id', w.id);
-    }
-    const proj = projects.find(p => p.id === projectId);
-    const newCount = Math.max(1, (proj?.forecast_team_count ?? 1) - 1);
-    await setProjectForecastTeamCount(projectId, newCount);
-  }, [forecastWeeks, projects, setProjectForecastTeamCount]);
 
   const resetFilters = () => {
     setFilterCdt('all'); setFilterPoseur('all'); setFilterUsine('all'); setFilterStatus('all'); setFilterBdd('all'); setSearchText('');
@@ -674,11 +645,6 @@ export default function LoadPlanning() {
               forecastWeeks={forecastWeeks}
               onToggleForecastWeek={toggleProjectForecastWeek}
               onClearForecastWeeks={clearProjectForecastWeeks}
-              onAddForecastTeam={(pid) => {
-                const proj = projects.find(p => p.id === pid);
-                setProjectForecastTeamCount(pid, (proj?.forecast_team_count ?? 1) + 1);
-              }}
-              onRemoveForecastTeam={removeProjectForecastTeam}
             />
 
             <LoadSummary
@@ -973,7 +939,6 @@ function LoadSummary({
 function GanttView({
   weeks, monthGroups, projects, todayKey, onUpdateField,
   tokens, forecastWeeks, onToggleForecastWeek, onClearForecastWeeks,
-  onAddForecastTeam, onRemoveForecastTeam,
 }: {
   weeks: ISOWeek[];
   monthGroups: MonthGroup[];
@@ -982,10 +947,8 @@ function GanttView({
   onUpdateField: (id: string, field: 'conductor' | 'subcontractor', v: string) => void;
   tokens: Record<string, string>;
   forecastWeeks: ForecastWeek[];
-  onToggleForecastWeek: (projectId: string, year: number, weekNumber: number, teamIndex?: number) => void;
+  onToggleForecastWeek: (projectId: string, year: number, weekNumber: number) => void;
   onClearForecastWeeks: (projectId: string) => void;
-  onAddForecastTeam: (projectId: string) => void;
-  onRemoveForecastTeam: (projectId: string, teamIndex: number) => void;
 }) {
   const [editing, setEditing] = useState<{ id: string; field: 'conductor' | 'subcontractor' } | null>(null);
   const [popoverProjectId, setPopoverProjectId] = useState<string | null>(null);
@@ -1012,7 +975,6 @@ function GanttView({
             )}
             {projects.map(cp => {
               const color = getPoseurColor(cp.poseur);
-              const teamCount = (cp.project as any).forecast_team_count ?? 1;
               const projWeeksAll = forecastWeeks.filter(w => w.projectId === cp.project.id);
               const isPopOpen = popoverProjectId === cp.project.id;
               const projectTotal = weeks.reduce((s, w) => s + (cp.weeks[w.key]?.count || 0), 0);
@@ -1054,35 +1016,14 @@ function GanttView({
                           </Button>
                         </div>
                         <div className="space-y-2">
-                          {Array.from({ length: teamCount }).map((_, ti) => {
-                            const sel = projWeeksAll.filter(w => (w.teamIndex ?? 0) === ti).map(w => `${w.year}-${w.weekNumber}`);
-                            return (
-                              <div key={ti} className="flex items-center gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <ForecastWeeksStrip
-                                    selected={sel}
-                                    onToggle={(y, w) => onToggleForecastWeek(cp.project.id, y, w, ti)}
-                                  />
-                                </div>
-                                {ti > 0 && (
-                                  <>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
-                                      onClick={() => { if (confirm('Supprimer cette équipe ?')) onRemoveForecastTeam(cp.project.id, ti); }}>
-                                      <X className="h-3.5 w-3.5" />
-                                    </Button>
-                                    <span className="text-xs font-medium w-5 text-center shrink-0">{ti + 1}</span>
-                                  </>
-                                )}
-                                {ti === 0 && teamCount > 1 && (
-                                  <span className="text-xs font-medium w-5 text-center shrink-0 ml-7">1</span>
-                                )}
-                              </div>
-                            );
-                          })}
+                          <ForecastWeeksStrip
+                            selected={projWeeksAll.map(w => `${w.year}-${w.weekNumber}`)}
+                            onToggle={(y, w) => onToggleForecastWeek(cp.project.id, y, w)}
+                          />
                           <div className="flex items-center justify-between pt-1">
-                            <Button variant="outline" size="sm" onClick={() => onAddForecastTeam(cp.project.id)}>
-                              + Équipe
-                            </Button>
+                            <span className="text-[11px] text-muted-foreground">
+                              {projWeeksAll.length} semaine{projWeeksAll.length > 1 ? 's' : ''} sélectionnée{projWeeksAll.length > 1 ? 's' : ''}
+                            </span>
                             <Button variant="outline" size="sm" onClick={() => onClearForecastWeeks(cp.project.id)}>
                               Tout désélectionner
                             </Button>
