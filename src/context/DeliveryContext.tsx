@@ -83,7 +83,6 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
             databaseComplete: (proj as any).database_complete || false,
             databaseComment: (proj as any).database_comment || '',
             forecastedTransports: ((proj as any).forecasted_transports as ForecastedTransport[]) || [],
-            forecastTeamCount: (proj as any).forecast_team_count ?? 1,
             forecastPeriodStart: (proj as any).forecast_period_start ?? null,
             forecastPeriodEnd: (proj as any).forecast_period_end ?? null,
           });
@@ -193,7 +192,6 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
             databaseComplete: (p as any).database_complete || false,
             databaseComment: (p as any).database_comment || '',
             forecastedTransports: ((p as any).forecasted_transports as ForecastedTransport[]) || [],
-            forecastTeamCount: (p as any).forecast_team_count ?? 1,
             forecastPeriodStart: (p as any).forecast_period_start ?? null,
             forecastPeriodEnd: (p as any).forecast_period_end ?? null,
           });
@@ -292,7 +290,6 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
       database_complete: info.databaseComplete,
       database_comment: info.databaseComment,
       forecasted_transports: info.forecastedTransports || [],
-      forecast_team_count: info.forecastTeamCount ?? 1,
       forecast_period_start: info.forecastPeriodStart ?? null,
       forecast_period_end: info.forecastPeriodEnd ?? null,
       updated_at: new Date().toISOString(),
