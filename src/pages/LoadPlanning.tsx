@@ -201,7 +201,7 @@ export default function LoadPlanning() {
       setLoading(true);
       try {
         const [pData, tData, eData, fData, lData] = await Promise.all([
-          supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, archived, database_complete, forecasted_transports, forecast_team_count'),
+          supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, archived, database_complete, forecasted_transports'),
           fetchAllPaginated<TruckRow>('trucks', 'id, project_id, date, element_ids, forced_category, team_id'),
           fetchAllPaginated<ElementRow>('beam_elements', 'id, project_id, product_type, length, weight, factory'),
           fetchAllPaginated<any>('forecast_weeks', 'id, project_id, year, week_number'),
@@ -210,7 +210,6 @@ export default function LoadPlanning() {
         setProjects(((pData.data as any[]) || []).map(p => ({
           ...p,
           forecasted_transports: (p.forecasted_transports as ForecastedTransport[]) || [],
-          forecast_team_count: p.forecast_team_count ?? 1,
         })) as ProjectRow[]);
         setTrucks((tData as any[]).map(t => ({
           id: t.id, project_id: t.project_id, date: t.date,
