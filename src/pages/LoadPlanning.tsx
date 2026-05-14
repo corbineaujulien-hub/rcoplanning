@@ -945,7 +945,6 @@ function LoadSummary({
 function GanttView({
   weeks, monthGroups, projects, todayKey, onUpdateField,
   tokens, forecastWeeks, onToggleForecastWeek, onClearForecastWeeks,
-  onAddForecastTeam, onRemoveForecastTeam,
 }: {
   weeks: ISOWeek[];
   monthGroups: MonthGroup[];
@@ -954,10 +953,8 @@ function GanttView({
   onUpdateField: (id: string, field: 'conductor' | 'subcontractor', v: string) => void;
   tokens: Record<string, string>;
   forecastWeeks: ForecastWeek[];
-  onToggleForecastWeek: (projectId: string, year: number, weekNumber: number, teamIndex?: number) => void;
+  onToggleForecastWeek: (projectId: string, year: number, weekNumber: number) => void;
   onClearForecastWeeks: (projectId: string) => void;
-  onAddForecastTeam: (projectId: string) => void;
-  onRemoveForecastTeam: (projectId: string, teamIndex: number) => void;
 }) {
   const [editing, setEditing] = useState<{ id: string; field: 'conductor' | 'subcontractor' } | null>(null);
   const [popoverProjectId, setPopoverProjectId] = useState<string | null>(null);
