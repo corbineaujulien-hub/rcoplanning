@@ -305,7 +305,7 @@ export default function LoadPlanning() {
         const n = visibleForecastWeeks.length;
         const validTransports = projTransports.filter(t => t.usine && t.usine.trim());
         const totalTrucks = validTransports.reduce(
-          (s, t) => s + (t.standard || 0) + (t.cat1 || 0) + (t.cat2 || 0) + (t.cat3 || 0) + (t.exceptional || 0),
+          (s, t) => s + (t.standard || 0) + (t.cat1 || 0) + (t.cat2 || 0) + (t.cat3 || 0),
           0,
         );
         visibleForecastWeeks.forEach(w => {
@@ -317,7 +317,7 @@ export default function LoadPlanning() {
                 standard: (t.standard || 0) / n,
                 cat1: (t.cat1 || 0) / n,
                 cat2: (t.cat2 || 0) / n,
-                cat3: ((t.cat3 || 0) + (t.exceptional || 0)) / n,
+                cat3: (t.cat3 || 0) / n,
               };
             });
           } else {
