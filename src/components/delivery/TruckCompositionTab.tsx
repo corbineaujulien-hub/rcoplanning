@@ -1418,6 +1418,7 @@ export default function TruckCompositionTab() {
         const allFactoriesSet = new Set<string>(recapData.factories);
         forecastByUsine.forEach((_v, k) => allFactoriesSet.add(k));
         const allFactories = [...allFactoriesSet].sort();
+        const cats: TransportCategory[] = ['standard', 'cat1', 'cat2', 'cat3'];
 
         // Planning %
         const totalWeight = elements.reduce((s, e) => s + (e.weight || 0), 0);
@@ -1426,18 +1427,19 @@ export default function TruckCompositionTab() {
         const loadedWeight = elements.filter(e => loadedIds.has(e.id)).reduce((s, e) => s + (e.weight || 0), 0);
         const planningPct = totalWeight > 0 ? Math.round((loadedWeight / totalWeight) * 100) : 0;
 
-        const renderCell = (factory: string, cat: TransportCategory) => {
-          const real = recapData.data[factory]?.[cat] || 0;
-          const fc = forecastByUsine.get(factory);
-          if (!fc) return <span>{real}</span>;
-          const forecast = fc[cat] || 0;
+        // Generic delta renderer: real = actual, forecast = prévisionnel
+        // delta = forecast - real
+        // delta > 0  → forecast > real  → display (-delta) green
+        // delta < 0  → forecast < real  → display (+|delta|) red
+        // delta === 0 → (=) green
+        const renderDeltaCell = (real: number, forecast: number) => {
           if (forecast === 0 && real === 0) return <span>{real}</span>;
-          const delta = real - forecast;
+          const delta = forecast - real;
           let label = '';
           let color = '';
           if (delta === 0) { label = '(=)'; color = '#16a34a'; }
-          else if (delta > 0) { label = `(-${delta})`; color = '#dc2626'; }
-          else { label = `(+${-delta})`; color = '#16a34a'; }
+          else if (delta > 0) { label = `(-${delta})`; color = '#16a34a'; }
+          else { label = `(+${-delta})`; color = '#dc2626'; }
           return (
             <span>
               {real}{' '}
@@ -1445,6 +1447,15 @@ export default function TruckCompositionTab() {
             </span>
           );
         };
+
+        // Forecast totals helpers
+        const getForecast = (factory: string, cat: TransportCategory) => forecastByUsine.get(factory)?.[cat] || 0;
+        const getForecastRowTotal = (factory: string) =>
+          cats.reduce((s, cat) => s + getForecast(factory, cat), 0);
+        const getForecastColTotal = (cat: TransportCategory) =>
+          allFactories.reduce((s, f) => s + getForecast(f, cat), 0);
+        const getForecastGrandTotal = () =>
+          allFactories.reduce((s, f) => s + getForecastRowTotal(f), 0);
 
         return (
           <Card>
@@ -1470,25 +1481,40 @@ export default function TruckCompositionTab() {
                 <TableBody>
                   {allFactories.map(factory => {
                     const realTotal = recapData.data[factory]?.total || 0;
+                    const forecastRowTotal = getForecastRowTotal(factory);
                     return (
                       <TableRow key={factory}>
                         <TableCell className="font-medium">{factory}</TableCell>
-                        {(['standard', 'cat1', 'cat2', 'cat3'] as TransportCategory[]).map(cat => (
-                          <TableCell key={cat} className="text-center">{renderCell(factory, cat)}</TableCell>
-                        ))}
-                        <TableCell className="text-center font-bold">{realTotal}</TableCell>
+                        {cats.map(cat => {
+                          const real = recapData.data[factory]?.[cat] || 0;
+                          const forecast = getForecast(factory, cat);
+                          return (
+                            <TableCell key={cat} className="text-center">
+                              {renderDeltaCell(real, forecast)}
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell className="text-center font-bold">
+                          {renderDeltaCell(realTotal, forecastRowTotal)}
+                        </TableCell>
                       </TableRow>
                     );
                   })}
                   {allFactories.length > 1 && (
                     <TableRow className="bg-muted/50 font-bold">
                       <TableCell>Total</TableCell>
-                      {(['standard', 'cat1', 'cat2', 'cat3'] as TransportCategory[]).map(cat => (
-                        <TableCell key={cat} className="text-center">
-                          {allFactories.reduce((sum, f) => sum + (recapData.data[f]?.[cat] || 0), 0)}
-                        </TableCell>
-                      ))}
-                      <TableCell className="text-center">{trucks.length}</TableCell>
+                      {cats.map(cat => {
+                        const realColTotal = allFactories.reduce((sum, f) => sum + (recapData.data[f]?.[cat] || 0), 0);
+                        const forecastColTotal = getForecastColTotal(cat);
+                        return (
+                          <TableCell key={cat} className="text-center">
+                            {renderDeltaCell(realColTotal, forecastColTotal)}
+                          </TableCell>
+                        );
+                      })}
+                      <TableCell className="text-center">
+                        {renderDeltaCell(trucks.length, getForecastGrandTotal())}
+                      </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
