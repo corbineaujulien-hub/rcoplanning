@@ -888,14 +888,15 @@ function LoadSummary({
                               v = cell.count;
                             }
                           }
+                          const subVal = v ? Math.ceil(v) : '';
                           return (
                             <td key={w.key} className={`p-1 border-b text-center ${w.key === todayKey ? 'bg-accent/10' : ''}`}>
-                              {fmt(v)}
+                              {subVal}
                             </td>
                           );
                         })}
                         <td className="sticky right-0 bg-muted/30 z-10 p-1 border-b border-l text-center font-semibold">
-                          {fmt(subTotal)}
+                          {subTotal ? Math.ceil(subTotal) : ''}
                         </td>
                       </tr>
                     );
