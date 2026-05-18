@@ -367,6 +367,9 @@ export default function LoadPlanning() {
   // (used to compute available values in dropdowns for cumulative behaviour).
   const filterFn = useCallback((cp: ProjectComputed, exclude?: 'cdt' | 'poseur' | 'usine' | 'status' | 'bdd') => {
     const q = searchText.trim().toLowerCase();
+    // Period filter: include only projects with at least one real or forecast cell in the visible range.
+    const hasAnyInPeriod = Object.values(cp.weeks).some(w => w.source !== 'none');
+    if (!hasAnyInPeriod) return false;
     if (exclude !== 'cdt' && filterCdt !== 'all' && cp.conductor !== filterCdt) return false;
     if (exclude !== 'poseur' && filterPoseur !== 'all' && cp.poseur !== filterPoseur) return false;
     if (exclude !== 'usine' && filterUsine !== 'all' && !cp.usines.has(filterUsine)) return false;
