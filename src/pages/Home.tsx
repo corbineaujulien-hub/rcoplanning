@@ -74,7 +74,7 @@ export default function Home() {
     while (hasMore) {
       const { data } = await (supabase.from as any)(table)
         .select(columns)
-        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
       if (!data || data.length === 0) {
         hasMore = false;
@@ -93,12 +93,12 @@ export default function Home() {
       supabase.from('projects').select('id, site_name, client_name, conductor, subcontractor, otp_number, created_at, archived, database_complete').order('created_at', { ascending: false }),
       supabase.from('project_access_links').select('project_id, token'),
       fetchAllPaginated('trucks', 'project_id, date, element_ids'),
-      fetchAllPaginated('beam_elements', 'project_id, weight'),
+      fetchAllPaginated('beam_elements', 'id, project_id, weight'),
     ]);
     setProjects(pData as ProjectRow[] || []);
     setLinks(lData || []);
     setAllTrucks((tData || []).map((t: any) => ({ project_id: t.project_id, element_ids: (t.element_ids as string[]) || [], date: t.date })));
-    setAllElements((eData || []).map((e: any) => ({ project_id: e.project_id, weight: Number(e.weight) || 0 })));
+    setAllElements((eData || []).map((e: any) => ({ id: e.id, project_id: e.project_id, weight: Number(e.weight) || 0 })));
     setLoading(false);
   };
 
