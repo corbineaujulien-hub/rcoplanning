@@ -16,6 +16,7 @@ import { TRANSPORT_CATEGORIES } from '@/types/delivery';
 import * as XLSX from 'xlsx';
 import { exportAllWeeksPdf } from '@/utils/pdfExportUtils';
 import ExportWeeksModal from '@/components/delivery/ExportWeeksModal';
+import { calculatePlanningProgress } from '@/utils/progressUtils';
 
 export default function DeliveryApp() {
   const { trucks, projectInfo, elements, getTruckElements, teams, projectId } = useDelivery();
@@ -117,15 +118,9 @@ export default function DeliveryApp() {
     XLSX.writeFile(wb, filename);
   };
 
-  const totalSiteWeight = useMemo(() => elements.reduce((s, e) => s + e.weight, 0), [elements]);
-
-  // Compute planning progress (loaded weight / total weight)
-  const loadedWeight = useMemo(() => {
-    const assignedIds = new Set(trucks.flatMap(t => t.elementIds));
-    return elements.filter(e => assignedIds.has(e.id)).reduce((s, e) => s + e.weight, 0);
-  }, [trucks, elements]);
-
-  const planningPct = totalSiteWeight > 0 ? Math.round((loadedWeight / totalSiteWeight) * 100) : 0;
+  const progress = useMemo(() => calculatePlanningProgress(elements, trucks), [elements, trucks]);
+  const totalSiteWeight = progress.totalWeight;
+  const planningPct = Math.round(progress.pct);
 
   const handleExportSelectedWeeksPdf = async ({ selectedWeeks, filteredTrucks, filenameSuffix }: { selectedWeeks: { weekNumber: number; year: number }[]; filteredTrucks: typeof trucks; filenameSuffix: string }) => {
     await exportAllWeeksPdf(selectedWeeks, filteredTrucks, getTruckElements, projectInfo, totalSiteWeight, trucks, elements, filenameSuffix);
