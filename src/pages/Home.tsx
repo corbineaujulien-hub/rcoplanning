@@ -41,6 +41,7 @@ interface TruckRow {
 }
 
 interface ElementRow {
+  id: string;
   project_id: string;
   weight: number;
 }
@@ -148,44 +149,25 @@ export default function Home() {
     return map;
   }, [allTrucks]);
 
-  // Compute total weight per project
+  // Unique element id -> weight, derived from the single allElements fetch.
+  // Using one source guarantees Home and Chantier compute the same %.
+  const elementDetailsMap = useMemo(() => {
+    const map = new Map<string, number>();
+    allElements.forEach(e => map.set(e.id, e.weight));
+    return map;
+  }, [allElements]);
+
+  // Total weight per project, derived from the same map (dedup by element id).
   const totalWeightMap = useMemo(() => {
     const map = new Map<string, number>();
+    const seen = new Set<string>();
     allElements.forEach(e => {
+      if (seen.has(e.id)) return;
+      seen.add(e.id);
       map.set(e.project_id, (map.get(e.project_id) || 0) + e.weight);
     });
     return map;
   }, [allElements]);
-
-  // Compute loaded weight (elements assigned to trucks) per project
-  const loadedWeightMap = useMemo(() => {
-    const map = new Map<string, number>();
-    // Build element weight lookup
-    const elementWeights = new Map<string, number>();
-    // We need element ids to weights - but we only have project_id+weight from allElements
-    // We need a different approach: fetch element_ids from trucks, cross with elements
-    // Actually we need element-level data. Let's compute from allTrucks element_ids
-    // For simplicity, we'll need to know which elements are in trucks
-    // Since we have allTrucks with element_ids, we can count unique assigned element IDs per project
-    // But we need weights per element... Let's just use count-based approximation
-    // Actually let me rethink: we have allElements with project_id + weight, and allTrucks with element_ids
-    // We can't map element_id to weight without fetching individual elements
-    // So let's fetch that data differently
-    return map;
-  }, []);
-
-  // Better approach: fetch elements with id+weight+project_id
-  const [elementDetailsMap, setElementDetailsMap] = useState<Map<string, number>>(new Map());
-
-  useEffect(() => {
-    const fetchElementDetails = async () => {
-      const all = await fetchAllPaginated('beam_elements', 'id, weight, project_id');
-      const map = new Map<string, number>();
-      all.forEach((e: any) => map.set(e.id, Number(e.weight) || 0));
-      setElementDetailsMap(map);
-    };
-    fetchElementDetails();
-  }, []);
 
   // Loaded weight per project (elements assigned to any truck)
   const projectLoadedWeight = useMemo(() => {
