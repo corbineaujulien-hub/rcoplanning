@@ -598,43 +598,47 @@ export default function LoadPlanning() {
                 </button>
               )}
             </div>
-            <Select value={filterCdt} onValueChange={setFilterCdt}>
-              <SelectTrigger className="w-[220px] h-9"><SelectValue placeholder="CDT" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les CDT</SelectItem>
-                {allCdts.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterPoseur} onValueChange={setFilterPoseur}>
-              <SelectTrigger className="w-[200px] h-9"><SelectValue placeholder="Poseur" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les poseurs</SelectItem>
-                {allPoseurs.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterUsine} onValueChange={setFilterUsine}>
-              <SelectTrigger className="w-[200px] h-9"><SelectValue placeholder="Usine" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes les usines</SelectItem>
-                {allUsines.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={(v: any) => setFilterStatus(v)}>
-              <SelectTrigger className="w-[180px] h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous statuts</SelectItem>
-                {availableStatus.has('planned') && <SelectItem value="planned">Planifiés</SelectItem>}
-                {availableStatus.has('forecast') && <SelectItem value="forecast">Prévisionnels</SelectItem>}
-              </SelectContent>
-            </Select>
-            <Select value={filterBdd} onValueChange={(v: any) => setFilterBdd(v)}>
-              <SelectTrigger className={`w-[160px] h-9 ${filterBdd !== 'all' ? 'border-primary text-primary' : ''}`}><SelectValue placeholder="BDD" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">BDD : tous</SelectItem>
-                <SelectItem value="complete">BDD complète</SelectItem>
-                <SelectItem value="incomplete">BDD incomplète</SelectItem>
-              </SelectContent>
-            </Select>
+            <MultiSelectFilter
+              label="CDT"
+              options={allCdts}
+              selected={filterCdt}
+              onChange={setFilterCdt}
+              width="w-[220px]"
+            />
+            <MultiSelectFilter
+              label="Poseur"
+              options={allPoseurs}
+              selected={filterPoseur}
+              onChange={setFilterPoseur}
+              width="w-[200px]"
+            />
+            <MultiSelectFilter
+              label="Usine"
+              options={allUsines}
+              selected={filterUsine}
+              onChange={setFilterUsine}
+              width="w-[200px]"
+            />
+            <MultiSelectFilter
+              label="Statut"
+              options={[
+                ...(availableStatus.has('planned') ? [{ value: 'planned', label: 'Planifiés' }] : []),
+                ...(availableStatus.has('forecast') ? [{ value: 'forecast', label: 'Prévisionnels' }] : []),
+              ]}
+              selected={filterStatus as Set<string>}
+              onChange={(s) => setFilterStatus(s as Set<'planned' | 'forecast'>)}
+              width="w-[180px]"
+            />
+            <MultiSelectFilter
+              label="BDD"
+              options={[
+                { value: 'complete', label: 'BDD complète' },
+                { value: 'incomplete', label: 'BDD incomplète' },
+              ]}
+              selected={filterBdd as Set<string>}
+              onChange={(s) => setFilterBdd(s as Set<'complete' | 'incomplete'>)}
+              width="w-[160px]"
+            />
             <Button variant={hasActiveFilters ? 'default' : 'outline'} size="sm" onClick={resetFilters}>
               <RotateCcw className="h-4 w-4 mr-1" /> Réinitialiser
             </Button>
