@@ -89,6 +89,7 @@ interface WeekCell {
   teams: number; // distinct teams for the week (real) — 1 if forecast-only
   source: DataSource | 'none';
   byUsineCat: Record<string, Record<TransportCategory, number>>;
+  teamsByUsine?: Record<string, string[]>; // real source: team_ids per usine for usine-filter recompute
 }
 
 interface ProjectComputed {
@@ -269,6 +270,7 @@ export default function LoadPlanning() {
 
       const realByWeek = new Map<string, Record<string, Record<TransportCategory, number>>>();
       const teamsByWeek = new Map<string, Set<string>>();
+      const teamsByUsineWeek = new Map<string, Map<string, Set<string>>>();
       const usinesSet = new Set<string>();
       projTrucks.forEach(t => {
         const wk = getWeekKeyForDate(t.date);
@@ -284,6 +286,10 @@ export default function LoadPlanning() {
         w[f][cat] += 1;
         if (!teamsByWeek.has(wk)) teamsByWeek.set(wk, new Set());
         teamsByWeek.get(wk)!.add(t.team_id || '__notrack__');
+        if (!teamsByUsineWeek.has(wk)) teamsByUsineWeek.set(wk, new Map());
+        const mu = teamsByUsineWeek.get(wk)!;
+        if (!mu.has(f)) mu.set(f, new Set());
+        mu.get(f)!.add(t.team_id || '__notrack__');
       });
 
       // Forecast: distribute total project transports evenly across DISTINCT selected weeks within visible range.
@@ -333,6 +339,7 @@ export default function LoadPlanning() {
         let count = 0;
         let teams = 0;
         let source: DataSource | 'none' = 'none';
+        const teamsByUsine: Record<string, string[]> = {};
         if (hasReal) {
           source = 'real';
           for (const [usine, cats] of Object.entries(real!)) {
@@ -340,6 +347,8 @@ export default function LoadPlanning() {
             for (const c of Object.values(cats)) count += c;
           }
           teams = teamsByWeek.get(w.key)?.size || 1;
+          const mu = teamsByUsineWeek.get(w.key);
+          if (mu) for (const [u, set] of mu.entries()) teamsByUsine[u] = Array.from(set);
         } else if (hasForecast) {
           source = 'forecast';
           for (const [usine, cats] of Object.entries(fc!)) {
@@ -348,7 +357,7 @@ export default function LoadPlanning() {
           }
           teams = visibleForecastWeekKeys.has(w.key) ? 1 : 0;
         }
-        weekCells[w.key] = { count: Math.round(count * 10) / 10, teams, source, byUsineCat };
+        weekCells[w.key] = { count: Math.round(count * 10) / 10, teams, source, byUsineCat, teamsByUsine };
       });
 
       return {
@@ -401,8 +410,41 @@ export default function LoadPlanning() {
   }, [filterCdt, filterPoseur, filterUsine, filterStatus, filterBdd, searchText]);
 
   const filteredProjects = useMemo(
-    () => computedProjects.filter(cp => filterFn(cp)),
-    [computedProjects, filterFn],
+    () => computedProjects.filter(cp => filterFn(cp)).map(cp => {
+      if (filterUsine.size === 0) return cp;
+      const newWeeks: Record<string, WeekCell> = {};
+      for (const [wk, cell] of Object.entries(cp.weeks)) {
+        const newByUsineCat: Record<string, Record<TransportCategory, number>> = {};
+        let count = 0;
+        for (const [u, cats] of Object.entries(cell.byUsineCat)) {
+          if (!filterUsine.has(u)) continue;
+          newByUsineCat[u] = { ...cats };
+          for (const c of Object.values(cats)) count += c;
+        }
+        const hasAny = Object.keys(newByUsineCat).length > 0;
+        let teams = 0;
+        if (hasAny) {
+          if (cell.source === 'real') {
+            const tset = new Set<string>();
+            for (const u of Object.keys(newByUsineCat)) {
+              (cell.teamsByUsine?.[u] || []).forEach(t => tset.add(t));
+            }
+            teams = tset.size || 1;
+          } else if (cell.source === 'forecast') {
+            teams = 1;
+          }
+        }
+        newWeeks[wk] = {
+          count: Math.round(count * 10) / 10,
+          teams,
+          source: hasAny ? cell.source : 'none',
+          byUsineCat: newByUsineCat,
+          teamsByUsine: cell.teamsByUsine,
+        };
+      }
+      return { ...cp, weeks: newWeeks };
+    }),
+    [computedProjects, filterFn, filterUsine],
   );
 
   // Sort Gantt by earliest planned (real) truck, then earliest forecast slot, then no date.
