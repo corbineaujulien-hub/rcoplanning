@@ -1179,3 +1179,52 @@ function PoseurLegend({ projects }: { projects: ProjectComputed[] }) {
     </Card>
   );
 }
+
+type MSOption = string | { value: string; label: string };
+
+function MultiSelectFilter({
+  label, options, selected, onChange, width,
+}: {
+  label: string;
+  options: MSOption[];
+  selected: Set<string>;
+  onChange: (s: Set<string>) => void;
+  width: string;
+}) {
+  const isActive = selected.size > 0;
+  const norm = options.map(o => typeof o === 'string' ? { value: o, label: o } : o);
+  const toggle = (v: string) => {
+    const next = new Set(selected);
+    if (next.has(v)) next.delete(v); else next.add(v);
+    onChange(next);
+  };
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant={isActive ? 'default' : 'outline'} size="sm" className={`${width} h-9 justify-between`}>
+          <span className="truncate">{isActive ? `${label} (${selected.size})` : label}</span>
+          <ChevronDown className="h-4 w-4 opacity-60 shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 max-h-80 overflow-auto p-2" align="start">
+        {norm.length === 0 ? (
+          <div className="text-xs text-muted-foreground italic px-1 py-2">Aucune option</div>
+        ) : (
+          <div className="space-y-1">
+            {norm.map(o => (
+              <label key={o.value} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                <Checkbox checked={selected.has(o.value)} onCheckedChange={() => toggle(o.value)} />
+                <span className="text-xs">{o.label}</span>
+              </label>
+            ))}
+          </div>
+        )}
+        {isActive && (
+          <Button variant="default" size="sm" className="w-full text-xs h-6 mt-2" onClick={() => onChange(new Set())}>
+            <X className="h-3 w-3 mr-1" /> Réinitialiser
+          </Button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
