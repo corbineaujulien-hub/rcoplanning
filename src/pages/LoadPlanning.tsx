@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverAnchor, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, BarChart3, FileDown, FileSpreadsheet, RotateCcw, X, ChevronRight, ChevronDown } from 'lucide-react';
 import ForecastWeeksStrip from '@/components/delivery/ForecastWeeksStrip';
 import { toast } from 'sonner';
