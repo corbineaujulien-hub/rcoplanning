@@ -4,9 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverAnchor, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, BarChart3, FileDown, FileSpreadsheet, RotateCcw, X, ChevronRight, ChevronDown } from 'lucide-react';
 import ForecastWeeksStrip from '@/components/delivery/ForecastWeeksStrip';
 import { toast } from 'sonner';
@@ -189,11 +190,11 @@ export default function LoadPlanning() {
   const [periodStart, setPeriodStart] = useState<string>(defaultStart.toISOString().slice(0, 10));
   const [periodEnd, setPeriodEnd] = useState<string>(defaultEnd.toISOString().slice(0, 10));
 
-  const [filterCdt, setFilterCdt] = useState('all');
-  const [filterPoseur, setFilterPoseur] = useState('all');
-  const [filterUsine, setFilterUsine] = useState('all');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'planned' | 'forecast'>('all');
-  const [filterBdd, setFilterBdd] = useState<'all' | 'complete' | 'incomplete'>('all');
+  const [filterCdt, setFilterCdt] = useState<Set<string>>(new Set());
+  const [filterPoseur, setFilterPoseur] = useState<Set<string>>(new Set());
+  const [filterUsine, setFilterUsine] = useState<Set<string>>(new Set());
+  const [filterStatus, setFilterStatus] = useState<Set<'planned' | 'forecast'>>(new Set());
+  const [filterBdd, setFilterBdd] = useState<Set<'complete' | 'incomplete'>>(new Set());
   const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
@@ -370,17 +371,23 @@ export default function LoadPlanning() {
     // Period filter: include only projects with at least one real or forecast cell in the visible range.
     const hasAnyInPeriod = Object.values(cp.weeks).some(w => w.source !== 'none');
     if (!hasAnyInPeriod) return false;
-    if (exclude !== 'cdt' && filterCdt !== 'all' && cp.conductor !== filterCdt) return false;
-    if (exclude !== 'poseur' && filterPoseur !== 'all' && cp.poseur !== filterPoseur) return false;
-    if (exclude !== 'usine' && filterUsine !== 'all' && !cp.usines.has(filterUsine)) return false;
-    if (exclude !== 'bdd' && filterBdd !== 'all') {
-      if (filterBdd === 'complete' && !cp.project.database_complete) return false;
-      if (filterBdd === 'incomplete' && cp.project.database_complete) return false;
+    if (exclude !== 'cdt' && filterCdt.size > 0 && !filterCdt.has(cp.conductor)) return false;
+    if (exclude !== 'poseur' && filterPoseur.size > 0 && !filterPoseur.has(cp.poseur)) return false;
+    if (exclude !== 'usine' && filterUsine.size > 0) {
+      let any = false;
+      for (const u of cp.usines) { if (filterUsine.has(u)) { any = true; break; } }
+      if (!any) return false;
     }
-    if (exclude !== 'status') {
+    if (exclude !== 'bdd' && filterBdd.size > 0) {
+      const key = cp.project.database_complete ? 'complete' : 'incomplete';
+      if (!filterBdd.has(key)) return false;
+    }
+    if (exclude !== 'status' && filterStatus.size > 0) {
       const sources = Object.values(cp.weeks).map(w => w.source).filter(s => s !== 'none');
-      if (filterStatus === 'planned' && !sources.includes('real')) return false;
-      if (filterStatus === 'forecast' && sources.length > 0 && sources.every(s => s === 'real')) return false;
+      const isPlanned = sources.includes('real');
+      const isForecast = sources.length > 0 && !sources.every(s => s === 'real');
+      const match = (isPlanned && filterStatus.has('planned')) || (isForecast && filterStatus.has('forecast'));
+      if (!match) return false;
     }
     if (q) {
       const hay = [
@@ -488,8 +495,8 @@ export default function LoadPlanning() {
   }, [computedProjects, filterFn]);
 
   const hasActiveFilters =
-    filterCdt !== 'all' || filterPoseur !== 'all' || filterUsine !== 'all' ||
-    filterStatus !== 'all' || filterBdd !== 'all' || searchText.trim() !== '';
+    filterCdt.size > 0 || filterPoseur.size > 0 || filterUsine.size > 0 ||
+    filterStatus.size > 0 || filterBdd.size > 0 || searchText.trim() !== '';
 
   const updateProjectField = useCallback(async (projectId: string, field: 'conductor' | 'subcontractor', value: string) => {
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, [field]: value } : p));
@@ -522,7 +529,8 @@ export default function LoadPlanning() {
   }, []);
 
   const resetFilters = () => {
-    setFilterCdt('all'); setFilterPoseur('all'); setFilterUsine('all'); setFilterStatus('all'); setFilterBdd('all'); setSearchText('');
+    setFilterCdt(new Set()); setFilterPoseur(new Set()); setFilterUsine(new Set());
+    setFilterStatus(new Set()); setFilterBdd(new Set()); setSearchText('');
   };
 
   const handleExportPdf = async () => {
@@ -590,43 +598,47 @@ export default function LoadPlanning() {
                 </button>
               )}
             </div>
-            <Select value={filterCdt} onValueChange={setFilterCdt}>
-              <SelectTrigger className="w-[220px] h-9"><SelectValue placeholder="CDT" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les CDT</SelectItem>
-                {allCdts.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterPoseur} onValueChange={setFilterPoseur}>
-              <SelectTrigger className="w-[200px] h-9"><SelectValue placeholder="Poseur" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les poseurs</SelectItem>
-                {allPoseurs.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterUsine} onValueChange={setFilterUsine}>
-              <SelectTrigger className="w-[200px] h-9"><SelectValue placeholder="Usine" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes les usines</SelectItem>
-                {allUsines.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={(v: any) => setFilterStatus(v)}>
-              <SelectTrigger className="w-[180px] h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous statuts</SelectItem>
-                {availableStatus.has('planned') && <SelectItem value="planned">Planifiés</SelectItem>}
-                {availableStatus.has('forecast') && <SelectItem value="forecast">Prévisionnels</SelectItem>}
-              </SelectContent>
-            </Select>
-            <Select value={filterBdd} onValueChange={(v: any) => setFilterBdd(v)}>
-              <SelectTrigger className={`w-[160px] h-9 ${filterBdd !== 'all' ? 'border-primary text-primary' : ''}`}><SelectValue placeholder="BDD" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">BDD : tous</SelectItem>
-                <SelectItem value="complete">BDD complète</SelectItem>
-                <SelectItem value="incomplete">BDD incomplète</SelectItem>
-              </SelectContent>
-            </Select>
+            <MultiSelectFilter
+              label="CDT"
+              options={allCdts}
+              selected={filterCdt}
+              onChange={setFilterCdt}
+              width="w-[220px]"
+            />
+            <MultiSelectFilter
+              label="Poseur"
+              options={allPoseurs}
+              selected={filterPoseur}
+              onChange={setFilterPoseur}
+              width="w-[200px]"
+            />
+            <MultiSelectFilter
+              label="Usine"
+              options={allUsines}
+              selected={filterUsine}
+              onChange={setFilterUsine}
+              width="w-[200px]"
+            />
+            <MultiSelectFilter
+              label="Statut"
+              options={[
+                ...(availableStatus.has('planned') ? [{ value: 'planned', label: 'Planifiés' }] : []),
+                ...(availableStatus.has('forecast') ? [{ value: 'forecast', label: 'Prévisionnels' }] : []),
+              ]}
+              selected={filterStatus as Set<string>}
+              onChange={(s) => setFilterStatus(s as Set<'planned' | 'forecast'>)}
+              width="w-[180px]"
+            />
+            <MultiSelectFilter
+              label="BDD"
+              options={[
+                { value: 'complete', label: 'BDD complète' },
+                { value: 'incomplete', label: 'BDD incomplète' },
+              ]}
+              selected={filterBdd as Set<string>}
+              onChange={(s) => setFilterBdd(s as Set<'complete' | 'incomplete'>)}
+              width="w-[160px]"
+            />
             <Button variant={hasActiveFilters ? 'default' : 'outline'} size="sm" onClick={resetFilters}>
               <RotateCcw className="h-4 w-4 mr-1" /> Réinitialiser
             </Button>
@@ -1165,5 +1177,54 @@ function PoseurLegend({ projects }: { projects: ProjectComputed[] }) {
         </span>
       </CardContent>
     </Card>
+  );
+}
+
+type MSOption = string | { value: string; label: string };
+
+function MultiSelectFilter({
+  label, options, selected, onChange, width,
+}: {
+  label: string;
+  options: MSOption[];
+  selected: Set<string>;
+  onChange: (s: Set<string>) => void;
+  width: string;
+}) {
+  const isActive = selected.size > 0;
+  const norm = options.map(o => typeof o === 'string' ? { value: o, label: o } : o);
+  const toggle = (v: string) => {
+    const next = new Set(selected);
+    if (next.has(v)) next.delete(v); else next.add(v);
+    onChange(next);
+  };
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant={isActive ? 'default' : 'outline'} size="sm" className={`${width} h-9 justify-between`}>
+          <span className="truncate">{isActive ? `${label} (${selected.size})` : label}</span>
+          <ChevronDown className="h-4 w-4 opacity-60 shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 max-h-80 overflow-auto p-2" align="start">
+        {norm.length === 0 ? (
+          <div className="text-xs text-muted-foreground italic px-1 py-2">Aucune option</div>
+        ) : (
+          <div className="space-y-1">
+            {norm.map(o => (
+              <label key={o.value} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                <Checkbox checked={selected.has(o.value)} onCheckedChange={() => toggle(o.value)} />
+                <span className="text-xs">{o.label}</span>
+              </label>
+            ))}
+          </div>
+        )}
+        {isActive && (
+          <Button variant="default" size="sm" className="w-full text-xs h-6 mt-2" onClick={() => onChange(new Set())}>
+            <X className="h-3 w-3 mr-1" /> Réinitialiser
+          </Button>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
