@@ -190,11 +190,11 @@ export default function LoadPlanning() {
   const [periodStart, setPeriodStart] = useState<string>(defaultStart.toISOString().slice(0, 10));
   const [periodEnd, setPeriodEnd] = useState<string>(defaultEnd.toISOString().slice(0, 10));
 
-  const [filterCdt, setFilterCdt] = useState('all');
-  const [filterPoseur, setFilterPoseur] = useState('all');
-  const [filterUsine, setFilterUsine] = useState('all');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'planned' | 'forecast'>('all');
-  const [filterBdd, setFilterBdd] = useState<'all' | 'complete' | 'incomplete'>('all');
+  const [filterCdt, setFilterCdt] = useState<Set<string>>(new Set());
+  const [filterPoseur, setFilterPoseur] = useState<Set<string>>(new Set());
+  const [filterUsine, setFilterUsine] = useState<Set<string>>(new Set());
+  const [filterStatus, setFilterStatus] = useState<Set<'planned' | 'forecast'>>(new Set());
+  const [filterBdd, setFilterBdd] = useState<Set<'complete' | 'incomplete'>>(new Set());
   const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
