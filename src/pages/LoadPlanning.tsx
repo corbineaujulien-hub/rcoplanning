@@ -371,17 +371,23 @@ export default function LoadPlanning() {
     // Period filter: include only projects with at least one real or forecast cell in the visible range.
     const hasAnyInPeriod = Object.values(cp.weeks).some(w => w.source !== 'none');
     if (!hasAnyInPeriod) return false;
-    if (exclude !== 'cdt' && filterCdt !== 'all' && cp.conductor !== filterCdt) return false;
-    if (exclude !== 'poseur' && filterPoseur !== 'all' && cp.poseur !== filterPoseur) return false;
-    if (exclude !== 'usine' && filterUsine !== 'all' && !cp.usines.has(filterUsine)) return false;
-    if (exclude !== 'bdd' && filterBdd !== 'all') {
-      if (filterBdd === 'complete' && !cp.project.database_complete) return false;
-      if (filterBdd === 'incomplete' && cp.project.database_complete) return false;
+    if (exclude !== 'cdt' && filterCdt.size > 0 && !filterCdt.has(cp.conductor)) return false;
+    if (exclude !== 'poseur' && filterPoseur.size > 0 && !filterPoseur.has(cp.poseur)) return false;
+    if (exclude !== 'usine' && filterUsine.size > 0) {
+      let any = false;
+      for (const u of cp.usines) { if (filterUsine.has(u)) { any = true; break; } }
+      if (!any) return false;
     }
-    if (exclude !== 'status') {
+    if (exclude !== 'bdd' && filterBdd.size > 0) {
+      const key = cp.project.database_complete ? 'complete' : 'incomplete';
+      if (!filterBdd.has(key)) return false;
+    }
+    if (exclude !== 'status' && filterStatus.size > 0) {
       const sources = Object.values(cp.weeks).map(w => w.source).filter(s => s !== 'none');
-      if (filterStatus === 'planned' && !sources.includes('real')) return false;
-      if (filterStatus === 'forecast' && sources.length > 0 && sources.every(s => s === 'real')) return false;
+      const isPlanned = sources.includes('real');
+      const isForecast = sources.length > 0 && !sources.every(s => s === 'real');
+      const match = (isPlanned && filterStatus.has('planned')) || (isForecast && filterStatus.has('forecast'));
+      if (!match) return false;
     }
     if (q) {
       const hay = [
@@ -489,8 +495,8 @@ export default function LoadPlanning() {
   }, [computedProjects, filterFn]);
 
   const hasActiveFilters =
-    filterCdt !== 'all' || filterPoseur !== 'all' || filterUsine !== 'all' ||
-    filterStatus !== 'all' || filterBdd !== 'all' || searchText.trim() !== '';
+    filterCdt.size > 0 || filterPoseur.size > 0 || filterUsine.size > 0 ||
+    filterStatus.size > 0 || filterBdd.size > 0 || searchText.trim() !== '';
 
   const updateProjectField = useCallback(async (projectId: string, field: 'conductor' | 'subcontractor', value: string) => {
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, [field]: value } : p));
@@ -523,7 +529,8 @@ export default function LoadPlanning() {
   }, []);
 
   const resetFilters = () => {
-    setFilterCdt('all'); setFilterPoseur('all'); setFilterUsine('all'); setFilterStatus('all'); setFilterBdd('all'); setSearchText('');
+    setFilterCdt(new Set()); setFilterPoseur(new Set()); setFilterUsine(new Set());
+    setFilterStatus(new Set()); setFilterBdd(new Set()); setSearchText('');
   };
 
   const handleExportPdf = async () => {
