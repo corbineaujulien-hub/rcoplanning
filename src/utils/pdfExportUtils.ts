@@ -14,6 +14,7 @@ interface TruckData {
   handlingMeans?: Record<string, string>;
   forcedCategory?: TransportCategory;
   forcedCategoryReason?: string;
+  teamId?: string;
 }
 
 interface PdfContext {
