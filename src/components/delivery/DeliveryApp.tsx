@@ -126,7 +126,7 @@ export default function DeliveryApp() {
   const planningPct = Math.round(progress.pct);
 
   const handleExportSelectedWeeksPdf = async ({ selectedWeeks, filteredTrucks, filenameSuffix, teamLabel }: { selectedWeeks: { weekNumber: number; year: number }[]; filteredTrucks: typeof trucks; filenameSuffix: string; teamLabel?: string }) => {
-    await exportAllWeeksPdf(selectedWeeks, filteredTrucks, getTruckElements, projectInfo, totalSiteWeight, trucks, elements, filenameSuffix, teamLabel);
+    await exportAllWeeksPdf(selectedWeeks, filteredTrucks, getTruckElements, projectInfo, totalSiteWeight, trucks, elements, filenameSuffix, teamLabel, teams);
   };
 
   return (

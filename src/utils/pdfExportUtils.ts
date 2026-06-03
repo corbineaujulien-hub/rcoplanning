@@ -14,6 +14,7 @@ interface TruckData {
   handlingMeans?: Record<string, string>;
   forcedCategory?: TransportCategory;
   forcedCategoryReason?: string;
+  teamId?: string;
 }
 
 interface PdfContext {
@@ -566,6 +567,7 @@ export async function exportAllWeeksPdf(
   allElements?: BeamElement[],
   filenameSuffix: string = '',
   teamLabel?: string,
+  teams?: { id: string; name: string }[],
 ) {
   const logoData = await loadLogoAsBase64();
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -595,7 +597,20 @@ export async function exportAllWeeksPdf(
       ctx.y = ctx.margin;
     }
 
-    drawHeader(ctx, projectInfo, w.weekNumber, `Semaine ${w.weekNumber}`, teamLabel);
+    // Determine team label for this specific week:
+    // - If teamLabel provided (per-team export mode), use it.
+    // - Else if project has multiple teams, derive from this week's trucks.
+    let weekTeamLabel: string | undefined = teamLabel;
+    if (!weekTeamLabel && teams && teams.length > 1) {
+      const teamMap = new Map(teams.map(t => [t.id, t.name]));
+      const names = new Set<string>();
+      weekTrucks.forEach(t => {
+        if (t.teamId && teamMap.has(t.teamId)) names.add(teamMap.get(t.teamId)!);
+        else if (!t.teamId) names.add('Sans équipe');
+      });
+      if (names.size > 0) weekTeamLabel = Array.from(names).join(', ');
+    }
+    drawHeader(ctx, projectInfo, w.weekNumber, `Semaine ${w.weekNumber}`, weekTeamLabel);
 
     const grouped = new Map<string, TruckData[]>();
     weekTrucks.forEach(t => {
