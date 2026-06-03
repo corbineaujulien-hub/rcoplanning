@@ -504,23 +504,19 @@ function getNomChantier(projectInfo: ProjectInfo): string {
     : 'CHANTIER';
 }
 
-export async function exportWeekPdf(data: WeekExportData) {
-  const { weekNumber, year, trucks: weekTrucks, getTruckElements, projectInfo, totalSiteWeight, cumulativeWeight } = data;
-
-  const logoData = await loadLogoAsBase64();
-  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-
-  const ctx: PdfContext = {
-    pdf,
-    y: 8,
-    pageWidth: 297,
-    pageHeight: 210,
-    margin: 8,
-    usableWidth: 281,
-    logoData,
-  };
-
-  drawHeader(ctx, projectInfo, weekNumber, `Semaine ${weekNumber}`, data.teamLabel);
+function renderWeekBlock(
+  ctx: PdfContext,
+  weekTrucks: TruckData[],
+  weekNumber: number,
+  projectInfo: ProjectInfo,
+  totalSiteWeight: number,
+  cumulativeWeight: number,
+  getTruckElements: (id: string) => BeamElement[],
+  teamLabel: string | undefined,
+  cumByType?: Record<string, number>,
+  totByType?: Record<string, number>,
+) {
+  drawHeader(ctx, projectInfo, weekNumber, `Semaine ${weekNumber}`, teamLabel);
 
   const grouped = new Map<string, TruckData[]>();
   weekTrucks.forEach(t => {
@@ -549,7 +545,54 @@ export async function exportWeekPdf(data: WeekExportData) {
     drawDayTrucks3Columns(ctx, dayTrucks, capitalDay, getTruckElements, stats);
   });
 
-  drawSummary(ctx, weekNumber, weekTrucks.length, stats.totalProducts, stats.weekProductCounts, stats.weekWeight, totalSiteWeight, cumulativeWeight, data.cumulativeByType, data.totalByType);
+  drawSummary(ctx, weekNumber, weekTrucks.length, stats.totalProducts, stats.weekProductCounts, stats.weekWeight, totalSiteWeight, cumulativeWeight, cumByType, totByType);
+}
+
+function getDistinctTeamsForWeek(
+  weekTrucks: TruckData[],
+  teams: { id: string; name: string }[],
+): { id: string; name: string }[] {
+  const teamMap = new Map(teams.map(t => [t.id, t.name]));
+  const present = new Map<string, string>(); // id -> name
+  let hasUnassigned = false;
+  weekTrucks.forEach(t => {
+    if (t.teamId && teamMap.has(t.teamId)) present.set(t.teamId, teamMap.get(t.teamId)!);
+    else hasUnassigned = true;
+  });
+  // Order by teams[] order
+  const ordered = teams.filter(t => present.has(t.id)).map(t => ({ id: t.id, name: t.name }));
+  if (hasUnassigned) ordered.push({ id: '__none__', name: 'Sans équipe' });
+  return ordered;
+}
+
+export async function exportWeekPdf(data: WeekExportData) {
+  const { weekNumber, year, trucks: weekTrucks, getTruckElements, projectInfo, totalSiteWeight, cumulativeWeight } = data;
+
+  const logoData = await loadLogoAsBase64();
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+  const ctx: PdfContext = {
+    pdf,
+    y: 8,
+    pageWidth: 297,
+    pageHeight: 210,
+    margin: 8,
+    usableWidth: 281,
+    logoData,
+  };
+
+  renderWeekBlock(
+    ctx,
+    weekTrucks,
+    weekNumber,
+    projectInfo,
+    totalSiteWeight,
+    cumulativeWeight,
+    getTruckElements,
+    data.teamLabel,
+    data.cumulativeByType,
+    data.totalByType,
+  );
 
   const nomChantier = getNomChantier(projectInfo);
   const suffix = data.factorySuffix || '';
@@ -582,7 +625,8 @@ export async function exportAllWeeksPdf(
     logoData,
   };
 
-  weeklyTabs.forEach((w, idx) => {
+  let blockIdx = 0;
+  weeklyTabs.forEach((w) => {
     const weekTrucks = allTrucks
       .filter(t => {
         const d = parseISO(t.date);
@@ -592,34 +636,6 @@ export async function exportAllWeeksPdf(
 
     if (weekTrucks.length === 0) return;
 
-    if (idx > 0) {
-      ctx.pdf.addPage();
-      ctx.y = ctx.margin;
-    }
-
-    // Determine team label for this specific week:
-    // - If teamLabel provided (per-team export mode), use it.
-    // - Else if project has multiple teams, derive from this week's trucks.
-    let weekTeamLabel: string | undefined = teamLabel;
-    if (!weekTeamLabel && teams && teams.length > 1) {
-      const teamMap = new Map(teams.map(t => [t.id, t.name]));
-      const names = new Set<string>();
-      weekTrucks.forEach(t => {
-        if (t.teamId && teamMap.has(t.teamId)) names.add(teamMap.get(t.teamId)!);
-        else if (!t.teamId) names.add('Sans équipe');
-      });
-      if (names.size > 0) weekTeamLabel = Array.from(names).join(', ');
-    }
-    drawHeader(ctx, projectInfo, w.weekNumber, `Semaine ${w.weekNumber}`, weekTeamLabel);
-
-    const grouped = new Map<string, TruckData[]>();
-    weekTrucks.forEach(t => {
-      if (!grouped.has(t.date)) grouped.set(t.date, []);
-      grouped.get(t.date)!.push(t);
-    });
-
-    const stats = { weekWeight: 0, totalProducts: 0, weekProductCounts: {} as Record<string, number> };
-
     const cumulativeWeight = allTrucksCumulative
       .filter(t => {
         const d = parseISO(t.date);
@@ -628,25 +644,6 @@ export async function exportAllWeeksPdf(
         return (y < w.year) || (y === w.year && wn <= w.weekNumber);
       })
       .reduce((sum, t) => sum + getTruckWeight(getTruckElements(t.id)), 0);
-
-    Array.from(grouped.entries()).forEach(([date, dayTrucks]) => {
-      const colGap = 4;
-      const colW = (ctx.usableWidth - 2 * colGap) / 3;
-      const dayLabel = format(parseISO(date), 'EEEE dd MMMM yyyy', { locale: fr });
-      const capitalDay = dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1);
-      const firstLine = dayTrucks.slice(0, 3);
-      const firstRowHeight = Math.max(...firstLine.map(t => {
-        const els = getTruckElements(t.id);
-        return estimateTruckHeight(els, !!t.comment?.trim(), colW, !!t.transporter?.trim(), t.handlingMeans);
-      })) + 1;
-      const dayBannerHeight = 7.5;
-      if (ctx.y + dayBannerHeight + firstRowHeight > ctx.pageHeight - ctx.margin) {
-        ctx.pdf.addPage();
-        ctx.y = ctx.margin;
-      }
-      drawDayHeader(ctx, date, dayTrucks.length);
-      drawDayTrucks3Columns(ctx, dayTrucks, capitalDay, getTruckElements, stats);
-    });
 
     // Compute cumulative by type for this week
     const cumByType: Record<string, number> = {};
@@ -669,7 +666,33 @@ export async function exportAllWeeksPdf(
       });
     }
 
-    drawSummary(ctx, w.weekNumber, weekTrucks.length, stats.totalProducts, stats.weekProductCounts, stats.weekWeight, totalSiteWeight, cumulativeWeight, cumByType, allElements ? totByType : undefined);
+    // Decide split mode:
+    // - per-team export (teamLabel provided) → one block, use teamLabel
+    // - multi-team project with >1 team this week → one block per team
+    // - single-team project or only one team this week → one block (label if multi-team project)
+    const totByTypeOpt = allElements ? totByType : undefined;
+    const multiTeamProject = !!(teams && teams.length > 1);
+    if (teamLabel || !multiTeamProject) {
+      if (blockIdx > 0) { ctx.pdf.addPage(); ctx.y = ctx.margin; }
+      renderWeekBlock(ctx, weekTrucks, w.weekNumber, projectInfo, totalSiteWeight, cumulativeWeight, getTruckElements, teamLabel, cumByType, totByTypeOpt);
+      blockIdx++;
+    } else {
+      const teamsThisWeek = getDistinctTeamsForWeek(weekTrucks, teams!);
+      if (teamsThisWeek.length <= 1) {
+        if (blockIdx > 0) { ctx.pdf.addPage(); ctx.y = ctx.margin; }
+        const onlyLabel = teamsThisWeek[0]?.name;
+        renderWeekBlock(ctx, weekTrucks, w.weekNumber, projectInfo, totalSiteWeight, cumulativeWeight, getTruckElements, onlyLabel, cumByType, totByTypeOpt);
+        blockIdx++;
+      } else {
+        teamsThisWeek.forEach(team => {
+          const teamTrucks = weekTrucks.filter(t => (team.id === '__none__' ? !t.teamId : t.teamId === team.id));
+          if (teamTrucks.length === 0) return;
+          if (blockIdx > 0) { ctx.pdf.addPage(); ctx.y = ctx.margin; }
+          renderWeekBlock(ctx, teamTrucks, w.weekNumber, projectInfo, totalSiteWeight, cumulativeWeight, getTruckElements, team.name, cumByType, totByTypeOpt);
+          blockIdx++;
+        });
+      }
+    }
   });
 
   const nomChantier = getNomChantier(projectInfo);
