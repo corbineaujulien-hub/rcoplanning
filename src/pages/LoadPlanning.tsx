@@ -267,6 +267,7 @@ export default function LoadPlanning() {
       projTrucks.forEach(t => (t.element_ids || []).forEach(id => loadedSet.add(id)));
       const loadedWeight = projElements.reduce((s, e) => loadedSet.has(e.id) ? s + (e.weight || 0) : s, 0);
       const planningPct = totalWeight > 0 ? Math.round((loadedWeight / totalWeight) * 100) : 0;
+      const isFullyComplete = project.database_complete === true && planningPct === 100;
 
       const realByWeek = new Map<string, Record<string, Record<TransportCategory, number>>>();
       const teamsByWeek = new Map<string, Set<string>>();
@@ -293,16 +294,19 @@ export default function LoadPlanning() {
       });
 
       // Forecast: distribute total project transports evenly across DISTINCT selected weeks within visible range.
+      // Cas 0 (prioritaire) — Planification 100% ET BDD complète : ignorer totalement le prévisionnel.
       const visibleForecastWeekKeys = new Set<string>();
-      projWeeks.forEach(fw => {
-        const w = weeks.find(x => x.year === fw.year && x.week === fw.weekNumber);
-        if (w) visibleForecastWeekKeys.add(w.key);
-      });
+      if (!isFullyComplete) {
+        projWeeks.forEach(fw => {
+          const w = weeks.find(x => x.year === fw.year && x.week === fw.weekNumber);
+          if (w) visibleForecastWeekKeys.add(w.key);
+        });
+      }
       const visibleForecastWeeks = Array.from(visibleForecastWeekKeys)
         .map(k => weeks.find(w => w.key === k))
         .filter(Boolean) as ISOWeek[];
       const forecastByWeek = new Map<string, Record<string, Record<TransportCategory, number>>>();
-      if (visibleForecastWeeks.length > 0) {
+      if (!isFullyComplete && visibleForecastWeeks.length > 0) {
         const n = visibleForecastWeeks.length;
         const validTransports = projTransports.filter(t => t.usine && t.usine.trim());
         const totalTrucks = validTransports.reduce(
