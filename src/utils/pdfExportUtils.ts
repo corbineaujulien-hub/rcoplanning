@@ -79,7 +79,13 @@ function groupByType(els: BeamElement[]): Record<string, BeamElement[]> {
 }
 
 function normalizeTeamForFilename(name: string): string {
-  return name.trim().toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+  return name
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '_')
+    .replace(/[^A-Z0-9_]/g, '');
 }
 
 function drawHeader(ctx: PdfContext, projectInfo: ProjectInfo, weekNumber: number, weekLabel: string, teamLabel?: string) {

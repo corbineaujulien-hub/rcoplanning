@@ -211,7 +211,13 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
 
   const teamFilenameSuffix = useMemo(() => {
     if (!currentTeamName) return '';
-    return '_' + currentTeamName.trim().toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+    return '_' + currentTeamName
+      .trim()
+      .toUpperCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, '_')
+      .replace(/[^A-Z0-9_]/g, '');
   }, [currentTeamName]);
 
   const exportExcel = () => {
