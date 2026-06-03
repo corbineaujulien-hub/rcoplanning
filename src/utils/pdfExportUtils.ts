@@ -78,7 +78,11 @@ function groupByType(els: BeamElement[]): Record<string, BeamElement[]> {
   return groups;
 }
 
-function drawHeader(ctx: PdfContext, projectInfo: ProjectInfo, weekNumber: number, weekLabel: string) {
+function normalizeTeamForFilename(name: string): string {
+  return name.trim().toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+}
+
+function drawHeader(ctx: PdfContext, projectInfo: ProjectInfo, weekNumber: number, weekLabel: string, teamLabel?: string) {
   const { pdf, margin, usableWidth } = ctx;
 
   if (ctx.logoData) {
@@ -90,9 +94,10 @@ function drawHeader(ctx: PdfContext, projectInfo: ProjectInfo, weekNumber: numbe
   pdf.setFontSize(12);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(30, 58, 95);
-  const titleText = projectInfo.siteName
+  const baseTitle = projectInfo.siteName
     ? `${projectInfo.siteName} — RECTOR – Semaine ${weekNumber}`
     : `RECTOR – Semaine ${weekNumber}`;
+  const titleText = teamLabel ? `${baseTitle} – ${teamLabel}` : baseTitle;
   const titleW = pdf.getTextWidth(titleText);
   pdf.text(titleText, margin + (usableWidth - titleW) / 2, ctx.y + 8);
 
