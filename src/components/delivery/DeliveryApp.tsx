@@ -107,7 +107,9 @@ export default function DeliveryApp() {
       : 'CHANTIER';
     const lastYear = selectedWeeks[selectedWeeks.length - 1]?.year || new Date().getFullYear();
     const teamLabel = hasMultipleTeams ? 'Multi-équipes' : '';
-    const teamSuffix = teamLabel ? '_' + teamLabel.trim().toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '') : '';
+    const teamSuffix = teamLabel
+      ? '_' + teamLabel.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '')
+      : '';
 
     let filename: string;
     if (selectedWeeks.length === 1) {
