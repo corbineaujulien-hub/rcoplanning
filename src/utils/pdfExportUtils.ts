@@ -589,7 +589,7 @@ export async function exportAllWeeksPdf(
       ctx.y = ctx.margin;
     }
 
-    drawHeader(ctx, projectInfo, w.weekNumber, `Semaine ${w.weekNumber}`);
+    drawHeader(ctx, projectInfo, w.weekNumber, `Semaine ${w.weekNumber}`, teamLabel);
 
     const grouped = new Map<string, TruckData[]>();
     weekTrucks.forEach(t => {
@@ -654,17 +654,18 @@ export async function exportAllWeeksPdf(
   const nomChantier = getNomChantier(projectInfo);
   const lastYear = weeklyTabs[weeklyTabs.length - 1]?.year || new Date().getFullYear();
 
+  const teamSuffix = teamLabel ? `_${normalizeTeamForFilename(teamLabel)}` : '';
   let filename: string;
   if (weeklyTabs.length === 1) {
-    filename = `planning_${nomChantier}_S${String(weeklyTabs[0].weekNumber).padStart(2, '0')}_${lastYear}${filenameSuffix}.pdf`;
+    filename = `planning_${nomChantier}_S${String(weeklyTabs[0].weekNumber).padStart(2, '0')}_${lastYear}${filenameSuffix}${teamSuffix}.pdf`;
   } else {
     // Check if this is all available weeks (heuristic: compare count)
     const firstW = weeklyTabs[0].weekNumber;
     const lastW = weeklyTabs[weeklyTabs.length - 1].weekNumber;
     if (firstW === lastW) {
-      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}_${lastYear}${filenameSuffix}.pdf`;
+      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}_${lastYear}${filenameSuffix}${teamSuffix}.pdf`;
     } else {
-      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}-S${String(lastW).padStart(2, '0')}_${lastYear}${filenameSuffix}.pdf`;
+      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}-S${String(lastW).padStart(2, '0')}_${lastYear}${filenameSuffix}${teamSuffix}.pdf`;
     }
   }
   pdf.save(filename);
