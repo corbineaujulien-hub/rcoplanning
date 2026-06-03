@@ -513,7 +513,7 @@ export async function exportWeekPdf(data: WeekExportData) {
     logoData,
   };
 
-  drawHeader(ctx, projectInfo, weekNumber, `Semaine ${weekNumber}`);
+  drawHeader(ctx, projectInfo, weekNumber, `Semaine ${weekNumber}`, data.teamLabel);
 
   const grouped = new Map<string, TruckData[]>();
   weekTrucks.forEach(t => {
@@ -546,7 +546,8 @@ export async function exportWeekPdf(data: WeekExportData) {
 
   const nomChantier = getNomChantier(projectInfo);
   const suffix = data.factorySuffix || '';
-  pdf.save(`planning_${nomChantier}_S${String(weekNumber).padStart(2, '0')}_${year}${suffix}.pdf`);
+  const teamSuffix = data.teamLabel ? `_${normalizeTeamForFilename(data.teamLabel)}` : '';
+  pdf.save(`planning_${nomChantier}_S${String(weekNumber).padStart(2, '0')}_${year}${suffix}${teamSuffix}.pdf`);
 }
 
 export async function exportAllWeeksPdf(
@@ -557,7 +558,8 @@ export async function exportAllWeeksPdf(
   totalSiteWeight: number,
   allTrucksCumulative: TruckData[],
   allElements?: BeamElement[],
-  filenameSuffix: string = ''
+  filenameSuffix: string = '',
+  teamLabel?: string,
 ) {
   const logoData = await loadLogoAsBase64();
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
