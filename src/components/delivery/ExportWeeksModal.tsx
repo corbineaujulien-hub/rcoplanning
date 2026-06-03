@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Factory, Truck as TruckIcon, Users } from 'lucide-react';
@@ -238,32 +237,32 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-[460px] max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-[460px] max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 max-h-[65vh] pr-3">
-          <div className="flex items-center gap-2 mb-2">
-            <Button variant="outline" size="sm" className="text-xs h-7" onClick={selectAllWeeks}>Tout sélectionner</Button>
-            <Button variant="outline" size="sm" className="text-xs h-7" onClick={deselectAllWeeks}>Tout désélectionner</Button>
-          </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="outline" size="sm" className="text-xs h-7" onClick={selectAllWeeks}>Tout sélectionner</Button>
+          <Button variant="outline" size="sm" className="text-xs h-7" onClick={deselectAllWeeks}>Tout désélectionner</Button>
+        </div>
 
-          <div className="space-y-2">
-            {availableWeeks.map(w => (
-              <label key={w.key} className="flex items-center gap-2 cursor-pointer text-sm">
-                <Checkbox checked={selected.has(w.key)} onCheckedChange={() => toggleWeek(w.key)} />
-                {w.label}
-              </label>
-            ))}
-          </div>
+        <div className="flex-1 min-h-[80px] max-h-[250px] overflow-y-auto border rounded-md p-2 space-y-2">
+          {availableWeeks.map(w => (
+            <label key={w.key} className="flex items-center gap-2 cursor-pointer text-sm">
+              <Checkbox checked={selected.has(w.key)} onCheckedChange={() => toggleWeek(w.key)} />
+              {w.label}
+            </label>
+          ))}
+        </div>
 
-          <p className="text-xs text-muted-foreground mt-1">
-            {selected.size} semaine{selected.size > 1 ? 's' : ''} sélectionnée{selected.size > 1 ? 's' : ''}
-          </p>
+        <p className="text-xs text-muted-foreground shrink-0">
+          {selected.size} semaine{selected.size > 1 ? 's' : ''} sélectionnée{selected.size > 1 ? 's' : ''}
+        </p>
 
-          <Separator className="my-3" />
+        <Separator className="shrink-0" />
 
+        <div className="shrink-0">
           <p className="text-sm font-semibold mb-2">Filtres</p>
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
@@ -373,9 +372,9 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="secondary" onClick={() => onOpenChange(false)}>Annuler</Button>
           <Button disabled={selected.size === 0} onClick={handleExport}>Exporter</Button>
         </DialogFooter>
