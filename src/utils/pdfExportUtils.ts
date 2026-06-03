@@ -78,7 +78,11 @@ function groupByType(els: BeamElement[]): Record<string, BeamElement[]> {
   return groups;
 }
 
-function drawHeader(ctx: PdfContext, projectInfo: ProjectInfo, weekNumber: number, weekLabel: string) {
+function normalizeTeamForFilename(name: string): string {
+  return name.trim().toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+}
+
+function drawHeader(ctx: PdfContext, projectInfo: ProjectInfo, weekNumber: number, weekLabel: string, teamLabel?: string) {
   const { pdf, margin, usableWidth } = ctx;
 
   if (ctx.logoData) {
@@ -90,9 +94,10 @@ function drawHeader(ctx: PdfContext, projectInfo: ProjectInfo, weekNumber: numbe
   pdf.setFontSize(12);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(30, 58, 95);
-  const titleText = projectInfo.siteName
+  const baseTitle = projectInfo.siteName
     ? `${projectInfo.siteName} — RECTOR – Semaine ${weekNumber}`
     : `RECTOR – Semaine ${weekNumber}`;
+  const titleText = teamLabel ? `${baseTitle} – ${teamLabel}` : baseTitle;
   const titleW = pdf.getTextWidth(titleText);
   pdf.text(titleText, margin + (usableWidth - titleW) / 2, ctx.y + 8);
 
@@ -251,6 +256,7 @@ export interface WeekExportData {
   cumulativeByType?: Record<string, number>;
   totalByType?: Record<string, number>;
   factorySuffix?: string;
+  teamLabel?: string;
 }
 
 function estimateTruckHeight(els: BeamElement[], hasComment: boolean, columnWidth: number, hasTransporter: boolean = false, handlingMeans?: Record<string, string>): number {
@@ -507,7 +513,7 @@ export async function exportWeekPdf(data: WeekExportData) {
     logoData,
   };
 
-  drawHeader(ctx, projectInfo, weekNumber, `Semaine ${weekNumber}`);
+  drawHeader(ctx, projectInfo, weekNumber, `Semaine ${weekNumber}`, data.teamLabel);
 
   const grouped = new Map<string, TruckData[]>();
   weekTrucks.forEach(t => {
@@ -540,7 +546,8 @@ export async function exportWeekPdf(data: WeekExportData) {
 
   const nomChantier = getNomChantier(projectInfo);
   const suffix = data.factorySuffix || '';
-  pdf.save(`planning_${nomChantier}_S${String(weekNumber).padStart(2, '0')}_${year}${suffix}.pdf`);
+  const teamSuffix = data.teamLabel ? `_${normalizeTeamForFilename(data.teamLabel)}` : '';
+  pdf.save(`planning_${nomChantier}_S${String(weekNumber).padStart(2, '0')}_${year}${suffix}${teamSuffix}.pdf`);
 }
 
 export async function exportAllWeeksPdf(
@@ -551,7 +558,8 @@ export async function exportAllWeeksPdf(
   totalSiteWeight: number,
   allTrucksCumulative: TruckData[],
   allElements?: BeamElement[],
-  filenameSuffix: string = ''
+  filenameSuffix: string = '',
+  teamLabel?: string,
 ) {
   const logoData = await loadLogoAsBase64();
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -581,7 +589,7 @@ export async function exportAllWeeksPdf(
       ctx.y = ctx.margin;
     }
 
-    drawHeader(ctx, projectInfo, w.weekNumber, `Semaine ${w.weekNumber}`);
+    drawHeader(ctx, projectInfo, w.weekNumber, `Semaine ${w.weekNumber}`, teamLabel);
 
     const grouped = new Map<string, TruckData[]>();
     weekTrucks.forEach(t => {
@@ -646,17 +654,18 @@ export async function exportAllWeeksPdf(
   const nomChantier = getNomChantier(projectInfo);
   const lastYear = weeklyTabs[weeklyTabs.length - 1]?.year || new Date().getFullYear();
 
+  const teamSuffix = teamLabel ? `_${normalizeTeamForFilename(teamLabel)}` : '';
   let filename: string;
   if (weeklyTabs.length === 1) {
-    filename = `planning_${nomChantier}_S${String(weeklyTabs[0].weekNumber).padStart(2, '0')}_${lastYear}${filenameSuffix}.pdf`;
+    filename = `planning_${nomChantier}_S${String(weeklyTabs[0].weekNumber).padStart(2, '0')}_${lastYear}${filenameSuffix}${teamSuffix}.pdf`;
   } else {
     // Check if this is all available weeks (heuristic: compare count)
     const firstW = weeklyTabs[0].weekNumber;
     const lastW = weeklyTabs[weeklyTabs.length - 1].weekNumber;
     if (firstW === lastW) {
-      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}_${lastYear}${filenameSuffix}.pdf`;
+      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}_${lastYear}${filenameSuffix}${teamSuffix}.pdf`;
     } else {
-      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}-S${String(lastW).padStart(2, '0')}_${lastYear}${filenameSuffix}.pdf`;
+      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}-S${String(lastW).padStart(2, '0')}_${lastYear}${filenameSuffix}${teamSuffix}.pdf`;
     }
   }
   pdf.save(filename);

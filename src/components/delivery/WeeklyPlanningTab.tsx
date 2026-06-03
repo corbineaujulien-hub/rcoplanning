@@ -201,6 +201,19 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
 
   const combinedSuffix = `${factorySuffix}${transporterSuffix}`;
 
+  const hasMultipleTeams = teams.length > 1;
+  const currentTeamName = useMemo(() => {
+    if (!hasMultipleTeams) return '';
+    if (teamId === undefined) return 'Multi-équipes';
+    if (teamId === '__none__' || !teamId) return 'Sans équipe';
+    return teams.find(t => t.id === teamId)?.name || '';
+  }, [hasMultipleTeams, teamId, teams]);
+
+  const teamFilenameSuffix = useMemo(() => {
+    if (!currentTeamName) return '';
+    return '_' + currentTeamName.trim().toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+  }, [currentTeamName]);
+
   const exportExcel = () => {
     const data = displayTrucks.map(t => {
       const els = getTruckElements(t.id);
@@ -220,7 +233,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `S${weekNumber}`);
-    XLSX.writeFile(wb, `planning_S${weekNumber}${combinedSuffix}.xlsx`);
+    XLSX.writeFile(wb, `planning_S${weekNumber}${combinedSuffix}${teamFilenameSuffix}.xlsx`);
   };
 
   const exportPdf = async () => {
@@ -235,6 +248,7 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
       cumulativeByType,
       totalByType,
       factorySuffix: combinedSuffix,
+      teamLabel: currentTeamName || undefined,
     });
   };
 
