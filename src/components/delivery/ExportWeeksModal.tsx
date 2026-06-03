@@ -5,10 +5,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Factory, Truck as TruckIcon } from 'lucide-react';
+import { Factory, Truck as TruckIcon, Users } from 'lucide-react';
 import { format, parseISO, startOfISOWeek, endOfISOWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import type { Truck, BeamElement } from '@/types/delivery';
+import type { Truck, BeamElement, Team } from '@/types/delivery';
 
 interface WeekTab { weekNumber: number; year: number; }
 
@@ -16,6 +16,7 @@ interface ExportResult {
   selectedWeeks: WeekTab[];
   filteredTrucks: Truck[];
   filenameSuffix: string;
+  teamLabel?: string;
 }
 
 interface ExportWeeksModalProps {
@@ -24,11 +25,13 @@ interface ExportWeeksModalProps {
   weeklyTabs: WeekTab[];
   trucks: Truck[];
   getTruckElements: (id: string) => BeamElement[];
-  onExport: (result: ExportResult) => void;
+  onExport: (result: ExportResult) => void | Promise<void>;
   title: string;
+  teams?: Team[];
 }
 
 const NO_TRANSPORTER = '__none__';
+const NO_TEAM = '__none__';
 
 const slug = (s: string) =>
   s.trim()
@@ -36,10 +39,14 @@ const slug = (s: string) =>
     .replace(/[^a-zA-Z0-9]+/g, '')
     || 'NA';
 
-export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, trucks, getTruckElements, onExport, title }: ExportWeeksModalProps) {
+export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, trucks, getTruckElements, onExport, title, teams = [] }: ExportWeeksModalProps) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set(weeklyTabs.map(w => `${w.year}-${w.weekNumber}`)));
   const [factorySet, setFactorySet] = useState<Set<string>>(new Set());
   const [transporterSet, setTransporterSet] = useState<Set<string>>(new Set());
+  const [teamSet, setTeamSet] = useState<Set<string>>(new Set());
+  const [exportMode, setExportMode] = useState<'single' | 'perTeam'>('single');
+
+  const showTeamFilter = teams.length > 1;
 
   const handleOpenChange = (o: boolean) => {
     if (o) setSelected(new Set(weeklyTabs.map(w => `${w.year}-${w.weekNumber}`)));
@@ -90,6 +97,7 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
     truck: t,
     factories: Array.from(new Set(getTruckElements(t.id).map(e => e.factory).filter(Boolean))),
     transporterKey: (t.transporter && t.transporter.trim()) ? t.transporter.trim() : NO_TRANSPORTER,
+    teamKey: t.teamId ?? NO_TEAM,
   })), [weekTrucks, getTruckElements]);
 
   const allFactories = useMemo(() => {
@@ -108,25 +116,44 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
     });
   }, [decorated]);
 
+  // Team keys present in the trucks pool. Preserve team order from `teams` prop, append "Sans équipe" last.
+  const allTeams = useMemo(() => {
+    const present = new Set(decorated.map(d => d.teamKey));
+    const ordered: string[] = [];
+    teams.forEach(tm => { if (present.has(tm.id)) ordered.push(tm.id); });
+    if (present.has(NO_TEAM)) ordered.push(NO_TEAM);
+    return ordered;
+  }, [decorated, teams]);
+
+  const teamNameOf = (key: string) => key === NO_TEAM ? 'Sans équipe' : (teams.find(t => t.id === key)?.name ?? key);
+
   // Reset filters to "all" when the available pool changes (or modal opens).
   useEffect(() => {
     setFactorySet(new Set(allFactories));
     setTransporterSet(new Set(allTransporters));
+    setTeamSet(new Set(allTeams));
+    setExportMode('single');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, allFactories.join('|'), allTransporters.join('|')]);
+  }, [open, allFactories.join('|'), allTransporters.join('|'), allTeams.join('|')]);
 
-  // Display lists with cumulative AND logic
+  // Display lists with cumulative AND logic (factory ↔ transporter ↔ team)
   const displayFactories = useMemo(() => {
     return allFactories.filter(f =>
-      decorated.some(d => d.factories.includes(f) && transporterSet.has(d.transporterKey))
+      decorated.some(d => d.factories.includes(f) && transporterSet.has(d.transporterKey) && (!showTeamFilter || teamSet.has(d.teamKey)))
     );
-  }, [allFactories, decorated, transporterSet]);
+  }, [allFactories, decorated, transporterSet, teamSet, showTeamFilter]);
 
   const displayTransporters = useMemo(() => {
     return allTransporters.filter(tk =>
-      decorated.some(d => d.transporterKey === tk && d.factories.some(f => factorySet.has(f)))
+      decorated.some(d => d.transporterKey === tk && d.factories.some(f => factorySet.has(f)) && (!showTeamFilter || teamSet.has(d.teamKey)))
     );
-  }, [allTransporters, decorated, factorySet]);
+  }, [allTransporters, decorated, factorySet, teamSet, showTeamFilter]);
+
+  const displayTeams = useMemo(() => {
+    return allTeams.filter(tk =>
+      decorated.some(d => d.teamKey === tk && d.factories.some(f => factorySet.has(f)) && transporterSet.has(d.transporterKey))
+    );
+  }, [allTeams, decorated, factorySet, transporterSet]);
 
   const toggleWeek = (key: string) => {
     setSelected(prev => {
@@ -147,44 +174,67 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
   const resetFilters = () => {
     setFactorySet(new Set(allFactories));
     setTransporterSet(new Set(allTransporters));
+    setTeamSet(new Set(allTeams));
+    setExportMode('single');
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const selectedWeeks = availableWeeks.filter(w => selected.has(w.key)).map(({ weekNumber, year }) => ({ weekNumber, year }));
 
     const selectedKeys = new Set(selectedWeeks.map(w => `${w.year}-${w.weekNumber}`));
-    const filteredTrucks = decorated
+    const baseFiltered = decorated
       .filter(d => {
         const dt = parseISO(d.truck.date);
         const key = `${dt.getFullYear()}-${parseInt(format(dt, 'II'))}`;
         return selectedKeys.has(key)
           && d.factories.some(f => factorySet.has(f))
-          && transporterSet.has(d.transporterKey);
-      })
-      .map(d => d.truck);
+          && transporterSet.has(d.transporterKey)
+          && (!showTeamFilter || teamSet.has(d.teamKey));
+      });
 
-    let suffix = '';
+    let baseSuffix = '';
     const partialFactory = factorySet.size < allFactories.length;
     if (partialFactory) {
       const arr = Array.from(factorySet);
-      suffix += arr.length === 1 ? `_${slug(arr[0])}` : '_MultiUsines';
+      baseSuffix += arr.length === 1 ? `_${slug(arr[0])}` : '_MultiUsines';
     }
     const partialTransporter = transporterSet.size < allTransporters.length;
     if (partialTransporter) {
       const arr = Array.from(transporterSet);
       if (arr.length === 1) {
-        suffix += `_${arr[0] === NO_TRANSPORTER ? 'SansTransporteur' : slug(arr[0])}`;
+        baseSuffix += `_${arr[0] === NO_TRANSPORTER ? 'SansTransporteur' : slug(arr[0])}`;
       } else {
-        suffix += '_MultiTransporteurs';
+        baseSuffix += '_MultiTransporteurs';
       }
     }
 
-    onExport({ selectedWeeks, filteredTrucks, filenameSuffix: suffix });
+    if (showTeamFilter && exportMode === 'perTeam' && teamSet.size >= 2) {
+      // One file per team — sequential downloads.
+      const teamsToExport = Array.from(teamSet).filter(tk => baseFiltered.some(d => d.teamKey === tk));
+      for (const tk of teamsToExport) {
+        const filtered = baseFiltered.filter(d => d.teamKey === tk).map(d => d.truck);
+        const label = teamNameOf(tk);
+        await onExport({ selectedWeeks, filteredTrucks: filtered, filenameSuffix: baseSuffix, teamLabel: label });
+      }
+    } else {
+      let teamLabel: string | undefined;
+      if (showTeamFilter) {
+        if (teamSet.size === 1) {
+          teamLabel = teamNameOf(Array.from(teamSet)[0]);
+        } else if (teamSet.size < allTeams.length) {
+          teamLabel = 'Multi-équipes';
+        }
+        // teamSet.size === allTeams.length → no team label (export complet)
+      }
+      await onExport({ selectedWeeks, filteredTrucks: baseFiltered.map(d => d.truck), filenameSuffix: baseSuffix, teamLabel });
+    }
     onOpenChange(false);
   };
 
   const factoryActive = factorySet.size !== allFactories.length;
   const transporterActive = transporterSet.size !== allTransporters.length;
+  const teamActive = showTeamFilter && teamSet.size !== allTeams.length;
+  const showModeChoice = showTeamFilter && teamSet.size >= 2;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -262,6 +312,32 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
                   </div>
                 </PopoverContent>
               </Popover>
+
+              {showTeamFilter && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant={teamActive ? 'default' : 'outline'} size="sm">
+                      <Users className="h-4 w-4 mr-1" />
+                      {teamActive ? `Équipe (${teamSet.size})` : 'Équipe'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 max-h-64 overflow-auto p-2" align="start">
+                    <div className="space-y-1">
+                      {displayTeams.length === 0 && (
+                        <span className="text-xs text-muted-foreground italic">Aucune équipe</span>
+                      )}
+                      {displayTeams.map(tk => (
+                        <label key={tk} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+                          <Checkbox checked={teamSet.has(tk)} onCheckedChange={() => toggleSetVal(teamSet, setTeamSet, tk)} />
+                          {tk === NO_TEAM
+                            ? <span className="text-xs italic text-muted-foreground">Sans équipe</span>
+                            : <span className="text-xs">{teamNameOf(tk)}</span>}
+                        </label>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
             </div>
             <button
               type="button"
@@ -270,6 +346,32 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
             >
               Réinitialiser les filtres
             </button>
+
+            {showModeChoice && (
+              <div className="mt-3 pt-3 border-t">
+                <p className="text-xs font-semibold mb-2">Mode d'export</p>
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      name="exportMode"
+                      checked={exportMode === 'single'}
+                      onChange={() => setExportMode('single')}
+                    />
+                    <span className="text-xs">Un fichier unique (toutes les équipes regroupées)</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      name="exportMode"
+                      checked={exportMode === 'perTeam'}
+                      onChange={() => setExportMode('perTeam')}
+                    />
+                    <span className="text-xs">Un fichier par équipe (fichiers séparés)</span>
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
         </ScrollArea>
 
