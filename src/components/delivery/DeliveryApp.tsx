@@ -106,14 +106,16 @@ export default function DeliveryApp() {
       ? projectInfo.siteName.trim().toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '')
       : 'CHANTIER';
     const lastYear = selectedWeeks[selectedWeeks.length - 1]?.year || new Date().getFullYear();
+    const teamLabel = hasMultipleTeams ? 'Multi-équipes' : '';
+    const teamSuffix = teamLabel ? '_' + teamLabel.trim().toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '') : '';
 
     let filename: string;
     if (selectedWeeks.length === 1) {
-      filename = `planning_${nomChantier}_S${String(selectedWeeks[0].weekNumber).padStart(2, '0')}_${lastYear}${filenameSuffix}.xlsx`;
+      filename = `planning_${nomChantier}_S${String(selectedWeeks[0].weekNumber).padStart(2, '0')}_${lastYear}${filenameSuffix}${teamSuffix}.xlsx`;
     } else {
       const firstW = selectedWeeks[0].weekNumber;
       const lastW = selectedWeeks[selectedWeeks.length - 1].weekNumber;
-      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}-S${String(lastW).padStart(2, '0')}_${lastYear}${filenameSuffix}.xlsx`;
+      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}-S${String(lastW).padStart(2, '0')}_${lastYear}${filenameSuffix}${teamSuffix}.xlsx`;
     }
     XLSX.writeFile(wb, filename);
   };
@@ -123,7 +125,8 @@ export default function DeliveryApp() {
   const planningPct = Math.round(progress.pct);
 
   const handleExportSelectedWeeksPdf = async ({ selectedWeeks, filteredTrucks, filenameSuffix }: { selectedWeeks: { weekNumber: number; year: number }[]; filteredTrucks: typeof trucks; filenameSuffix: string }) => {
-    await exportAllWeeksPdf(selectedWeeks, filteredTrucks, getTruckElements, projectInfo, totalSiteWeight, trucks, elements, filenameSuffix);
+    const teamLabel = hasMultipleTeams ? 'Multi-équipes' : undefined;
+    await exportAllWeeksPdf(selectedWeeks, filteredTrucks, getTruckElements, projectInfo, totalSiteWeight, trucks, elements, filenameSuffix, teamLabel);
   };
 
   return (
