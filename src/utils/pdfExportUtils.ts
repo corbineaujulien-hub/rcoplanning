@@ -256,6 +256,7 @@ export interface WeekExportData {
   cumulativeByType?: Record<string, number>;
   totalByType?: Record<string, number>;
   factorySuffix?: string;
+  teamLabel?: string;
 }
 
 function estimateTruckHeight(els: BeamElement[], hasComment: boolean, columnWidth: number, hasTransporter: boolean = false, handlingMeans?: Record<string, string>): number {
