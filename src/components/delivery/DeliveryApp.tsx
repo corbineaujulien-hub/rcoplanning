@@ -70,7 +70,7 @@ export default function DeliveryApp() {
     return result;
   }, [weeklyTabs, teams, trucks, hasMultipleTeams]);
 
-  const exportSelectedWeeksExcel = ({ selectedWeeks, filteredTrucks, filenameSuffix }: { selectedWeeks: { weekNumber: number; year: number }[]; filteredTrucks: typeof trucks; filenameSuffix: string }) => {
+  const exportSelectedWeeksExcel = ({ selectedWeeks, filteredTrucks, filenameSuffix, teamLabel }: { selectedWeeks: { weekNumber: number; year: number }[]; filteredTrucks: typeof trucks; filenameSuffix: string; teamLabel?: string }) => {
     const allowedIds = new Set(filteredTrucks.map(t => t.id));
     const wb = XLSX.utils.book_new();
     selectedWeeks.forEach(w => {
@@ -106,7 +106,6 @@ export default function DeliveryApp() {
       ? projectInfo.siteName.trim().toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '')
       : 'CHANTIER';
     const lastYear = selectedWeeks[selectedWeeks.length - 1]?.year || new Date().getFullYear();
-    const teamLabel = hasMultipleTeams ? 'Multi-équipes' : '';
     const teamSuffix = teamLabel
       ? '_' + teamLabel.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '')
       : '';
@@ -126,8 +125,7 @@ export default function DeliveryApp() {
   const totalSiteWeight = progress.totalWeight;
   const planningPct = Math.round(progress.pct);
 
-  const handleExportSelectedWeeksPdf = async ({ selectedWeeks, filteredTrucks, filenameSuffix }: { selectedWeeks: { weekNumber: number; year: number }[]; filteredTrucks: typeof trucks; filenameSuffix: string }) => {
-    const teamLabel = hasMultipleTeams ? 'Multi-équipes' : undefined;
+  const handleExportSelectedWeeksPdf = async ({ selectedWeeks, filteredTrucks, filenameSuffix, teamLabel }: { selectedWeeks: { weekNumber: number; year: number }[]; filteredTrucks: typeof trucks; filenameSuffix: string; teamLabel?: string }) => {
     await exportAllWeeksPdf(selectedWeeks, filteredTrucks, getTruckElements, projectInfo, totalSiteWeight, trucks, elements, filenameSuffix, teamLabel);
   };
 
@@ -223,6 +221,7 @@ export default function DeliveryApp() {
         getTruckElements={getTruckElements}
         onExport={handleExportSelectedWeeksPdf}
         title="Export PDF — Sélection des semaines"
+        teams={teams}
       />
       <ExportWeeksModal
         open={exportExcelOpen}
@@ -232,6 +231,7 @@ export default function DeliveryApp() {
         getTruckElements={getTruckElements}
         onExport={exportSelectedWeeksExcel}
         title="Export Excel — Sélection des semaines"
+        teams={teams}
       />
     </div>
   );
