@@ -106,10 +106,14 @@ interface ProjectComputed {
 // ---------- Months grouping ----------
 interface MonthGroup {
   label: string;
+  monthIndex: number;
+  year: number;
   weeks: ISOWeek[];
   splitWeekKeys: Set<string>;
   weekRange: Record<string, { from: string; to: string }>;
 }
+
+const MONTHS_SHORT = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
 
 function buildMonthGroups(weeks: ISOWeek[]): MonthGroup[] {
   const groups: MonthGroup[] = [];
@@ -133,7 +137,7 @@ function buildMonthGroups(weeks: ISOWeek[]): MonthGroup[] {
       .replace(/^./, c => c.toUpperCase());
     let g = groups[groups.length - 1];
     if (!g || g.label !== label) {
-      g = { label, weeks: [], splitWeekKeys: new Set(), weekRange: {} };
+      g = { label, monthIndex: owner.m, year: owner.y, weeks: [], splitWeekKeys: new Set(), weekRange: {} };
       groups.push(g);
     }
     g.weeks.push(w);
@@ -141,6 +145,16 @@ function buildMonthGroups(weeks: ISOWeek[]): MonthGroup[] {
     if (split) g.splitWeekKeys.add(w.key);
   });
   return groups;
+}
+
+function computeMonthShortLabels(groups: MonthGroup[]): string[] {
+  let lastYear: number | null = null;
+  return groups.map(g => {
+    const short = MONTHS_SHORT[g.monthIndex] || g.label;
+    const showYear = lastYear !== g.year;
+    lastYear = g.year;
+    return showYear ? `${short} ${g.year}` : short;
+  });
 }
 
 function stripPhone(s: string): string {
@@ -254,6 +268,27 @@ export default function LoadPlanning() {
   }, [periodStart, periodEnd]);
 
   const monthGroups = useMemo(() => buildMonthGroups(weeks), [weeks]);
+
+  // Largeur dynamique des colonnes de semaines, calée sur la place disponible
+  // dans les blocs de charge (qui ont moins de colonnes fixes que le Gantt).
+  // Blocs de charge : colonne nom 180px + colonne Total 60px = 240px.
+  const FIXED_CHARGE_WIDTH = 240;
+  const MIN_WEEK_WIDTH = 18;
+  const MAX_WEEK_WIDTH = 55;
+  const [weekColumnWidth, setWeekColumnWidth] = useState<number>(28);
+  useEffect(() => {
+    const calc = () => {
+      const n = weeks.length;
+      if (!n) return;
+      const total = window.innerWidth - 16;
+      const available = Math.max(0, total - FIXED_CHARGE_WIDTH);
+      const w = Math.min(MAX_WEEK_WIDTH, Math.max(MIN_WEEK_WIDTH, Math.floor(available / n)));
+      setWeekColumnWidth(w);
+    };
+    calc();
+    window.addEventListener('resize', calc);
+    return () => window.removeEventListener('resize', calc);
+  }, [weeks.length]);
 
   const computedProjects: ProjectComputed[] = useMemo(() => {
     return projects.map(project => {
@@ -706,6 +741,7 @@ export default function LoadPlanning() {
               forecastWeeks={forecastWeeks}
               onToggleForecastWeek={toggleProjectForecastWeek}
               onClearForecastWeeks={clearProjectForecastWeeks}
+              weekColumnWidth={weekColumnWidth}
             />
 
             <LoadSummary
@@ -718,6 +754,7 @@ export default function LoadPlanning() {
               allProjects={filteredProjects}
               groupBy="cdt"
               sentinels={[UNASSIGNED_CDT]}
+              weekColumnWidth={weekColumnWidth}
             />
             <LoadSummary
               title="Charge / Poseur"
@@ -730,6 +767,7 @@ export default function LoadPlanning() {
               allProjects={filteredProjects}
               groupBy="poseur"
               sentinels={[UNASSIGNED_POSEUR]}
+              weekColumnWidth={weekColumnWidth}
             />
             <LoadSummary
               title="Charge / Usine"
@@ -742,6 +780,7 @@ export default function LoadPlanning() {
               groupBy="usine"
               sentinels={[UNASSIGNED_USINE]}
               ceil
+              weekColumnWidth={weekColumnWidth}
             />
           </>
         )}
@@ -780,6 +819,7 @@ function aggregateTeams(
 }
 
 function MonthsHeader({ monthGroups, leftColSpan }: { monthGroups: MonthGroup[]; leftColSpan: number }) {
+  const labels = useMemo(() => computeMonthShortLabels(monthGroups), [monthGroups]);
   return (
     <tr>
       <th colSpan={leftColSpan} className="sticky left-0 bg-background z-10 border-b" />
@@ -787,9 +827,9 @@ function MonthsHeader({ monthGroups, leftColSpan }: { monthGroups: MonthGroup[];
         <th
           key={i}
           colSpan={g.weeks.length}
-          className="p-1 border-b border-l text-center text-[11px] font-semibold capitalize bg-muted/40"
+          className="p-0.5 border-b border-l text-center text-[10px] font-semibold capitalize bg-muted/40 truncate"
         >
-          {g.label}
+          {labels[i]}
         </th>
       ))}
     </tr>
@@ -797,6 +837,7 @@ function MonthsHeader({ monthGroups, leftColSpan }: { monthGroups: MonthGroup[];
 }
 
 function MonthsFooter({ monthGroups, leftColSpan }: { monthGroups: MonthGroup[]; leftColSpan: number }) {
+  const labels = useMemo(() => computeMonthShortLabels(monthGroups), [monthGroups]);
   return (
     <tr>
       <th
@@ -808,10 +849,10 @@ function MonthsFooter({ monthGroups, leftColSpan }: { monthGroups: MonthGroup[];
         <th
           key={i}
           colSpan={g.weeks.length}
-          className="p-1 border-t border-l text-center text-[11px] font-semibold capitalize bg-muted/40"
+          className="p-0.5 border-t border-l text-center text-[10px] font-semibold capitalize bg-muted/40 truncate"
           style={{ position: 'sticky', bottom: 0 }}
         >
-          {g.label}
+          {labels[i]}
         </th>
       ))}
       <th
@@ -823,8 +864,8 @@ function MonthsFooter({ monthGroups, leftColSpan }: { monthGroups: MonthGroup[];
 }
 
 function WeekFooterCells({
-  weeks, monthGroups, todayKey,
-}: { weeks: ISOWeek[]; monthGroups: MonthGroup[]; todayKey: string }) {
+  weeks, monthGroups, todayKey, weekColumnWidth,
+}: { weeks: ISOWeek[]; monthGroups: MonthGroup[]; todayKey: string; weekColumnWidth: number }) {
   const splitKeys = useMemo(() => {
     const s = new Set<string>();
     monthGroups.forEach(g => g.splitWeekKeys.forEach(k => s.add(k)));
@@ -834,12 +875,12 @@ function WeekFooterCells({
     <>
       {weeks.map(w => {
         const isSplit = splitKeys.has(w.key);
-        const cls = `p-1 border-t text-center font-normal bg-background ${
+        const cls = `p-0 border-t text-center font-normal bg-background text-[9px] ${
           w.key === todayKey ? 'bg-accent/20 font-bold' : ''
         } ${isSplit ? 'border-l border-dashed border-l-muted-foreground/60' : ''}`;
         return (
-          <th key={w.key} className={cls} style={{ position: 'sticky', bottom: 24, width: 55, minWidth: 55, maxWidth: 55 }}>
-            {w.label}
+          <th key={w.key} className={cls} style={{ position: 'sticky', bottom: 24, width: weekColumnWidth, minWidth: weekColumnWidth, maxWidth: weekColumnWidth }}>
+            {w.week}
           </th>
         );
       })}
@@ -848,8 +889,8 @@ function WeekFooterCells({
 }
 
 function WeekHeaderCells({
-  weeks, monthGroups, todayKey,
-}: { weeks: ISOWeek[]; monthGroups: MonthGroup[]; todayKey: string }) {
+  weeks, monthGroups, todayKey, weekColumnWidth,
+}: { weeks: ISOWeek[]; monthGroups: MonthGroup[]; todayKey: string; weekColumnWidth: number }) {
   const splitKeys = useMemo(() => {
     const s = new Set<string>();
     monthGroups.forEach(g => g.splitWeekKeys.forEach(k => s.add(k)));
@@ -865,16 +906,16 @@ function WeekHeaderCells({
       {weeks.map(w => {
         const isSplit = splitKeys.has(w.key);
         const r = rangeByKey[w.key];
-        const cls = `p-1 border-b text-center font-normal ${
+        const cls = `p-0 border-b text-center font-normal text-[9px] ${
           w.key === todayKey ? 'bg-accent/20 font-bold' : ''
         } ${isSplit ? 'border-l border-dashed border-l-muted-foreground/60' : ''}`;
-        const wStyle = { width: 55, minWidth: 55, maxWidth: 55 };
-        if (!isSplit || !r) return <th key={w.key} className={cls} style={wStyle}>{w.label}</th>;
+        const wStyle = { width: weekColumnWidth, minWidth: weekColumnWidth, maxWidth: weekColumnWidth };
+        const tip = r ? `Semaine ${w.week} — du ${r.from} au ${r.to}` : `Semaine ${w.week}`;
         return (
           <th key={w.key} className={cls} style={wStyle}>
             <Tooltip>
-              <TooltipTrigger asChild><span className="cursor-help">{w.label}</span></TooltipTrigger>
-              <TooltipContent>Du {r.from} au {r.to}</TooltipContent>
+              <TooltipTrigger asChild><span className="cursor-help">{w.week}</span></TooltipTrigger>
+              <TooltipContent>{tip}</TooltipContent>
             </Tooltip>
           </th>
         );
@@ -884,7 +925,7 @@ function WeekHeaderCells({
 }
 
 function LoadSummary({
-  title, subtitle, rows, weeks, monthGroups, todayKey, colorByKey, allProjects, groupBy, sentinels, ceil,
+  title, subtitle, rows, weeks, monthGroups, todayKey, colorByKey, allProjects, groupBy, sentinels, ceil, weekColumnWidth,
 }: {
   title: string;
   subtitle: string;
@@ -897,6 +938,7 @@ function LoadSummary({
   groupBy: 'cdt' | 'poseur' | 'usine';
   sentinels: string[];
   ceil?: boolean;
+  weekColumnWidth: number;
 }) {
   const fmt = (v: number) => {
     if (!v) return '';
@@ -924,14 +966,19 @@ function LoadSummary({
           <span className="text-[11px] font-normal text-muted-foreground">{subtitle}</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="overflow-x-auto">
-        <table className="text-xs border-collapse">
+      <CardContent className="overflow-x-auto p-2">
+        <table className="text-xs border-collapse" style={{ tableLayout: 'fixed', width: 'max-content' }}>
+          <colgroup>
+            <col style={{ width: 180 }} />
+            {weeks.map(w => <col key={w.key} style={{ width: weekColumnWidth }} />)}
+            <col style={{ width: 60 }} />
+          </colgroup>
           <thead>
             <MonthsHeader monthGroups={monthGroups} leftColSpan={1} />
             <tr>
-              <th className="sticky left-0 bg-background z-10 text-left p-1 border-b min-w-[220px]"></th>
-              <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} />
-              <th className="sticky right-0 bg-background z-10 text-center p-1 border-b border-l min-w-[50px] font-semibold">Total</th>
+              <th className="sticky left-0 bg-background z-10 text-left p-1 border-b"></th>
+              <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} weekColumnWidth={weekColumnWidth} />
+              <th className="sticky right-0 bg-background z-10 text-center p-1 border-b border-l font-semibold">Total</th>
             </tr>
           </thead>
           <tbody>
@@ -1052,7 +1099,7 @@ function LoadSummary({
 
 function GanttView({
   weeks, monthGroups, projects, todayKey, onUpdateField,
-  tokens, forecastWeeks, onToggleForecastWeek, onClearForecastWeeks,
+  tokens, forecastWeeks, onToggleForecastWeek, onClearForecastWeeks, weekColumnWidth,
 }: {
   weeks: ISOWeek[];
   monthGroups: MonthGroup[];
@@ -1063,6 +1110,7 @@ function GanttView({
   forecastWeeks: ForecastWeek[];
   onToggleForecastWeek: (projectId: string, year: number, weekNumber: number) => void;
   onClearForecastWeeks: (projectId: string) => void;
+  weekColumnWidth: number;
 }) {
   const [editing, setEditing] = useState<{ id: string; field: 'conductor' | 'subcontractor' } | null>(null);
   const [popoverProjectId, setPopoverProjectId] = useState<string | null>(null);
@@ -1110,19 +1158,19 @@ function GanttView({
         <div ref={tableScrollRef} className="overflow-x-auto">
         <table ref={tableRef} className="text-xs border-collapse" style={{ tableLayout: 'fixed', width: 'max-content' }}>
           <colgroup>
-            <col style={{ width: 220 }} />
-            <col style={{ width: 140 }} />
-            <col style={{ width: 140 }} />
-            {weeks.map(w => <col key={w.key} style={{ width: 55 }} />)}
-            <col style={{ width: 60 }} />
+            <col style={{ width: 180 }} />
+            <col style={{ width: 120 }} />
+            <col style={{ width: 120 }} />
+            {weeks.map(w => <col key={w.key} style={{ width: weekColumnWidth }} />)}
+            <col style={{ width: 50 }} />
           </colgroup>
           <thead>
             <MonthsHeader monthGroups={monthGroups} leftColSpan={3} />
             <tr>
               <th className="sticky left-0 bg-background z-10 text-left p-1 border-b">Chantier</th>
-              <th className="sticky left-[220px] bg-background z-10 text-left p-1 border-b">CDT</th>
-              <th className="sticky left-[360px] bg-background z-10 text-left p-1 border-b">Poseur</th>
-              <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} />
+              <th className="sticky left-[180px] bg-background z-10 text-left p-1 border-b">CDT</th>
+              <th className="sticky left-[300px] bg-background z-10 text-left p-1 border-b">Poseur</th>
+              <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} weekColumnWidth={weekColumnWidth} />
               <th className="sticky right-0 bg-background z-10 text-center p-1 border-b border-l font-semibold">Total</th>
             </tr>
           </thead>
@@ -1149,7 +1197,7 @@ function GanttView({
                     <Popover open={isPopOpen} onOpenChange={(o) => !o && setPopoverProjectId(null)}>
                       <PopoverAnchor asChild>
                         <div>
-                          <div className="font-medium truncate max-w-[210px]">{cp.project.site_name || 'Sans nom'}</div>
+                          <div className="font-medium truncate max-w-[170px]">{cp.project.site_name || 'Sans nom'}</div>
                           <div className="text-[10px] text-[#6b7280]">
                             {cp.project.otp_number || '—'}
                             {cp.project.database_complete && <span className="ml-1">· BDD ✅</span>}
@@ -1189,7 +1237,7 @@ function GanttView({
                       </PopoverContent>
                     </Popover>
                   </td>
-                  <td className="sticky left-[220px] bg-background z-10 p-1 border-b overflow-hidden" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'conductor' })}>
+                  <td className="sticky left-[180px] bg-background z-10 p-1 border-b overflow-hidden" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'conductor' })}>
                     {editing?.id === cp.project.id && editing.field === 'conductor' ? (
                       <Select
                         defaultValue={cp.project.conductor || ''}
@@ -1207,7 +1255,7 @@ function GanttView({
                       <span className="cursor-pointer" title="Double-clic pour modifier">{cp.conductor}</span>
                     )}
                   </td>
-                  <td className="sticky left-[360px] bg-background z-10 p-1 border-b overflow-hidden" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'subcontractor' })}>
+                  <td className="sticky left-[300px] bg-background z-10 p-1 border-b overflow-hidden" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'subcontractor' })}>
                     {editing?.id === cp.project.id && editing.field === 'subcontractor' ? (
                       <Select
                         defaultValue={cp.project.subcontractor || ''}
@@ -1233,13 +1281,13 @@ function GanttView({
                     return (
                       <td
                         key={w.key}
-                        className={`p-0 border-b text-center align-middle cursor-pointer ${w.key === todayKey ? 'bg-accent/10' : ''}`}
+                        className={`p-0 border-b text-center align-middle cursor-pointer overflow-hidden ${w.key === todayKey ? 'bg-accent/10' : ''}`}
                         onDoubleClick={(e) => { e.stopPropagation(); setPopoverProjectId(cp.project.id); }}
                         title="Double-clic pour modifier le planning prévisionnel"
                       >
                         {v > 0 && (
                           <div
-                            className="text-[10px] font-bold py-1 mx-0.5 rounded-sm"
+                            className="text-[10px] font-bold py-1 mx-px rounded-sm"
                             title={`${cp.project.site_name} — ${w.label}: ${v} camion(s) ${isForecast ? '(prévisionnel)' : '(réel)'}`}
                             style={{
                               background: isForecast
@@ -1297,7 +1345,7 @@ function GanttView({
           <tfoot>
             <tr>
               <th colSpan={3} className="sticky left-0 bg-background z-20 p-1 border-t" style={{ position: 'sticky', bottom: 24 }} />
-              <WeekFooterCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} />
+              <WeekFooterCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} weekColumnWidth={weekColumnWidth} />
               <th className="sticky right-0 bg-background z-20 p-1 border-t border-l" style={{ position: 'sticky', bottom: 24 }} />
             </tr>
             <MonthsFooter monthGroups={monthGroups} leftColSpan={3} />
