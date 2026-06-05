@@ -5,6 +5,8 @@ interface ProjectComputedLite {
   project: { id: string; site_name: string | null; otp_number: string | null };
   poseur: string;
   conductor: string;
+  color?: string;
+  isSupplyOnly?: boolean;
   weeks: Record<string, { count: number; source: 'real' | 'forecast' | 'mixed' | 'none' }>;
 }
 
@@ -18,6 +20,15 @@ interface ExportArgs {
   periodEnd: string;
 }
 
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '');
+  if (h.length !== 6) return [128, 128, 128];
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+function colorToRgb(c: string): [number, number, number] {
+  if (c.startsWith('#')) return hexToRgb(c);
+  return hslToRgb(c);
+}
 function hslToRgb(hsl: string): [number, number, number] {
   // accept "hsl(H S% L%)"
   const m = hsl.match(/hsl\(\s*([\d.]+)[\s,]+([\d.]+)%[\s,]+([\d.]+)%\s*\)/);
@@ -108,7 +119,7 @@ export async function exportLoadPlanningPdf(args: ExportArgs) {
     if (y > pageH - 6) { doc.addPage(); y = 10; }
     doc.setFont('helvetica', 'normal');
     doc.text((cp.project.site_name || cp.project.otp_number || '').slice(0, 32), margin, y + 2);
-    const [r, g, b] = hslToRgb(getPoseurColor(cp.poseur));
+    const [r, g, b] = colorToRgb(cp.color || getPoseurColor(cp.poseur));
     let total = 0;
     weeks.forEach((w, i) => {
       const cell = cp.weeks[w.key];
