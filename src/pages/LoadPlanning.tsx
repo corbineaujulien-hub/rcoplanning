@@ -1369,7 +1369,8 @@ function GanttView({
 }
 
 function PoseurLegend({ projects }: { projects: ProjectComputed[] }) {
-  const poseurs = Array.from(new Set(projects.map(p => p.poseur))).sort();
+  const hasSupplyOnly = projects.some(p => p.isSupplyOnly);
+  const poseurs = Array.from(new Set(projects.filter(p => !p.isSupplyOnly).map(p => p.poseur))).sort();
   return (
     <Card>
       <CardContent className="pt-4 flex flex-wrap gap-3 text-xs">
@@ -1380,6 +1381,12 @@ function PoseurLegend({ projects }: { projects: ProjectComputed[] }) {
             {p}
           </span>
         ))}
+        {hasSupplyOnly && (
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-3 h-3 rounded-sm" style={{ background: SUPPLY_ONLY_COLOR }} />
+            {SUPPLY_ONLY_LABEL}
+          </span>
+        )}
         <span className="ml-4 flex items-center gap-1">
           <span className="inline-block w-3 h-3 rounded-sm" style={{ background: 'repeating-linear-gradient(45deg, #888, #888 3px, #fff 3px, #fff 6px)' }} />
           Données prévisionnelles
