@@ -925,7 +925,7 @@ function WeekHeaderCells({
 }
 
 function LoadSummary({
-  title, subtitle, rows, weeks, monthGroups, todayKey, colorByKey, allProjects, groupBy, sentinels, ceil,
+  title, subtitle, rows, weeks, monthGroups, todayKey, colorByKey, allProjects, groupBy, sentinels, ceil, weekColumnWidth,
 }: {
   title: string;
   subtitle: string;
@@ -938,6 +938,7 @@ function LoadSummary({
   groupBy: 'cdt' | 'poseur' | 'usine';
   sentinels: string[];
   ceil?: boolean;
+  weekColumnWidth: number;
 }) {
   const fmt = (v: number) => {
     if (!v) return '';
@@ -965,14 +966,19 @@ function LoadSummary({
           <span className="text-[11px] font-normal text-muted-foreground">{subtitle}</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="overflow-x-auto">
-        <table className="text-xs border-collapse">
+      <CardContent className="overflow-x-auto p-2">
+        <table className="text-xs border-collapse" style={{ tableLayout: 'fixed', width: 'max-content' }}>
+          <colgroup>
+            <col style={{ width: 180 }} />
+            {weeks.map(w => <col key={w.key} style={{ width: weekColumnWidth }} />)}
+            <col style={{ width: 60 }} />
+          </colgroup>
           <thead>
             <MonthsHeader monthGroups={monthGroups} leftColSpan={1} />
             <tr>
-              <th className="sticky left-0 bg-background z-10 text-left p-1 border-b min-w-[220px]"></th>
-              <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} />
-              <th className="sticky right-0 bg-background z-10 text-center p-1 border-b border-l min-w-[50px] font-semibold">Total</th>
+              <th className="sticky left-0 bg-background z-10 text-left p-1 border-b"></th>
+              <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} weekColumnWidth={weekColumnWidth} />
+              <th className="sticky right-0 bg-background z-10 text-center p-1 border-b border-l font-semibold">Total</th>
             </tr>
           </thead>
           <tbody>
