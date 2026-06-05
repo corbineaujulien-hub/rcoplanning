@@ -904,11 +904,11 @@ function WeekHeaderCells({
           w.key === todayKey ? 'bg-accent/20 font-bold' : ''
         } ${isSplit ? 'border-l border-dashed border-l-muted-foreground/60' : ''}`;
         const wStyle = { width: weekColumnWidth, minWidth: weekColumnWidth, maxWidth: weekColumnWidth };
-        const tip = r ? `Semaine ${w.week} — du ${r.from} au ${r.to}` : `Semaine ${w.week}`;
+        const tip = r ? `S${w.week} — du ${r.from} au ${r.to}` : `S${w.week}`;
         return (
           <th key={w.key} className={cls} style={wStyle}>
             <Tooltip>
-              <TooltipTrigger asChild><span className="cursor-help">{w.week}</span></TooltipTrigger>
+              <TooltipTrigger asChild><span className="cursor-help">S{w.week}</span></TooltipTrigger>
               <TooltipContent>{tip}</TooltipContent>
             </Tooltip>
           </th>
