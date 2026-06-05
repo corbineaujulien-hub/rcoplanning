@@ -372,6 +372,7 @@ export default function Home() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tous les conducteurs</SelectItem>
+                  <SelectItem value="__unassigned_cdt__">Conducteur à désigner</SelectItem>
                   {conductors.map(c => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
