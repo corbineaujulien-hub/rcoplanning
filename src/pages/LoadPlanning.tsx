@@ -148,13 +148,7 @@ function buildMonthGroups(weeks: ISOWeek[]): MonthGroup[] {
 }
 
 function computeMonthShortLabels(groups: MonthGroup[]): string[] {
-  let lastYear: number | null = null;
-  return groups.map(g => {
-    const short = MONTHS_SHORT[g.monthIndex] || g.label;
-    const showYear = lastYear !== g.year;
-    lastYear = g.year;
-    return showYear ? `${short} ${g.year}` : short;
-  });
+  return groups.map(g => g.label);
 }
 
 function stripPhone(s: string): string {
@@ -880,7 +874,7 @@ function WeekFooterCells({
         } ${isSplit ? 'border-l border-dashed border-l-muted-foreground/60' : ''}`;
         return (
           <th key={w.key} className={cls} style={{ position: 'sticky', bottom: 24, width: weekColumnWidth, minWidth: weekColumnWidth, maxWidth: weekColumnWidth }}>
-            {w.week}
+            S{w.week}
           </th>
         );
       })}
@@ -910,11 +904,11 @@ function WeekHeaderCells({
           w.key === todayKey ? 'bg-accent/20 font-bold' : ''
         } ${isSplit ? 'border-l border-dashed border-l-muted-foreground/60' : ''}`;
         const wStyle = { width: weekColumnWidth, minWidth: weekColumnWidth, maxWidth: weekColumnWidth };
-        const tip = r ? `Semaine ${w.week} — du ${r.from} au ${r.to}` : `Semaine ${w.week}`;
+        const tip = r ? `S${w.week} — du ${r.from} au ${r.to}` : `S${w.week}`;
         return (
           <th key={w.key} className={cls} style={wStyle}>
             <Tooltip>
-              <TooltipTrigger asChild><span className="cursor-help">{w.week}</span></TooltipTrigger>
+              <TooltipTrigger asChild><span className="cursor-help">S{w.week}</span></TooltipTrigger>
               <TooltipContent>{tip}</TooltipContent>
             </Tooltip>
           </th>
