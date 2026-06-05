@@ -441,7 +441,7 @@ export default function Home() {
                             {project.otp_number && <span className="text-muted-foreground font-normal text-sm mr-2">OTP: {project.otp_number} —</span>}
                             {project.site_name || 'Chantier sans nom'}
                             {project.database_complete && <span className="text-xs font-medium text-green-600 ml-2">BDD ✅</span>}
-                            {project.supply_only && <span className="text-[10px] font-medium ml-2 px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 border border-violet-300">Fourniture seule</span>}
+                            
                           </div>
                           <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-0.5 text-sm text-muted-foreground">
                             <div className="flex flex-wrap gap-x-3">
