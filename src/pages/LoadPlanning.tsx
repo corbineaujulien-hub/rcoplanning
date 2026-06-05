@@ -741,6 +741,7 @@ export default function LoadPlanning() {
               forecastWeeks={forecastWeeks}
               onToggleForecastWeek={toggleProjectForecastWeek}
               onClearForecastWeeks={clearProjectForecastWeeks}
+              weekColumnWidth={weekColumnWidth}
             />
 
             <LoadSummary
@@ -753,6 +754,7 @@ export default function LoadPlanning() {
               allProjects={filteredProjects}
               groupBy="cdt"
               sentinels={[UNASSIGNED_CDT]}
+              weekColumnWidth={weekColumnWidth}
             />
             <LoadSummary
               title="Charge / Poseur"
@@ -765,6 +767,7 @@ export default function LoadPlanning() {
               allProjects={filteredProjects}
               groupBy="poseur"
               sentinels={[UNASSIGNED_POSEUR]}
+              weekColumnWidth={weekColumnWidth}
             />
             <LoadSummary
               title="Charge / Usine"
@@ -777,6 +780,7 @@ export default function LoadPlanning() {
               groupBy="usine"
               sentinels={[UNASSIGNED_USINE]}
               ceil
+              weekColumnWidth={weekColumnWidth}
             />
           </>
         )}
