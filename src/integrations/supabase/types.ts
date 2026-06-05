@@ -211,6 +211,7 @@ export type Database = {
           site_address: string | null
           site_name: string | null
           subcontractor: string | null
+          supply_only: boolean
           updated_at: string | null
         }
         Insert: {
@@ -232,6 +233,7 @@ export type Database = {
           site_address?: string | null
           site_name?: string | null
           subcontractor?: string | null
+          supply_only?: boolean
           updated_at?: string | null
         }
         Update: {
@@ -253,6 +255,7 @@ export type Database = {
           site_address?: string | null
           site_name?: string | null
           subcontractor?: string | null
+          supply_only?: boolean
           updated_at?: string | null
         }
         Relationships: []

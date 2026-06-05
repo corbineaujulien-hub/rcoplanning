@@ -1,0 +1,1 @@
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS supply_only boolean NOT NULL DEFAULT false;

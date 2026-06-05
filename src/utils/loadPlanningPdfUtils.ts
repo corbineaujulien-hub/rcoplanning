@@ -5,6 +5,8 @@ interface ProjectComputedLite {
   project: { id: string; site_name: string | null; otp_number: string | null };
   poseur: string;
   conductor: string;
+  color?: string;
+  isSupplyOnly?: boolean;
   weeks: Record<string, { count: number; source: 'real' | 'forecast' | 'mixed' | 'none' }>;
 }
 
@@ -18,6 +20,15 @@ interface ExportArgs {
   periodEnd: string;
 }
 
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '');
+  if (h.length !== 6) return [128, 128, 128];
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+function colorToRgb(c: string): [number, number, number] {
+  if (c.startsWith('#')) return hexToRgb(c);
+  return hslToRgb(c);
+}
 function hslToRgb(hsl: string): [number, number, number] {
   // accept "hsl(H S% L%)"
   const m = hsl.match(/hsl\(\s*([\d.]+)[\s,]+([\d.]+)%[\s,]+([\d.]+)%\s*\)/);
@@ -108,7 +119,7 @@ export async function exportLoadPlanningPdf(args: ExportArgs) {
     if (y > pageH - 6) { doc.addPage(); y = 10; }
     doc.setFont('helvetica', 'normal');
     doc.text((cp.project.site_name || cp.project.otp_number || '').slice(0, 32), margin, y + 2);
-    const [r, g, b] = hslToRgb(getPoseurColor(cp.poseur));
+    const [r, g, b] = colorToRgb(cp.color || getPoseurColor(cp.poseur));
     let total = 0;
     weeks.forEach((w, i) => {
       const cell = cp.weeks[w.key];
@@ -140,7 +151,7 @@ export async function exportLoadPlanningPdf(args: ExportArgs) {
   y += 3;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  const poseurs = Array.from(new Set(projects.map(p => p.poseur))).sort();
+  const poseurs = Array.from(new Set(projects.filter(p => !p.isSupplyOnly).map(p => p.poseur))).sort();
   let lx = margin;
   poseurs.forEach(p => {
     const [r, g, b] = hslToRgb(getPoseurColor(p));
@@ -150,6 +161,12 @@ export async function exportLoadPlanningPdf(args: ExportArgs) {
     lx += doc.getTextWidth(p) + 10;
     if (lx > pageW - 30) { lx = margin; y += 4; }
   });
+  if (projects.some(p => p.isSupplyOnly)) {
+    const [r, g, b] = hexToRgb('#7c3aed');
+    doc.setFillColor(r, g, b);
+    doc.rect(lx, y - 2, 2.5, 2.5, 'F');
+    doc.text('Fourniture seule', lx + 3.5, y);
+  }
 
   doc.save(`planning_charge_${periodStart}_${periodEnd}.pdf`);
 }

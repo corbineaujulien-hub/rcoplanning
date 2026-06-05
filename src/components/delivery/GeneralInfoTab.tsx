@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Building2, User, Phone, MapPin, FileText, HardHat, Calendar, Users, Plus, Trash2, Pencil, Check, X, CalendarDays, Truck as TruckIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -91,8 +92,19 @@ export default function GeneralInfoTab() {
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2 flex items-center gap-2">
+            <Checkbox
+              id="supply-only"
+              checked={!!projectInfo.supplyOnly}
+              onCheckedChange={(v) => update('supplyOnly', !!v)}
+            />
+            <Label htmlFor="supply-only" className="cursor-pointer">Fourniture seule</Label>
+          </div>
           <div className="space-y-2">
             <Label>Conducteur de travaux RECTOR</Label>
+            {projectInfo.supplyOnly ? (
+              <Input value={projectInfo.clientName || 'Client non renseigné'} disabled />
+            ) : (
             <Select
               value={projectInfo.conductor ? projectInfo.conductor : '__unassigned__'}
               onValueChange={v => update('conductor', v === '__unassigned__' ? '' : v)}
@@ -107,9 +119,13 @@ export default function GeneralInfoTab() {
                 ))}
               </SelectContent>
             </Select>
+            )}
           </div>
           <div className="space-y-2">
             <Label>Sous-traitant poseur</Label>
+            {projectInfo.supplyOnly ? (
+              <Input value="Fourniture seule" disabled />
+            ) : (
             <Select
               value={projectInfo.subcontractor ? projectInfo.subcontractor : '__unassigned__'}
               onValueChange={v => update('subcontractor', v === '__unassigned__' ? '' : v)}
@@ -122,7 +138,13 @@ export default function GeneralInfoTab() {
                 ))}
               </SelectContent>
             </Select>
+            )}
           </div>
+          {projectInfo.supplyOnly && (
+            <p className="md:col-span-2 text-xs italic text-muted-foreground -mt-2">
+              Chantier en fourniture seule — CDT et Poseur non applicables
+            </p>
+          )}
           <div className="space-y-2">
             <Label><User className="inline h-4 w-4 mr-1" />Nom du contact poseur</Label>
             <Input value={projectInfo.contactName} onChange={e => update('contactName', e.target.value)} placeholder="Ex: Jean Dupont" />

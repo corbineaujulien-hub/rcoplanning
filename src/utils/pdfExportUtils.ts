@@ -124,8 +124,13 @@ function drawHeader(ctx: PdfContext, projectInfo: ProjectInfo, weekNumber: numbe
   if (projectInfo.clientName) leftParts.push(`Client: ${projectInfo.clientName}`);
 
   const rightParts: string[] = [];
-  if (projectInfo.conductor) rightParts.push(`Conducteur: ${projectInfo.conductor}`);
-  if (projectInfo.subcontractor) rightParts.push(`Poseur: ${projectInfo.subcontractor}`);
+  if (projectInfo.supplyOnly) {
+    rightParts.push(`Conducteur: ${projectInfo.clientName || 'Client non renseigné'}`);
+    rightParts.push('Poseur: Fourniture seule');
+  } else {
+    if (projectInfo.conductor) rightParts.push(`Conducteur: ${projectInfo.conductor}`);
+    if (projectInfo.subcontractor) rightParts.push(`Poseur: ${projectInfo.subcontractor}`);
+  }
 
   pdf.setFont('helvetica', 'normal');
   pdf.setTextColor(50, 50, 50);

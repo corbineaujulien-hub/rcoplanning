@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { getDisplayCDT, getDisplayPoseur, getFilterPoseur, SUPPLY_ONLY_LABEL } from '@/utils/supplyOnly';
 
 interface ProjectRow {
   id: string;
@@ -29,6 +30,7 @@ interface ProjectRow {
   created_at: string | null;
   archived: boolean;
   database_complete: boolean;
+  supply_only: boolean;
 }
 
 interface ProjectLink {
@@ -92,7 +94,7 @@ export default function Home() {
   const fetchProjects = async () => {
     setLoading(true);
     const [{ data: pData }, { data: lData }, tData, eData] = await Promise.all([
-      supabase.from('projects').select('id, site_name, client_name, conductor, subcontractor, otp_number, created_at, archived, database_complete').order('created_at', { ascending: false }),
+      supabase.from('projects').select('id, site_name, client_name, conductor, subcontractor, otp_number, created_at, archived, database_complete, supply_only').order('created_at', { ascending: false }),
       supabase.from('project_access_links').select('project_id, token'),
       fetchAllPaginated('trucks', 'project_id, date, element_ids'),
       fetchAllPaginated('beam_elements', 'id, project_id, weight'),
@@ -116,8 +118,11 @@ export default function Home() {
       }
       if (exclude !== 'conductor' && filterConductor !== 'all' && p.conductor !== filterConductor) return false;
       if (exclude !== 'subcontractor' && filterSubcontractor !== 'all') {
-        if (filterSubcontractor === '__unassigned__') {
+        if (filterSubcontractor === SUPPLY_ONLY_LABEL) {
+          if (!p.supply_only) return false;
+        } else if (filterSubcontractor === '__unassigned__') {
           if (p.subcontractor && p.subcontractor !== 'Poseur à désigner') return false;
+          if (p.supply_only) return false;
         } else if (p.subcontractor !== filterSubcontractor) return false;
       }
       if (exclude !== 'bdd') {
@@ -136,8 +141,14 @@ export default function Home() {
 
   const subcontractors = useMemo(() => {
     const set = new Set<string>();
-    getProjectsExcludingFilter('subcontractor').forEach(p => { if (p.subcontractor) set.add(p.subcontractor); });
-    return Array.from(set).sort();
+    let hasSupplyOnly = false;
+    getProjectsExcludingFilter('subcontractor').forEach(p => {
+      if (p.supply_only) { hasSupplyOnly = true; return; }
+      if (p.subcontractor) set.add(p.subcontractor);
+    });
+    const arr = Array.from(set).sort();
+    if (hasSupplyOnly) arr.push(SUPPLY_ONLY_LABEL);
+    return arr;
   }, [getProjectsExcludingFilter]);
 
   // Compute first truck date per project
@@ -212,10 +223,12 @@ export default function Home() {
         const searchLower = searchName.toLowerCase();
         const matchesName = !searchName || (p.site_name || '').toLowerCase().includes(searchLower) || (p.otp_number || '').toLowerCase().includes(searchLower) || (p.client_name || '').toLowerCase().includes(searchLower);
         const matchesConductor = filterConductor === 'all' || p.conductor === filterConductor;
-        const matchesSubcontractor = filterSubcontractor === 'all'
-          || (filterSubcontractor === '__unassigned__'
-            ? (!p.subcontractor || p.subcontractor === 'Poseur à désigner')
-            : p.subcontractor === filterSubcontractor);
+        let matchesSubcontractor = true;
+        if (filterSubcontractor !== 'all') {
+          if (filterSubcontractor === SUPPLY_ONLY_LABEL) matchesSubcontractor = !!p.supply_only;
+          else if (filterSubcontractor === '__unassigned__') matchesSubcontractor = (!p.subcontractor || p.subcontractor === 'Poseur à désigner') && !p.supply_only;
+          else matchesSubcontractor = !p.supply_only && p.subcontractor === filterSubcontractor;
+        }
         const matchesBdd = filterBdd === 'all' || (filterBdd === 'complete' ? p.database_complete : !p.database_complete);
         return matchesName && matchesConductor && matchesSubcontractor && matchesBdd;
       })
@@ -428,15 +441,16 @@ export default function Home() {
                             {project.otp_number && <span className="text-muted-foreground font-normal text-sm mr-2">OTP: {project.otp_number} —</span>}
                             {project.site_name || 'Chantier sans nom'}
                             {project.database_complete && <span className="text-xs font-medium text-green-600 ml-2">BDD ✅</span>}
+                            {project.supply_only && <span className="text-[10px] font-medium ml-2 px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 border border-violet-300">Fourniture seule</span>}
                           </div>
                           <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-0.5 text-sm text-muted-foreground">
                             <div className="flex flex-wrap gap-x-3">
                               {project.client_name && <span>{project.client_name}</span>}
-                              {project.conductor && <span>Conducteur : {project.conductor.split('–')[0].trim()}</span>}
+                              <span>Conducteur : {getDisplayCDT(project)}</span>
                             </div>
                             <span className="flex items-center gap-1 whitespace-nowrap">
                               <User className="h-3 w-3" />
-                              {project.subcontractor || 'Poseur à désigner'}
+                              {getDisplayPoseur(project)}
                             </span>
                             <span className="flex items-center gap-1 whitespace-nowrap">
                               <Calendar className="h-3 w-3" />
