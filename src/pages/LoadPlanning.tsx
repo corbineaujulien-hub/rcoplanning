@@ -1158,19 +1158,19 @@ function GanttView({
         <div ref={tableScrollRef} className="overflow-x-auto">
         <table ref={tableRef} className="text-xs border-collapse" style={{ tableLayout: 'fixed', width: 'max-content' }}>
           <colgroup>
-            <col style={{ width: 220 }} />
-            <col style={{ width: 140 }} />
-            <col style={{ width: 140 }} />
-            {weeks.map(w => <col key={w.key} style={{ width: 55 }} />)}
-            <col style={{ width: 60 }} />
+            <col style={{ width: 180 }} />
+            <col style={{ width: 120 }} />
+            <col style={{ width: 120 }} />
+            {weeks.map(w => <col key={w.key} style={{ width: weekColumnWidth }} />)}
+            <col style={{ width: 50 }} />
           </colgroup>
           <thead>
             <MonthsHeader monthGroups={monthGroups} leftColSpan={3} />
             <tr>
               <th className="sticky left-0 bg-background z-10 text-left p-1 border-b">Chantier</th>
-              <th className="sticky left-[220px] bg-background z-10 text-left p-1 border-b">CDT</th>
-              <th className="sticky left-[360px] bg-background z-10 text-left p-1 border-b">Poseur</th>
-              <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} />
+              <th className="sticky left-[180px] bg-background z-10 text-left p-1 border-b">CDT</th>
+              <th className="sticky left-[300px] bg-background z-10 text-left p-1 border-b">Poseur</th>
+              <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} weekColumnWidth={weekColumnWidth} />
               <th className="sticky right-0 bg-background z-10 text-center p-1 border-b border-l font-semibold">Total</th>
             </tr>
           </thead>
@@ -1197,7 +1197,7 @@ function GanttView({
                     <Popover open={isPopOpen} onOpenChange={(o) => !o && setPopoverProjectId(null)}>
                       <PopoverAnchor asChild>
                         <div>
-                          <div className="font-medium truncate max-w-[210px]">{cp.project.site_name || 'Sans nom'}</div>
+                          <div className="font-medium truncate max-w-[170px]">{cp.project.site_name || 'Sans nom'}</div>
                           <div className="text-[10px] text-[#6b7280]">
                             {cp.project.otp_number || '—'}
                             {cp.project.database_complete && <span className="ml-1">· BDD ✅</span>}
@@ -1237,7 +1237,7 @@ function GanttView({
                       </PopoverContent>
                     </Popover>
                   </td>
-                  <td className="sticky left-[220px] bg-background z-10 p-1 border-b overflow-hidden" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'conductor' })}>
+                  <td className="sticky left-[180px] bg-background z-10 p-1 border-b overflow-hidden" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'conductor' })}>
                     {editing?.id === cp.project.id && editing.field === 'conductor' ? (
                       <Select
                         defaultValue={cp.project.conductor || ''}
@@ -1255,7 +1255,7 @@ function GanttView({
                       <span className="cursor-pointer" title="Double-clic pour modifier">{cp.conductor}</span>
                     )}
                   </td>
-                  <td className="sticky left-[360px] bg-background z-10 p-1 border-b overflow-hidden" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'subcontractor' })}>
+                  <td className="sticky left-[300px] bg-background z-10 p-1 border-b overflow-hidden" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'subcontractor' })}>
                     {editing?.id === cp.project.id && editing.field === 'subcontractor' ? (
                       <Select
                         defaultValue={cp.project.subcontractor || ''}
@@ -1281,13 +1281,13 @@ function GanttView({
                     return (
                       <td
                         key={w.key}
-                        className={`p-0 border-b text-center align-middle cursor-pointer ${w.key === todayKey ? 'bg-accent/10' : ''}`}
+                        className={`p-0 border-b text-center align-middle cursor-pointer overflow-hidden ${w.key === todayKey ? 'bg-accent/10' : ''}`}
                         onDoubleClick={(e) => { e.stopPropagation(); setPopoverProjectId(cp.project.id); }}
                         title="Double-clic pour modifier le planning prévisionnel"
                       >
                         {v > 0 && (
                           <div
-                            className="text-[10px] font-bold py-1 mx-0.5 rounded-sm"
+                            className="text-[10px] font-bold py-1 mx-px rounded-sm"
                             title={`${cp.project.site_name} — ${w.label}: ${v} camion(s) ${isForecast ? '(prévisionnel)' : '(réel)'}`}
                             style={{
                               background: isForecast
@@ -1345,7 +1345,7 @@ function GanttView({
           <tfoot>
             <tr>
               <th colSpan={3} className="sticky left-0 bg-background z-20 p-1 border-t" style={{ position: 'sticky', bottom: 24 }} />
-              <WeekFooterCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} />
+              <WeekFooterCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} weekColumnWidth={weekColumnWidth} />
               <th className="sticky right-0 bg-background z-20 p-1 border-t border-l" style={{ position: 'sticky', bottom: 24 }} />
             </tr>
             <MonthsFooter monthGroups={monthGroups} leftColSpan={3} />
