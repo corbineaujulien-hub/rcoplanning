@@ -18,6 +18,7 @@ import {
   getWeeksBetween, getWeekKeyForDate, getPoseurColor, UNASSIGNED_POSEUR,
   ISOWeek,
 } from '@/utils/loadPlanningUtils';
+import { SUPPLY_ONLY_LABEL, SUPPLY_ONLY_COLOR, getDisplayCDT, getDisplayPoseur, getFilterCDT } from '@/utils/supplyOnly';
 import { exportLoadPlanningPdf } from '@/utils/loadPlanningPdfUtils';
 import { exportLoadPlanningExcel } from '@/utils/loadPlanningExcelUtils';
 
@@ -33,6 +34,7 @@ interface ProjectRow {
   subcontractor: string | null;
   archived: boolean;
   database_complete: boolean;
+  supply_only: boolean;
   forecasted_transports: ForecastedTransport[] | null;
 }
 
@@ -96,6 +98,10 @@ interface ProjectComputed {
   project: ProjectRow;
   poseur: string;
   conductor: string;
+  poseurFilterKey: string;
+  conductorFilterKey: string;
+  isSupplyOnly: boolean;
+  color: string;
   weeks: Record<string, WeekCell>;
   usines: Set<string>;
   totalWeight: number;
@@ -211,7 +217,7 @@ export default function LoadPlanning() {
       setLoading(true);
       try {
         const [pData, tData, eData, fData, lData] = await Promise.all([
-          supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, archived, database_complete, forecasted_transports'),
+          supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, archived, database_complete, supply_only, forecasted_transports'),
           fetchAllPaginated<TruckRow>('trucks', 'id, project_id, date, element_ids, forced_category, team_id'),
           fetchAllPaginated<ElementRow>('beam_elements', 'id, project_id, product_type, length, weight, factory'),
           fetchAllPaginated<any>('forecast_weeks', 'id, project_id, year, week_number'),
@@ -219,6 +225,7 @@ export default function LoadPlanning() {
         ]);
         setProjects(((pData.data as any[]) || []).map(p => ({
           ...p,
+          supply_only: !!p.supply_only,
           forecasted_transports: (p.forecasted_transports as ForecastedTransport[]) || [],
         })) as ProjectRow[]);
         setTrucks((tData as any[]).map(t => ({
@@ -395,8 +402,12 @@ export default function LoadPlanning() {
 
       return {
         project,
-        poseur: project.subcontractor || UNASSIGNED_POSEUR,
-        conductor: stripPhone(project.conductor || '') || UNASSIGNED_CDT,
+        poseur: getDisplayPoseur(project),
+        conductor: getDisplayCDT(project),
+        poseurFilterKey: project.supply_only ? SUPPLY_ONLY_LABEL : (project.subcontractor || UNASSIGNED_POSEUR),
+        conductorFilterKey: project.supply_only ? SUPPLY_ONLY_LABEL : getFilterCDT(project),
+        isSupplyOnly: !!project.supply_only,
+        color: project.supply_only ? SUPPLY_ONLY_COLOR : getPoseurColor(project.subcontractor || UNASSIGNED_POSEUR),
         weeks: weekCells,
         usines: usinesSet,
         totalWeight,
@@ -413,8 +424,8 @@ export default function LoadPlanning() {
     // Period filter: include only projects with at least one real or forecast cell in the visible range.
     const hasAnyInPeriod = Object.values(cp.weeks).some(w => w.source !== 'none');
     if (!hasAnyInPeriod) return false;
-    if (exclude !== 'cdt' && filterCdt.size > 0 && !filterCdt.has(cp.conductor)) return false;
-    if (exclude !== 'poseur' && filterPoseur.size > 0 && !filterPoseur.has(cp.poseur)) return false;
+    if (exclude !== 'cdt' && filterCdt.size > 0 && !filterCdt.has(cp.conductorFilterKey)) return false;
+    if (exclude !== 'poseur' && filterPoseur.size > 0 && !filterPoseur.has(cp.poseurFilterKey)) return false;
     if (exclude !== 'usine' && filterUsine.size > 0) {
       let any = false;
       for (const u of cp.usines) { if (filterUsine.has(u)) { any = true; break; } }
@@ -515,11 +526,11 @@ export default function LoadPlanning() {
 
   // Aggregations
   const loadByCdt = useMemo(
-    () => aggregateTeams(filteredProjects, weeks, p => p.conductor, [UNASSIGNED_CDT]),
+    () => aggregateTeams(filteredProjects.filter(p => !p.isSupplyOnly), weeks, p => p.conductor, [UNASSIGNED_CDT]),
     [filteredProjects, weeks],
   );
   const loadByPoseur = useMemo(
-    () => aggregateTeams(filteredProjects, weeks, p => p.poseur, [UNASSIGNED_POSEUR]),
+    () => aggregateTeams(filteredProjects.filter(p => !p.isSupplyOnly), weeks, p => p.poseur, [UNASSIGNED_POSEUR]),
     [filteredProjects, weeks],
   );
   const loadByUsine = useMemo(() => {
@@ -547,11 +558,11 @@ export default function LoadPlanning() {
 
   // Cumulative dropdowns — values available given other active filters
   const allCdts = useMemo(() => {
-    const list = computedProjects.filter(cp => filterFn(cp, 'cdt')).map(p => p.conductor);
+    const list = computedProjects.filter(cp => filterFn(cp, 'cdt')).map(p => p.conductorFilterKey);
     return sortWithSentinelLast(Array.from(new Set(list)), s => s, [UNASSIGNED_CDT]);
   }, [computedProjects, filterFn]);
   const allPoseurs = useMemo(() => {
-    const list = computedProjects.filter(cp => filterFn(cp, 'poseur')).map(p => p.poseur);
+    const list = computedProjects.filter(cp => filterFn(cp, 'poseur')).map(p => p.poseurFilterKey);
     return sortWithSentinelLast(Array.from(new Set(list)), s => s, [UNASSIGNED_POSEUR]);
   }, [computedProjects, filterFn]);
   const allUsines = useMemo(() => {
