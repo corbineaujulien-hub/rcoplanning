@@ -874,7 +874,7 @@ function WeekFooterCells({
         } ${isSplit ? 'border-l border-dashed border-l-muted-foreground/60' : ''}`;
         return (
           <th key={w.key} className={cls} style={{ position: 'sticky', bottom: 24, width: weekColumnWidth, minWidth: weekColumnWidth, maxWidth: weekColumnWidth }}>
-            {w.week}
+            S{w.week}
           </th>
         );
       })}
