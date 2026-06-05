@@ -106,10 +106,14 @@ interface ProjectComputed {
 // ---------- Months grouping ----------
 interface MonthGroup {
   label: string;
+  monthIndex: number;
+  year: number;
   weeks: ISOWeek[];
   splitWeekKeys: Set<string>;
   weekRange: Record<string, { from: string; to: string }>;
 }
+
+const MONTHS_SHORT = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
 
 function buildMonthGroups(weeks: ISOWeek[]): MonthGroup[] {
   const groups: MonthGroup[] = [];
@@ -133,7 +137,7 @@ function buildMonthGroups(weeks: ISOWeek[]): MonthGroup[] {
       .replace(/^./, c => c.toUpperCase());
     let g = groups[groups.length - 1];
     if (!g || g.label !== label) {
-      g = { label, weeks: [], splitWeekKeys: new Set(), weekRange: {} };
+      g = { label, monthIndex: owner.m, year: owner.y, weeks: [], splitWeekKeys: new Set(), weekRange: {} };
       groups.push(g);
     }
     g.weeks.push(w);
@@ -141,6 +145,16 @@ function buildMonthGroups(weeks: ISOWeek[]): MonthGroup[] {
     if (split) g.splitWeekKeys.add(w.key);
   });
   return groups;
+}
+
+function computeMonthShortLabels(groups: MonthGroup[]): string[] {
+  let lastYear: number | null = null;
+  return groups.map(g => {
+    const short = MONTHS_SHORT[g.monthIndex] || g.label;
+    const showYear = lastYear !== g.year;
+    lastYear = g.year;
+    return showYear ? `${short} ${g.year}` : short;
+  });
 }
 
 function stripPhone(s: string): string {
