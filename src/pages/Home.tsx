@@ -494,9 +494,29 @@ export default function Home() {
                         </div>
                         <div className="flex gap-2 shrink-0">
                           {!project.archived ? (
-                            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleArchive(project.id, true); }} title="Archiver">
-                              <Archive className="h-4 w-4" />
-                            </Button>
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="outline" size="sm" onClick={(e) => e.stopPropagation()} title="Archiver">
+                                  <Archive className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Confirmer l'archivage</DialogTitle>
+                                  <DialogDescription>
+                                    Êtes-vous sûr de vouloir archiver le chantier {project.otp_number || '—'} — {project.site_name || 'Chantier sans nom'} ? Cette action est réversible.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <DialogFooter className="flex gap-2">
+                                  <DialogClose asChild>
+                                    <Button variant="outline">Annuler</Button>
+                                  </DialogClose>
+                                  <Button variant="destructive" onClick={() => handleArchive(project.id, true)}>
+                                    Archiver
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
                           ) : (
                             <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleArchive(project.id, false); }} title="Désarchiver">
                               <ArchiveRestore className="h-4 w-4" />
