@@ -1106,7 +1106,7 @@ function GanttView({
         >
           <div style={{ width: tableWidth, height: 1 }} />
         </div>
-        <div ref={tableScrollRef} className="overflow-x-auto px-6 pb-6">
+        <div ref={tableScrollRef} className="overflow-x-auto">
         <table ref={tableRef} className="text-xs border-collapse w-full">
           <thead>
             <MonthsHeader monthGroups={monthGroups} leftColSpan={3} />
