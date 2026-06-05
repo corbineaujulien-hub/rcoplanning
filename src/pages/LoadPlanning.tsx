@@ -796,6 +796,57 @@ function MonthsHeader({ monthGroups, leftColSpan }: { monthGroups: MonthGroup[];
   );
 }
 
+function MonthsFooter({ monthGroups, leftColSpan }: { monthGroups: MonthGroup[]; leftColSpan: number }) {
+  return (
+    <tr>
+      <th
+        colSpan={leftColSpan}
+        className="sticky left-0 bottom-0 bg-background z-20 border-t"
+        style={{ position: 'sticky', bottom: 0 }}
+      />
+      {monthGroups.map((g, i) => (
+        <th
+          key={i}
+          colSpan={g.weeks.length}
+          className="p-1 border-t border-l text-center text-[11px] font-semibold capitalize bg-muted/40"
+          style={{ position: 'sticky', bottom: 0 }}
+        >
+          {g.label}
+        </th>
+      ))}
+      <th
+        className="sticky right-0 bottom-0 bg-background z-20 border-t border-l"
+        style={{ position: 'sticky', bottom: 0 }}
+      />
+    </tr>
+  );
+}
+
+function WeekFooterCells({
+  weeks, monthGroups, todayKey,
+}: { weeks: ISOWeek[]; monthGroups: MonthGroup[]; todayKey: string }) {
+  const splitKeys = useMemo(() => {
+    const s = new Set<string>();
+    monthGroups.forEach(g => g.splitWeekKeys.forEach(k => s.add(k)));
+    return s;
+  }, [monthGroups]);
+  return (
+    <>
+      {weeks.map(w => {
+        const isSplit = splitKeys.has(w.key);
+        const cls = `p-1 border-t text-center font-normal w-[36px] bg-background ${
+          w.key === todayKey ? 'bg-accent/20 font-bold' : ''
+        } ${isSplit ? 'border-l border-dashed border-l-muted-foreground/60' : ''}`;
+        return (
+          <th key={w.key} className={cls} style={{ position: 'sticky', bottom: 24 }}>
+            {w.label}
+          </th>
+        );
+      })}
+    </>
+  );
+}
+
 function WeekHeaderCells({
   weeks, monthGroups, todayKey,
 }: { weeks: ISOWeek[]; monthGroups: MonthGroup[]; todayKey: string }) {
