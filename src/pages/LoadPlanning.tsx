@@ -405,7 +405,7 @@ export default function LoadPlanning() {
         poseur: getDisplayPoseur(project),
         conductor: getDisplayCDT(project),
         poseurFilterKey: project.supply_only ? SUPPLY_ONLY_LABEL : (project.subcontractor || UNASSIGNED_POSEUR),
-        conductorFilterKey: project.supply_only ? SUPPLY_ONLY_LABEL : getFilterCDT(project),
+        conductorFilterKey: getFilterCDT({ ...project, supply_only: false }),
         isSupplyOnly: !!project.supply_only,
         color: project.supply_only ? SUPPLY_ONLY_COLOR : getPoseurColor(project.subcontractor || UNASSIGNED_POSEUR),
         weeks: weekCells,
