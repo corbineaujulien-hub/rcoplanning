@@ -10,6 +10,7 @@ export interface ProjectInfo {
   showSaturdays?: boolean;
   databaseComplete?: boolean;
   databaseComment?: string;
+  supplyOnly?: boolean;
   forecastedTransports?: ForecastedTransport[];
   forecastPeriodStart?: string | null;
   forecastPeriodEnd?: string | null;
@@ -154,6 +155,7 @@ export const DEFAULT_PROJECT_INFO: ProjectInfo = {
   showSaturdays: false,
   databaseComplete: false,
   databaseComment: '',
+  supplyOnly: false,
   forecastedTransports: [],
   forecastPeriodStart: null,
   forecastPeriodEnd: null,
