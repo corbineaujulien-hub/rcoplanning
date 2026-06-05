@@ -140,7 +140,10 @@ export default function Home() {
 
   const conductors = useMemo(() => {
     const set = new Set<string>();
-    getProjectsExcludingFilter('conductor').forEach(p => { if (p.conductor) set.add(p.conductor); });
+    getProjectsExcludingFilter('conductor').forEach(p => {
+      const label = formatCDTLabel(p.conductor);
+      if (label && label !== 'Conducteur à désigner') set.add(label);
+    });
     return Array.from(set).sort();
   }, [getProjectsExcludingFilter]);
 
