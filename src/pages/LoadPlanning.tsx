@@ -1138,7 +1138,7 @@ function GanttView({
               return (
                 <tr key={cp.project.id} className="hover:bg-muted/30">
                   <td
-                    className="sticky left-0 bg-background z-10 p-1 border-b cursor-pointer"
+                    className="sticky left-0 bg-background z-10 p-1 border-b cursor-pointer overflow-hidden"
                     title="Double-clic pour ouvrir le chantier"
                     onDoubleClick={() => {
                       const tk = tokens[cp.project.id];
@@ -1149,7 +1149,7 @@ function GanttView({
                     <Popover open={isPopOpen} onOpenChange={(o) => !o && setPopoverProjectId(null)}>
                       <PopoverAnchor asChild>
                         <div>
-                          <div className="font-medium truncate max-w-[260px]">{cp.project.site_name || 'Sans nom'}</div>
+                          <div className="font-medium truncate max-w-[210px]">{cp.project.site_name || 'Sans nom'}</div>
                           <div className="text-[10px] text-[#6b7280]">
                             {cp.project.otp_number || '—'}
                             {cp.project.database_complete && <span className="ml-1">· BDD ✅</span>}
@@ -1189,7 +1189,7 @@ function GanttView({
                       </PopoverContent>
                     </Popover>
                   </td>
-                  <td className="sticky left-[280px] bg-background z-10 p-1 border-b" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'conductor' })}>
+                  <td className="sticky left-[220px] bg-background z-10 p-1 border-b overflow-hidden" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'conductor' })}>
                     {editing?.id === cp.project.id && editing.field === 'conductor' ? (
                       <Select
                         defaultValue={cp.project.conductor || ''}
@@ -1207,7 +1207,7 @@ function GanttView({
                       <span className="cursor-pointer" title="Double-clic pour modifier">{cp.conductor}</span>
                     )}
                   </td>
-                  <td className="sticky left-[440px] bg-background z-10 p-1 border-b" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'subcontractor' })}>
+                  <td className="sticky left-[360px] bg-background z-10 p-1 border-b overflow-hidden" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'subcontractor' })}>
                     {editing?.id === cp.project.id && editing.field === 'subcontractor' ? (
                       <Select
                         defaultValue={cp.project.subcontractor || ''}
