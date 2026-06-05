@@ -151,7 +151,7 @@ export async function exportLoadPlanningPdf(args: ExportArgs) {
   y += 3;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  const poseurs = Array.from(new Set(projects.map(p => p.poseur))).sort();
+  const poseurs = Array.from(new Set(projects.filter(p => !p.isSupplyOnly).map(p => p.poseur))).sort();
   let lx = margin;
   poseurs.forEach(p => {
     const [r, g, b] = hslToRgb(getPoseurColor(p));
@@ -161,6 +161,12 @@ export async function exportLoadPlanningPdf(args: ExportArgs) {
     lx += doc.getTextWidth(p) + 10;
     if (lx > pageW - 30) { lx = margin; y += 4; }
   });
+  if (projects.some(p => p.isSupplyOnly)) {
+    const [r, g, b] = hexToRgb('#7c3aed');
+    doc.setFillColor(r, g, b);
+    doc.rect(lx, y - 2, 2.5, 2.5, 'F');
+    doc.text('Fourniture seule', lx + 3.5, y);
+  }
 
   doc.save(`planning_charge_${periodStart}_${periodEnd}.pdf`);
 }
