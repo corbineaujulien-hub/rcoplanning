@@ -223,11 +223,12 @@ export default function Home() {
         const searchLower = searchName.toLowerCase();
         const matchesName = !searchName || (p.site_name || '').toLowerCase().includes(searchLower) || (p.otp_number || '').toLowerCase().includes(searchLower) || (p.client_name || '').toLowerCase().includes(searchLower);
         const matchesConductor = filterConductor === 'all' || p.conductor === filterConductor;
-        const matchesSubcontractor = filterSubcontractor === 'all'
-          || (filterSubcontractor === SUPPLY_ONLY_LABEL ? p.supply_only
-          || (filterSubcontractor === '__unassigned__'
-            ? ((!p.subcontractor || p.subcontractor === 'Poseur à désigner') && !p.supply_only)
-            : p.subcontractor === filterSubcontractor));
+        let matchesSubcontractor = true;
+        if (filterSubcontractor !== 'all') {
+          if (filterSubcontractor === SUPPLY_ONLY_LABEL) matchesSubcontractor = !!p.supply_only;
+          else if (filterSubcontractor === '__unassigned__') matchesSubcontractor = (!p.subcontractor || p.subcontractor === 'Poseur à désigner') && !p.supply_only;
+          else matchesSubcontractor = !p.supply_only && p.subcontractor === filterSubcontractor;
+        }
         const matchesBdd = filterBdd === 'all' || (filterBdd === 'complete' ? p.database_complete : !p.database_complete);
         return matchesName && matchesConductor && matchesSubcontractor && matchesBdd;
       })
