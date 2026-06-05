@@ -834,11 +834,11 @@ function WeekFooterCells({
     <>
       {weeks.map(w => {
         const isSplit = splitKeys.has(w.key);
-        const cls = `p-1 border-t text-center font-normal w-[36px] bg-background ${
+        const cls = `p-1 border-t text-center font-normal bg-background ${
           w.key === todayKey ? 'bg-accent/20 font-bold' : ''
         } ${isSplit ? 'border-l border-dashed border-l-muted-foreground/60' : ''}`;
         return (
-          <th key={w.key} className={cls} style={{ position: 'sticky', bottom: 24 }}>
+          <th key={w.key} className={cls} style={{ position: 'sticky', bottom: 24, width: 55, minWidth: 55, maxWidth: 55 }}>
             {w.label}
           </th>
         );
@@ -865,12 +865,13 @@ function WeekHeaderCells({
       {weeks.map(w => {
         const isSplit = splitKeys.has(w.key);
         const r = rangeByKey[w.key];
-        const cls = `p-1 border-b text-center font-normal w-[36px] ${
+        const cls = `p-1 border-b text-center font-normal ${
           w.key === todayKey ? 'bg-accent/20 font-bold' : ''
         } ${isSplit ? 'border-l border-dashed border-l-muted-foreground/60' : ''}`;
-        if (!isSplit || !r) return <th key={w.key} className={cls}>{w.label}</th>;
+        const wStyle = { width: 55, minWidth: 55, maxWidth: 55 };
+        if (!isSplit || !r) return <th key={w.key} className={cls} style={wStyle}>{w.label}</th>;
         return (
-          <th key={w.key} className={cls}>
+          <th key={w.key} className={cls} style={wStyle}>
             <Tooltip>
               <TooltipTrigger asChild><span className="cursor-help">{w.label}</span></TooltipTrigger>
               <TooltipContent>Du {r.from} au {r.to}</TooltipContent>
