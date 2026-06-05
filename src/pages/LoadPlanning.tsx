@@ -1108,7 +1108,7 @@ function GanttView({
           <div style={{ width: tableWidth, height: 1 }} />
         </div>
         <div ref={tableScrollRef} className="overflow-x-auto">
-        <table ref={tableRef} className="text-xs border-collapse" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
+        <table ref={tableRef} className="text-xs border-collapse" style={{ tableLayout: 'fixed', width: 'max-content' }}>
           <colgroup>
             <col style={{ width: 220 }} />
             <col style={{ width: 140 }} />
