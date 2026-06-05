@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { getDisplayCDT, getDisplayPoseur, getFilterPoseur, SUPPLY_ONLY_LABEL } from '@/utils/supplyOnly';
+import { getDisplayCDT, getDisplayPoseur, getFilterPoseur, SUPPLY_ONLY_LABEL, formatCDTLabel } from '@/utils/supplyOnly';
 
 interface ProjectRow {
   id: string;
