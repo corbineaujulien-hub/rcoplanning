@@ -230,7 +230,12 @@ export default function Home() {
         if (showArchived !== (p.archived ?? false)) return false;
         const searchLower = searchName.toLowerCase();
         const matchesName = !searchName || (p.site_name || '').toLowerCase().includes(searchLower) || (p.otp_number || '').toLowerCase().includes(searchLower) || (p.client_name || '').toLowerCase().includes(searchLower);
-        const matchesConductor = filterConductor === 'all' || p.conductor === filterConductor;
+        let matchesConductor = true;
+        if (filterConductor !== 'all') {
+          const c = formatCDTLabel(p.conductor);
+          if (filterConductor === '__unassigned_cdt__') matchesConductor = !c || c === 'Conducteur à désigner';
+          else matchesConductor = c === filterConductor;
+        }
         let matchesSubcontractor = true;
         if (filterSubcontractor !== 'all') {
           if (filterSubcontractor === SUPPLY_ONLY_LABEL) matchesSubcontractor = !!p.supply_only;
