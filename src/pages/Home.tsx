@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { getDisplayCDT, getDisplayPoseur, getFilterPoseur, SUPPLY_ONLY_LABEL } from '@/utils/supplyOnly';
+import { getDisplayCDT, getDisplayPoseur, getFilterPoseur, SUPPLY_ONLY_LABEL, formatCDTLabel } from '@/utils/supplyOnly';
 
 interface ProjectRow {
   id: string;
@@ -116,7 +116,12 @@ export default function Home() {
         const searchLower = searchName.toLowerCase();
         if (searchName && !(p.site_name || '').toLowerCase().includes(searchLower) && !(p.otp_number || '').toLowerCase().includes(searchLower) && !(p.client_name || '').toLowerCase().includes(searchLower)) return false;
       }
-      if (exclude !== 'conductor' && filterConductor !== 'all' && p.conductor !== filterConductor) return false;
+      if (exclude !== 'conductor' && filterConductor !== 'all') {
+        if (filterConductor === '__unassigned_cdt__') {
+          const c = formatCDTLabel(p.conductor);
+          if (c && c !== 'Conducteur à désigner') return false;
+        } else if (formatCDTLabel(p.conductor) !== filterConductor) return false;
+      }
       if (exclude !== 'subcontractor' && filterSubcontractor !== 'all') {
         if (filterSubcontractor === SUPPLY_ONLY_LABEL) {
           if (!p.supply_only) return false;
@@ -135,7 +140,10 @@ export default function Home() {
 
   const conductors = useMemo(() => {
     const set = new Set<string>();
-    getProjectsExcludingFilter('conductor').forEach(p => { if (p.conductor) set.add(p.conductor); });
+    getProjectsExcludingFilter('conductor').forEach(p => {
+      const label = formatCDTLabel(p.conductor);
+      if (label && label !== 'Conducteur à désigner') set.add(label);
+    });
     return Array.from(set).sort();
   }, [getProjectsExcludingFilter]);
 
@@ -222,7 +230,12 @@ export default function Home() {
         if (showArchived !== (p.archived ?? false)) return false;
         const searchLower = searchName.toLowerCase();
         const matchesName = !searchName || (p.site_name || '').toLowerCase().includes(searchLower) || (p.otp_number || '').toLowerCase().includes(searchLower) || (p.client_name || '').toLowerCase().includes(searchLower);
-        const matchesConductor = filterConductor === 'all' || p.conductor === filterConductor;
+        let matchesConductor = true;
+        if (filterConductor !== 'all') {
+          const c = formatCDTLabel(p.conductor);
+          if (filterConductor === '__unassigned_cdt__') matchesConductor = !c || c === 'Conducteur à désigner';
+          else matchesConductor = c === filterConductor;
+        }
         let matchesSubcontractor = true;
         if (filterSubcontractor !== 'all') {
           if (filterSubcontractor === SUPPLY_ONLY_LABEL) matchesSubcontractor = !!p.supply_only;
@@ -359,6 +372,7 @@ export default function Home() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tous les conducteurs</SelectItem>
+                  <SelectItem value="__unassigned_cdt__">Conducteur à désigner</SelectItem>
                   {conductors.map(c => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
