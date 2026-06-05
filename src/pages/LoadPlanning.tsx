@@ -269,6 +269,27 @@ export default function LoadPlanning() {
 
   const monthGroups = useMemo(() => buildMonthGroups(weeks), [weeks]);
 
+  // Largeur dynamique des colonnes de semaines, calée sur la place disponible
+  // dans les blocs de charge (qui ont moins de colonnes fixes que le Gantt).
+  // Blocs de charge : colonne nom 180px + colonne Total 60px = 240px.
+  const FIXED_CHARGE_WIDTH = 240;
+  const MIN_WEEK_WIDTH = 18;
+  const MAX_WEEK_WIDTH = 55;
+  const [weekColumnWidth, setWeekColumnWidth] = useState<number>(28);
+  useEffect(() => {
+    const calc = () => {
+      const n = weeks.length;
+      if (!n) return;
+      const total = window.innerWidth - 16;
+      const available = Math.max(0, total - FIXED_CHARGE_WIDTH);
+      const w = Math.min(MAX_WEEK_WIDTH, Math.max(MIN_WEEK_WIDTH, Math.floor(available / n)));
+      setWeekColumnWidth(w);
+    };
+    calc();
+    window.addEventListener('resize', calc);
+    return () => window.removeEventListener('resize', calc);
+  }, [weeks.length]);
+
   const computedProjects: ProjectComputed[] = useMemo(() => {
     return projects.map(project => {
       const projTrucks = trucks.filter(t => t.project_id === project.id && t.date);
