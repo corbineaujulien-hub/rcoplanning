@@ -1,5 +1,5 @@
 export const SUPPLY_ONLY_LABEL = 'Fourniture seule';
-export const SUPPLY_ONLY_COLOR = '#7c3aed';
+export const SUPPLY_ONLY_COLOR = '#1e3a5f';
 
 export interface SupplyOnlyProject {
   supply_only?: boolean | null;

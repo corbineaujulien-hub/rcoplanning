@@ -162,7 +162,7 @@ export async function exportLoadPlanningPdf(args: ExportArgs) {
     if (lx > pageW - 30) { lx = margin; y += 4; }
   });
   if (projects.some(p => p.isSupplyOnly)) {
-    const [r, g, b] = hexToRgb('#7c3aed');
+    const [r, g, b] = hexToRgb('#1e3a5f');
     doc.setFillColor(r, g, b);
     doc.rect(lx, y - 2, 2.5, 2.5, 'F');
     doc.text('Fourniture seule', lx + 3.5, y);
