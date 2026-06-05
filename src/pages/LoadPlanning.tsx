@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback, Fragment } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -796,6 +796,57 @@ function MonthsHeader({ monthGroups, leftColSpan }: { monthGroups: MonthGroup[];
   );
 }
 
+function MonthsFooter({ monthGroups, leftColSpan }: { monthGroups: MonthGroup[]; leftColSpan: number }) {
+  return (
+    <tr>
+      <th
+        colSpan={leftColSpan}
+        className="sticky left-0 bottom-0 bg-background z-20 border-t"
+        style={{ position: 'sticky', bottom: 0 }}
+      />
+      {monthGroups.map((g, i) => (
+        <th
+          key={i}
+          colSpan={g.weeks.length}
+          className="p-1 border-t border-l text-center text-[11px] font-semibold capitalize bg-muted/40"
+          style={{ position: 'sticky', bottom: 0 }}
+        >
+          {g.label}
+        </th>
+      ))}
+      <th
+        className="sticky right-0 bottom-0 bg-background z-20 border-t border-l"
+        style={{ position: 'sticky', bottom: 0 }}
+      />
+    </tr>
+  );
+}
+
+function WeekFooterCells({
+  weeks, monthGroups, todayKey,
+}: { weeks: ISOWeek[]; monthGroups: MonthGroup[]; todayKey: string }) {
+  const splitKeys = useMemo(() => {
+    const s = new Set<string>();
+    monthGroups.forEach(g => g.splitWeekKeys.forEach(k => s.add(k)));
+    return s;
+  }, [monthGroups]);
+  return (
+    <>
+      {weeks.map(w => {
+        const isSplit = splitKeys.has(w.key);
+        const cls = `p-1 border-t text-center font-normal w-[36px] bg-background ${
+          w.key === todayKey ? 'bg-accent/20 font-bold' : ''
+        } ${isSplit ? 'border-l border-dashed border-l-muted-foreground/60' : ''}`;
+        return (
+          <th key={w.key} className={cls} style={{ position: 'sticky', bottom: 24 }}>
+            {w.label}
+          </th>
+        );
+      })}
+    </>
+  );
+}
+
 function WeekHeaderCells({
   weeks, monthGroups, todayKey,
 }: { weeks: ISOWeek[]; monthGroups: MonthGroup[]; todayKey: string }) {
@@ -1016,11 +1067,47 @@ function GanttView({
   const [popoverProjectId, setPopoverProjectId] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+  const [tableWidth, setTableWidth] = useState(0);
+
+  useEffect(() => {
+    const update = () => {
+      if (tableRef.current) setTableWidth(tableRef.current.scrollWidth);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    if (tableRef.current) ro.observe(tableRef.current);
+    window.addEventListener('resize', update);
+    return () => { ro.disconnect(); window.removeEventListener('resize', update); };
+  }, [weeks.length, projects.length]);
+
+  useEffect(() => {
+    const top = topScrollRef.current;
+    const tbl = tableScrollRef.current;
+    if (!top || !tbl) return;
+    let syncing = false;
+    const onTop = () => { if (syncing) return; syncing = true; tbl.scrollLeft = top.scrollLeft; syncing = false; };
+    const onTbl = () => { if (syncing) return; syncing = true; top.scrollLeft = tbl.scrollLeft; syncing = false; };
+    top.addEventListener('scroll', onTop);
+    tbl.addEventListener('scroll', onTbl);
+    return () => { top.removeEventListener('scroll', onTop); tbl.removeEventListener('scroll', onTbl); };
+  }, []);
+
   return (
     <Card>
       <CardHeader className="pb-2"><CardTitle className="text-sm">Planning Gantt</CardTitle></CardHeader>
-      <CardContent className="overflow-x-auto">
-        <table className="text-xs border-collapse w-full">
+      <CardContent className="p-0">
+        <div
+          ref={topScrollRef}
+          className="overflow-x-scroll overflow-y-hidden bg-background sticky top-0 z-20"
+          style={{ height: 14 }}
+        >
+          <div style={{ width: tableWidth, height: 1 }} />
+        </div>
+        <div ref={tableScrollRef} className="overflow-x-auto">
+        <table ref={tableRef} className="text-xs border-collapse w-full">
           <thead>
             <MonthsHeader monthGroups={monthGroups} leftColSpan={3} />
             <tr>
@@ -1199,7 +1286,16 @@ function GanttView({
               );
             })()}
           </tbody>
+          <tfoot>
+            <tr>
+              <th colSpan={3} className="sticky left-0 bg-background z-20 p-1 border-t" style={{ position: 'sticky', bottom: 24 }} />
+              <WeekFooterCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} />
+              <th className="sticky right-0 bg-background z-20 p-1 border-t border-l" style={{ position: 'sticky', bottom: 24 }} />
+            </tr>
+            <MonthsFooter monthGroups={monthGroups} leftColSpan={3} />
+          </tfoot>
         </table>
+        </div>
       </CardContent>
     </Card>
   );
