@@ -148,13 +148,7 @@ function buildMonthGroups(weeks: ISOWeek[]): MonthGroup[] {
 }
 
 function computeMonthShortLabels(groups: MonthGroup[]): string[] {
-  let lastYear: number | null = null;
-  return groups.map(g => {
-    const short = MONTHS_SHORT[g.monthIndex] || g.label;
-    const showYear = lastYear !== g.year;
-    lastYear = g.year;
-    return showYear ? `${short} ${g.year}` : short;
-  });
+  return groups.map(g => g.label);
 }
 
 function stripPhone(s: string): string {
