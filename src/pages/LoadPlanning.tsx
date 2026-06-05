@@ -834,11 +834,11 @@ function WeekFooterCells({
     <>
       {weeks.map(w => {
         const isSplit = splitKeys.has(w.key);
-        const cls = `p-1 border-t text-center font-normal w-[36px] bg-background ${
+        const cls = `p-1 border-t text-center font-normal bg-background ${
           w.key === todayKey ? 'bg-accent/20 font-bold' : ''
         } ${isSplit ? 'border-l border-dashed border-l-muted-foreground/60' : ''}`;
         return (
-          <th key={w.key} className={cls} style={{ position: 'sticky', bottom: 24 }}>
+          <th key={w.key} className={cls} style={{ position: 'sticky', bottom: 24, width: 55, minWidth: 55, maxWidth: 55 }}>
             {w.label}
           </th>
         );
@@ -865,12 +865,13 @@ function WeekHeaderCells({
       {weeks.map(w => {
         const isSplit = splitKeys.has(w.key);
         const r = rangeByKey[w.key];
-        const cls = `p-1 border-b text-center font-normal w-[36px] ${
+        const cls = `p-1 border-b text-center font-normal ${
           w.key === todayKey ? 'bg-accent/20 font-bold' : ''
         } ${isSplit ? 'border-l border-dashed border-l-muted-foreground/60' : ''}`;
-        if (!isSplit || !r) return <th key={w.key} className={cls}>{w.label}</th>;
+        const wStyle = { width: 55, minWidth: 55, maxWidth: 55 };
+        if (!isSplit || !r) return <th key={w.key} className={cls} style={wStyle}>{w.label}</th>;
         return (
-          <th key={w.key} className={cls}>
+          <th key={w.key} className={cls} style={wStyle}>
             <Tooltip>
               <TooltipTrigger asChild><span className="cursor-help">{w.label}</span></TooltipTrigger>
               <TooltipContent>Du {r.from} au {r.to}</TooltipContent>
@@ -1107,15 +1108,22 @@ function GanttView({
           <div style={{ width: tableWidth, height: 1 }} />
         </div>
         <div ref={tableScrollRef} className="overflow-x-auto">
-        <table ref={tableRef} className="text-xs border-collapse w-full">
+        <table ref={tableRef} className="text-xs border-collapse" style={{ tableLayout: 'fixed', width: 'max-content' }}>
+          <colgroup>
+            <col style={{ width: 220 }} />
+            <col style={{ width: 140 }} />
+            <col style={{ width: 140 }} />
+            {weeks.map(w => <col key={w.key} style={{ width: 55 }} />)}
+            <col style={{ width: 60 }} />
+          </colgroup>
           <thead>
             <MonthsHeader monthGroups={monthGroups} leftColSpan={3} />
             <tr>
-              <th className="sticky left-0 bg-background z-10 text-left p-1 border-b min-w-[280px]">Chantier</th>
-              <th className="sticky left-[280px] bg-background z-10 text-left p-1 border-b min-w-[160px]">CDT</th>
-              <th className="sticky left-[440px] bg-background z-10 text-left p-1 border-b min-w-[140px]">Poseur</th>
+              <th className="sticky left-0 bg-background z-10 text-left p-1 border-b">Chantier</th>
+              <th className="sticky left-[220px] bg-background z-10 text-left p-1 border-b">CDT</th>
+              <th className="sticky left-[360px] bg-background z-10 text-left p-1 border-b">Poseur</th>
               <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} />
-              <th className="sticky right-0 bg-background z-10 text-center p-1 border-b border-l min-w-[50px] font-semibold">Total</th>
+              <th className="sticky right-0 bg-background z-10 text-center p-1 border-b border-l font-semibold">Total</th>
             </tr>
           </thead>
           <tbody>
@@ -1130,7 +1138,7 @@ function GanttView({
               return (
                 <tr key={cp.project.id} className="hover:bg-muted/30">
                   <td
-                    className="sticky left-0 bg-background z-10 p-1 border-b cursor-pointer"
+                    className="sticky left-0 bg-background z-10 p-1 border-b cursor-pointer overflow-hidden"
                     title="Double-clic pour ouvrir le chantier"
                     onDoubleClick={() => {
                       const tk = tokens[cp.project.id];
@@ -1141,7 +1149,7 @@ function GanttView({
                     <Popover open={isPopOpen} onOpenChange={(o) => !o && setPopoverProjectId(null)}>
                       <PopoverAnchor asChild>
                         <div>
-                          <div className="font-medium truncate max-w-[260px]">{cp.project.site_name || 'Sans nom'}</div>
+                          <div className="font-medium truncate max-w-[210px]">{cp.project.site_name || 'Sans nom'}</div>
                           <div className="text-[10px] text-[#6b7280]">
                             {cp.project.otp_number || '—'}
                             {cp.project.database_complete && <span className="ml-1">· BDD ✅</span>}
@@ -1181,7 +1189,7 @@ function GanttView({
                       </PopoverContent>
                     </Popover>
                   </td>
-                  <td className="sticky left-[280px] bg-background z-10 p-1 border-b" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'conductor' })}>
+                  <td className="sticky left-[220px] bg-background z-10 p-1 border-b overflow-hidden" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'conductor' })}>
                     {editing?.id === cp.project.id && editing.field === 'conductor' ? (
                       <Select
                         defaultValue={cp.project.conductor || ''}
@@ -1199,7 +1207,7 @@ function GanttView({
                       <span className="cursor-pointer" title="Double-clic pour modifier">{cp.conductor}</span>
                     )}
                   </td>
-                  <td className="sticky left-[440px] bg-background z-10 p-1 border-b" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'subcontractor' })}>
+                  <td className="sticky left-[360px] bg-background z-10 p-1 border-b overflow-hidden" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'subcontractor' })}>
                     {editing?.id === cp.project.id && editing.field === 'subcontractor' ? (
                       <Select
                         defaultValue={cp.project.subcontractor || ''}
