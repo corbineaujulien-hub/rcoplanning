@@ -1108,15 +1108,22 @@ function GanttView({
           <div style={{ width: tableWidth, height: 1 }} />
         </div>
         <div ref={tableScrollRef} className="overflow-x-auto">
-        <table ref={tableRef} className="text-xs border-collapse w-full">
+        <table ref={tableRef} className="text-xs border-collapse" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
+          <colgroup>
+            <col style={{ width: 220 }} />
+            <col style={{ width: 140 }} />
+            <col style={{ width: 140 }} />
+            {weeks.map(w => <col key={w.key} style={{ width: 55 }} />)}
+            <col style={{ width: 60 }} />
+          </colgroup>
           <thead>
             <MonthsHeader monthGroups={monthGroups} leftColSpan={3} />
             <tr>
-              <th className="sticky left-0 bg-background z-10 text-left p-1 border-b min-w-[280px]">Chantier</th>
-              <th className="sticky left-[280px] bg-background z-10 text-left p-1 border-b min-w-[160px]">CDT</th>
-              <th className="sticky left-[440px] bg-background z-10 text-left p-1 border-b min-w-[140px]">Poseur</th>
+              <th className="sticky left-0 bg-background z-10 text-left p-1 border-b">Chantier</th>
+              <th className="sticky left-[220px] bg-background z-10 text-left p-1 border-b">CDT</th>
+              <th className="sticky left-[360px] bg-background z-10 text-left p-1 border-b">Poseur</th>
               <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} />
-              <th className="sticky right-0 bg-background z-10 text-center p-1 border-b border-l min-w-[50px] font-semibold">Total</th>
+              <th className="sticky right-0 bg-background z-10 text-center p-1 border-b border-l font-semibold">Total</th>
             </tr>
           </thead>
           <tbody>
