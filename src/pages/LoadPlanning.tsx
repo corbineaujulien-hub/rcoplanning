@@ -1067,11 +1067,47 @@ function GanttView({
   const [popoverProjectId, setPopoverProjectId] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+  const [tableWidth, setTableWidth] = useState(0);
+
+  useEffect(() => {
+    const update = () => {
+      if (tableRef.current) setTableWidth(tableRef.current.scrollWidth);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    if (tableRef.current) ro.observe(tableRef.current);
+    window.addEventListener('resize', update);
+    return () => { ro.disconnect(); window.removeEventListener('resize', update); };
+  }, [weeks.length, projects.length]);
+
+  useEffect(() => {
+    const top = topScrollRef.current;
+    const tbl = tableScrollRef.current;
+    if (!top || !tbl) return;
+    let syncing = false;
+    const onTop = () => { if (syncing) return; syncing = true; tbl.scrollLeft = top.scrollLeft; syncing = false; };
+    const onTbl = () => { if (syncing) return; syncing = true; top.scrollLeft = tbl.scrollLeft; syncing = false; };
+    top.addEventListener('scroll', onTop);
+    tbl.addEventListener('scroll', onTbl);
+    return () => { top.removeEventListener('scroll', onTop); tbl.removeEventListener('scroll', onTbl); };
+  }, []);
+
   return (
     <Card>
       <CardHeader className="pb-2"><CardTitle className="text-sm">Planning Gantt</CardTitle></CardHeader>
-      <CardContent className="overflow-x-auto">
-        <table className="text-xs border-collapse w-full">
+      <CardContent className="p-0">
+        <div
+          ref={topScrollRef}
+          className="overflow-x-scroll overflow-y-hidden bg-background sticky top-0 z-20"
+          style={{ height: 14 }}
+        >
+          <div style={{ width: tableWidth, height: 1 }} />
+        </div>
+        <div ref={tableScrollRef} className="overflow-x-auto px-6 pb-6">
+        <table ref={tableRef} className="text-xs border-collapse w-full">
           <thead>
             <MonthsHeader monthGroups={monthGroups} leftColSpan={3} />
             <tr>
@@ -1250,7 +1286,16 @@ function GanttView({
               );
             })()}
           </tbody>
+          <tfoot>
+            <tr>
+              <th colSpan={3} className="sticky left-0 bg-background z-20 p-1 border-t" style={{ position: 'sticky', bottom: 24 }} />
+              <WeekFooterCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} />
+              <th className="sticky right-0 bg-background z-20 p-1 border-t border-l" style={{ position: 'sticky', bottom: 24 }} />
+            </tr>
+            <MonthsFooter monthGroups={monthGroups} leftColSpan={3} />
+          </tfoot>
         </table>
+        </div>
       </CardContent>
     </Card>
   );
