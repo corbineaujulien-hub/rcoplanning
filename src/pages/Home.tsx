@@ -116,7 +116,12 @@ export default function Home() {
         const searchLower = searchName.toLowerCase();
         if (searchName && !(p.site_name || '').toLowerCase().includes(searchLower) && !(p.otp_number || '').toLowerCase().includes(searchLower) && !(p.client_name || '').toLowerCase().includes(searchLower)) return false;
       }
-      if (exclude !== 'conductor' && filterConductor !== 'all' && p.conductor !== filterConductor) return false;
+      if (exclude !== 'conductor' && filterConductor !== 'all') {
+        if (filterConductor === '__unassigned_cdt__') {
+          const c = formatCDTLabel(p.conductor);
+          if (c && c !== 'Conducteur à désigner') return false;
+        } else if (formatCDTLabel(p.conductor) !== filterConductor) return false;
+      }
       if (exclude !== 'subcontractor' && filterSubcontractor !== 'all') {
         if (filterSubcontractor === SUPPLY_ONLY_LABEL) {
           if (!p.supply_only) return false;
