@@ -8,8 +8,12 @@ export interface SupplyOnlyProject {
   subcontractor?: string | null;
 }
 
-function stripPhone(s: string): string {
+export function stripPhone(s: string): string {
   return (s || '').split(' – ')[0].split(' - ')[0].trim();
+}
+
+export function formatCDTLabel(cdt: string | null | undefined): string {
+  return stripPhone(cdt || '');
 }
 
 export function getDisplayCDT(p: SupplyOnlyProject): string {
