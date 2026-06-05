@@ -819,6 +819,7 @@ function aggregateTeams(
 }
 
 function MonthsHeader({ monthGroups, leftColSpan }: { monthGroups: MonthGroup[]; leftColSpan: number }) {
+  const labels = useMemo(() => computeMonthShortLabels(monthGroups), [monthGroups]);
   return (
     <tr>
       <th colSpan={leftColSpan} className="sticky left-0 bg-background z-10 border-b" />
@@ -826,9 +827,9 @@ function MonthsHeader({ monthGroups, leftColSpan }: { monthGroups: MonthGroup[];
         <th
           key={i}
           colSpan={g.weeks.length}
-          className="p-1 border-b border-l text-center text-[11px] font-semibold capitalize bg-muted/40"
+          className="p-0.5 border-b border-l text-center text-[10px] font-semibold capitalize bg-muted/40 truncate"
         >
-          {g.label}
+          {labels[i]}
         </th>
       ))}
     </tr>
@@ -836,6 +837,7 @@ function MonthsHeader({ monthGroups, leftColSpan }: { monthGroups: MonthGroup[];
 }
 
 function MonthsFooter({ monthGroups, leftColSpan }: { monthGroups: MonthGroup[]; leftColSpan: number }) {
+  const labels = useMemo(() => computeMonthShortLabels(monthGroups), [monthGroups]);
   return (
     <tr>
       <th
@@ -847,10 +849,10 @@ function MonthsFooter({ monthGroups, leftColSpan }: { monthGroups: MonthGroup[];
         <th
           key={i}
           colSpan={g.weeks.length}
-          className="p-1 border-t border-l text-center text-[11px] font-semibold capitalize bg-muted/40"
+          className="p-0.5 border-t border-l text-center text-[10px] font-semibold capitalize bg-muted/40 truncate"
           style={{ position: 'sticky', bottom: 0 }}
         >
-          {g.label}
+          {labels[i]}
         </th>
       ))}
       <th
@@ -862,8 +864,8 @@ function MonthsFooter({ monthGroups, leftColSpan }: { monthGroups: MonthGroup[];
 }
 
 function WeekFooterCells({
-  weeks, monthGroups, todayKey,
-}: { weeks: ISOWeek[]; monthGroups: MonthGroup[]; todayKey: string }) {
+  weeks, monthGroups, todayKey, weekColumnWidth,
+}: { weeks: ISOWeek[]; monthGroups: MonthGroup[]; todayKey: string; weekColumnWidth: number }) {
   const splitKeys = useMemo(() => {
     const s = new Set<string>();
     monthGroups.forEach(g => g.splitWeekKeys.forEach(k => s.add(k)));
@@ -873,12 +875,12 @@ function WeekFooterCells({
     <>
       {weeks.map(w => {
         const isSplit = splitKeys.has(w.key);
-        const cls = `p-1 border-t text-center font-normal bg-background ${
+        const cls = `p-0 border-t text-center font-normal bg-background text-[9px] ${
           w.key === todayKey ? 'bg-accent/20 font-bold' : ''
         } ${isSplit ? 'border-l border-dashed border-l-muted-foreground/60' : ''}`;
         return (
-          <th key={w.key} className={cls} style={{ position: 'sticky', bottom: 24, width: 55, minWidth: 55, maxWidth: 55 }}>
-            {w.label}
+          <th key={w.key} className={cls} style={{ position: 'sticky', bottom: 24, width: weekColumnWidth, minWidth: weekColumnWidth, maxWidth: weekColumnWidth }}>
+            {w.week}
           </th>
         );
       })}
@@ -887,8 +889,8 @@ function WeekFooterCells({
 }
 
 function WeekHeaderCells({
-  weeks, monthGroups, todayKey,
-}: { weeks: ISOWeek[]; monthGroups: MonthGroup[]; todayKey: string }) {
+  weeks, monthGroups, todayKey, weekColumnWidth,
+}: { weeks: ISOWeek[]; monthGroups: MonthGroup[]; todayKey: string; weekColumnWidth: number }) {
   const splitKeys = useMemo(() => {
     const s = new Set<string>();
     monthGroups.forEach(g => g.splitWeekKeys.forEach(k => s.add(k)));
@@ -904,16 +906,16 @@ function WeekHeaderCells({
       {weeks.map(w => {
         const isSplit = splitKeys.has(w.key);
         const r = rangeByKey[w.key];
-        const cls = `p-1 border-b text-center font-normal ${
+        const cls = `p-0 border-b text-center font-normal text-[9px] ${
           w.key === todayKey ? 'bg-accent/20 font-bold' : ''
         } ${isSplit ? 'border-l border-dashed border-l-muted-foreground/60' : ''}`;
-        const wStyle = { width: 55, minWidth: 55, maxWidth: 55 };
-        if (!isSplit || !r) return <th key={w.key} className={cls} style={wStyle}>{w.label}</th>;
+        const wStyle = { width: weekColumnWidth, minWidth: weekColumnWidth, maxWidth: weekColumnWidth };
+        const tip = r ? `Semaine ${w.week} — du ${r.from} au ${r.to}` : `Semaine ${w.week}`;
         return (
           <th key={w.key} className={cls} style={wStyle}>
             <Tooltip>
-              <TooltipTrigger asChild><span className="cursor-help">{w.label}</span></TooltipTrigger>
-              <TooltipContent>Du {r.from} au {r.to}</TooltipContent>
+              <TooltipTrigger asChild><span className="cursor-help">{w.week}</span></TooltipTrigger>
+              <TooltipContent>{tip}</TooltipContent>
             </Tooltip>
           </th>
         );
