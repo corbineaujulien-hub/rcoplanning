@@ -1184,7 +1184,7 @@ function GanttView({
               <tr><td colSpan={weeks.length + 4} className="p-2 text-muted-foreground italic text-center">Aucun chantier</td></tr>
             )}
             {projects.map(cp => {
-              const color = getPoseurColor(cp.poseur);
+              const color = cp.color;
               const projWeeksAll = forecastWeeks.filter(w => w.projectId === cp.project.id);
               const isPopOpen = popoverProjectId === cp.project.id;
               const projectTotal = weeks.reduce((s, w) => s + (cp.weeks[w.key]?.count || 0), 0);
@@ -1242,8 +1242,11 @@ function GanttView({
                       </PopoverContent>
                     </Popover>
                   </td>
-                  <td className="sticky left-[180px] bg-background z-10 p-1 border-b overflow-hidden" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'conductor' })}>
-                    {editing?.id === cp.project.id && editing.field === 'conductor' ? (
+                  <td
+                    className={`sticky left-[180px] bg-background z-10 p-1 border-b overflow-hidden ${cp.isSupplyOnly ? 'opacity-70' : ''}`}
+                    onDoubleClick={() => { if (!cp.isSupplyOnly) setEditing({ id: cp.project.id, field: 'conductor' }); }}
+                  >
+                    {!cp.isSupplyOnly && editing?.id === cp.project.id && editing.field === 'conductor' ? (
                       <Select
                         defaultValue={cp.project.conductor || ''}
                         onValueChange={v => { onUpdateField(cp.project.id, 'conductor', v === '__none__' ? '' : v); setEditing(null); }}
@@ -1257,11 +1260,14 @@ function GanttView({
                         </SelectContent>
                       </Select>
                     ) : (
-                      <span className="cursor-pointer" title="Double-clic pour modifier">{cp.conductor}</span>
+                      <span className={cp.isSupplyOnly ? '' : 'cursor-pointer'} title={cp.isSupplyOnly ? 'Fourniture seule' : 'Double-clic pour modifier'}>{cp.conductor}</span>
                     )}
                   </td>
-                  <td className="sticky left-[300px] bg-background z-10 p-1 border-b overflow-hidden" onDoubleClick={() => setEditing({ id: cp.project.id, field: 'subcontractor' })}>
-                    {editing?.id === cp.project.id && editing.field === 'subcontractor' ? (
+                  <td
+                    className={`sticky left-[300px] bg-background z-10 p-1 border-b overflow-hidden ${cp.isSupplyOnly ? 'opacity-70' : ''}`}
+                    onDoubleClick={() => { if (!cp.isSupplyOnly) setEditing({ id: cp.project.id, field: 'subcontractor' }); }}
+                  >
+                    {!cp.isSupplyOnly && editing?.id === cp.project.id && editing.field === 'subcontractor' ? (
                       <Select
                         defaultValue={cp.project.subcontractor || ''}
                         onValueChange={v => { onUpdateField(cp.project.id, 'subcontractor', v === '__none__' ? '' : v); setEditing(null); }}
