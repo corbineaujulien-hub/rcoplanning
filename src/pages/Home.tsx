@@ -118,6 +118,7 @@ export default function Home() {
       }
       if (exclude !== 'conductor' && filterConductor !== 'all') {
         if (filterConductor === '__unassigned_cdt__') {
+          if (p.supply_only) return false;
           const c = formatCDTLabel(p.conductor);
           if (c && c !== 'Conducteur à désigner') return false;
         } else if (formatCDTLabel(p.conductor) !== filterConductor) return false;
@@ -233,7 +234,7 @@ export default function Home() {
         let matchesConductor = true;
         if (filterConductor !== 'all') {
           const c = formatCDTLabel(p.conductor);
-          if (filterConductor === '__unassigned_cdt__') matchesConductor = !c || c === 'Conducteur à désigner';
+        if (filterConductor === '__unassigned_cdt__') matchesConductor = !p.supply_only && (!c || c === 'Conducteur à désigner');
           else matchesConductor = c === filterConductor;
         }
         let matchesSubcontractor = true;
