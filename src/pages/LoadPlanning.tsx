@@ -424,7 +424,10 @@ export default function LoadPlanning() {
     // Period filter: include only projects with at least one real or forecast cell in the visible range.
     const hasAnyInPeriod = Object.values(cp.weeks).some(w => w.source !== 'none');
     if (!hasAnyInPeriod) return false;
-    if (exclude !== 'cdt' && filterCdt.size > 0 && !filterCdt.has(cp.conductorFilterKey)) return false;
+    if (exclude !== 'cdt' && filterCdt.size > 0) {
+      if (cp.isSupplyOnly) return false;
+      if (!filterCdt.has(cp.conductorFilterKey)) return false;
+    }
     if (exclude !== 'poseur' && filterPoseur.size > 0 && !filterPoseur.has(cp.poseurFilterKey)) return false;
     if (exclude !== 'usine' && filterUsine.size > 0) {
       let any = false;
