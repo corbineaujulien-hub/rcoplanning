@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import ActiveUsersNotification from '@/components/ActiveUsersNotification';
 import { Progress } from '@/components/ui/progress';
 import { useNavigate } from 'react-router-dom';
@@ -22,6 +23,8 @@ import { calculatePlanningProgress } from '@/utils/progressUtils';
 export default function DeliveryApp() {
   const { trucks, projectInfo, elements, getTruckElements, teams, projectId } = useDelivery();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'info';
   const [exportPdfOpen, setExportPdfOpen] = useState(false);
   const [exportExcelOpen, setExportExcelOpen] = useState(false);
 
@@ -165,7 +168,7 @@ export default function DeliveryApp() {
       </header>
 
       <main className="container py-4">
-        <Tabs defaultValue="info">
+        <Tabs defaultValue={initialTab}>
           <TabsList className="flex flex-wrap h-auto gap-1 bg-muted p-1 mb-4">
             <TabsTrigger value="info" className="flex items-center gap-1 text-xs">
               <ClipboardList className="h-3.5 w-3.5" /> Infos générales
