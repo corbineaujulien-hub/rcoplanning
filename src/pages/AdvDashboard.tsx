@@ -232,7 +232,7 @@ export default function AdvDashboard() {
         const c = r.cautions[i];
         base[`Caution ${i + 1}`] = c ? `${c.nom} : ${c.statut}` : '';
       }
-      base['Relances en attente'] = projRelances.map(x => `${x.type} (${formatDateFR(x.echeance)})`).join(' | ');
+      base['Relances à réaliser'] = projRelances.map(x => `${x.type} (${formatDateFR(x.echeance)})`).join(' | ');
       base['Commentaire'] = adv?.commentaire || '';
       return base;
     });
