@@ -472,6 +472,9 @@ export default function Home() {
                   const deliveredW = projectDeliveredWeight.get(project.id) || 0;
                   const planningPct = totalW > 0 ? Math.round((loadedW / totalW) * 100) : 0;
                   const deliveryPct = totalW > 0 ? Math.round((deliveredW / totalW) * 100) : 0;
+                  const advRow = advByProject.get(project.id);
+                  const advCust = cautionsByProject.get(project.id) || [];
+                  const advScore = advRow ? calculateAdvScore(advRow as any, advCust) : null;
 
                   return (
                     <div
@@ -485,6 +488,9 @@ export default function Home() {
                             {project.otp_number && <span className="text-muted-foreground font-normal text-sm mr-2">OTP: {project.otp_number} —</span>}
                             {project.site_name || 'Chantier sans nom'}
                             {project.database_complete && <span className="text-xs font-medium text-green-600 ml-2">BDD ✅</span>}
+                            {advScore !== null && (
+                              <span className={`text-xs font-medium ml-2 ${getScoreColorClass(advScore)}`}>ADV : {advScore}%</span>
+                            )}
                             
                           </div>
                           <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-0.5 text-sm text-muted-foreground">
