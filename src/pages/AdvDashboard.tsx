@@ -190,6 +190,17 @@ export default function AdvDashboard() {
       .sort((a, b) => a.echeance.localeCompare(b.echeance));
   }, [relances]);
 
+  const chantiersRisqueRows = useMemo(() => {
+    return rows
+      .filter(r => (r.badge === 'Critique' || r.badge === 'Important') && r.adv)
+      .map(r => ({
+        ...r,
+        pendingDemarches: getApplicableDemarches(r.adv!).filter(d => !isDemarcheFinal(d.status)),
+      }))
+      .filter(r => r.pendingDemarches.length > 0)
+      .sort((a, b) => (a.startDate?.getTime() || 0) - (b.startDate?.getTime() || 0));
+  }, [rows]);
+
   const openProject = (projectId: string) => {
     const token = linkByProject.get(projectId);
     if (token) navigate(`/p/${token}?tab=adv`);
