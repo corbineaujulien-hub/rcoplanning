@@ -8,6 +8,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Home from "./pages/Home.tsx";
 import Project from "./pages/Project.tsx";
 import LoadPlanning from "./pages/LoadPlanning.tsx";
+import AdvDashboard from "./pages/AdvDashboard.tsx";
 import Login from "./pages/Login.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
             <Route path="/p/:token" element={<ProtectedRoute><Project /></ProtectedRoute>} />
             <Route path="/planning-charge" element={<ProtectedRoute><LoadPlanning /></ProtectedRoute>} />
+            <Route path="/adv" element={<ProtectedRoute><AdvDashboard /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
