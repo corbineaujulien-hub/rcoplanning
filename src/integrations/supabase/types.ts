@@ -14,6 +14,167 @@ export type Database = {
   }
   public: {
     Tables: {
+      adv_cautions_custom: {
+        Row: {
+          created_at: string
+          id: string
+          nom: string
+          project_id: string
+          statut: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nom?: string
+          project_id: string
+          statut?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nom?: string
+          project_id?: string
+          statut?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "adv_cautions_custom_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      adv_historique: {
+        Row: {
+          date: string
+          description: string
+          id: string
+          project_id: string
+          user_email: string
+        }
+        Insert: {
+          date?: string
+          description: string
+          id?: string
+          project_id: string
+          user_email?: string
+        }
+        Update: {
+          date?: string
+          description?: string
+          id?: string
+          project_id?: string
+          user_email?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "adv_historique_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      adv_relances: {
+        Row: {
+          created_at: string
+          demarche: string
+          echeance: string
+          id: string
+          project_id: string
+          source_id: string | null
+          statut: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          demarche: string
+          echeance: string
+          id?: string
+          project_id: string
+          source_id?: string | null
+          statut?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          demarche?: string
+          echeance?: string
+          id?: string
+          project_id?: string
+          source_id?: string | null
+          statut?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "adv_relances_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      adv_status: {
+        Row: {
+          caution_rg: string
+          commentaire: string
+          compte_client: string
+          contrat_client: string
+          contrat_st: string
+          created_at: string
+          dast: string
+          garantie_sfac: string
+          id: string
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          caution_rg?: string
+          commentaire?: string
+          compte_client?: string
+          contrat_client?: string
+          contrat_st?: string
+          created_at?: string
+          dast?: string
+          garantie_sfac?: string
+          id?: string
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          caution_rg?: string
+          commentaire?: string
+          compte_client?: string
+          contrat_client?: string
+          contrat_st?: string
+          created_at?: string
+          dast?: string
+          garantie_sfac?: string
+          id?: string
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "adv_status_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       beam_elements: {
         Row: {
           created_at: string | null
