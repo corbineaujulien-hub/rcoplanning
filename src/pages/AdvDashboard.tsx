@@ -250,6 +250,14 @@ export default function AdvDashboard() {
           <img src="/logo.png" alt="Logo" className="h-8 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           <ClipboardCheck className="h-7 w-7" />
           <h1 className="text-lg font-bold tracking-tight flex-1">RECTOR – Tableau de bord ADV</h1>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => navigate('/planning-charge')}
+          >
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Planning de charge
+          </Button>
           <Button variant="ghost" size="sm" className="text-primary-foreground/80 hover:text-primary-foreground" onClick={() => navigate('/')}>
             <Home className="h-4 w-4" />
           </Button>
@@ -262,7 +270,7 @@ export default function AdvDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <KpiCard label="Chantiers actifs" value={chantiersActifs} />
               <KpiCard label="Chantiers à risque" value={chantiersRisque} color="text-orange-600" />
-              <KpiCard label="Actions en attente" value={actionsEnAttente} />
+              <KpiCard label="Actions à compléter" value={actionsEnAttente} />
               <KpiCard label="Relances échues" value={relancesEchues} color="text-red-600" />
             </div>
 
