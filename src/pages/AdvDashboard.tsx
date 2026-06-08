@@ -1,0 +1,428 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Home, ClipboardCheck, FileSpreadsheet, Search, AlertTriangle, ArrowUpRight } from 'lucide-react';
+import { setISOWeek, setISOWeekYear, startOfISOWeek, differenceInCalendarDays, parseISO, format } from 'date-fns';
+import {
+  AdvStatus, AdvCautionCustom, AdvRelance, DEMARCHE_LABELS,
+  calculateAdvScore, getScoreHexColor, getScoreColorClass,
+  effectiveRelanceStatus, isDemarcheFinal, getApplicableDemarches, formatDateFR,
+} from '@/utils/adv';
+import { formatCDTLabel } from '@/utils/supplyOnly';
+import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
+
+const sb = supabase as any;
+
+interface ProjectRow {
+  id: string;
+  site_name: string | null;
+  client_name: string | null;
+  otp_number: string | null;
+  conductor: string | null;
+  subcontractor: string | null;
+  archived: boolean;
+  supply_only: boolean;
+}
+interface TruckLite { project_id: string; date: string }
+interface ForecastWeekLite { project_id: string; year: number; week_number: number }
+interface AccessLink { project_id: string; token: string }
+
+type Badge = 'Critique' | 'Important' | 'En attente' | 'Conforme';
+
+function badgeOf(score: number, startDate: Date | null): Badge {
+  if (score >= 99) return 'Conforme';
+  if (!startDate) return 'En attente';
+  const days = differenceInCalendarDays(startDate, new Date());
+  if (days <= 7) return 'Critique';
+  if (days <= 15) return 'Important';
+  return 'En attente';
+}
+
+function badgeColor(b: Badge): string {
+  if (b === 'Critique') return 'bg-red-100 text-red-700 border-red-300';
+  if (b === 'Important') return 'bg-orange-100 text-orange-700 border-orange-300';
+  if (b === 'Conforme') return 'bg-green-100 text-green-700 border-green-300';
+  return 'bg-gray-100 text-gray-700 border-gray-300';
+}
+
+function isoWeekMonday(year: number, week: number): Date {
+  return startOfISOWeek(setISOWeek(setISOWeekYear(new Date(year, 0, 4), year), week));
+}
+
+export default function AdvDashboard() {
+  const navigate = useNavigate();
+  const [projects, setProjects] = useState<ProjectRow[]>([]);
+  const [advs, setAdvs] = useState<AdvStatus[]>([]);
+  const [cautions, setCautions] = useState<AdvCautionCustom[]>([]);
+  const [relances, setRelances] = useState<AdvRelance[]>([]);
+  const [trucks, setTrucks] = useState<TruckLite[]>([]);
+  const [forecastWeeks, setForecastWeeks] = useState<ForecastWeekLite[]>([]);
+  const [links, setLinks] = useState<AccessLink[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [search, setSearch] = useState('');
+  const [filterCdt, setFilterCdt] = useState('all');
+  const [filterPoseur, setFilterPoseur] = useState('all');
+  const [filterBadge, setFilterBadge] = useState<'all' | Badge>('all');
+  const [filterScore, setFilterScore] = useState<'all' | '0-25' | '26-50' | '51-75' | '76-100'>('all');
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const [p, a, c, r, t, fw, lk] = await Promise.all([
+        supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, archived, supply_only').eq('archived', false),
+        sb.from('adv_status').select('*'),
+        sb.from('adv_cautions_custom').select('*'),
+        sb.from('adv_relances').select('*'),
+        supabase.from('trucks').select('project_id, date'),
+        sb.from('forecast_weeks').select('project_id, year, week_number'),
+        supabase.from('project_access_links').select('project_id, token'),
+      ]);
+      setProjects((p.data || []) as ProjectRow[]);
+      setAdvs((a.data || []) as AdvStatus[]);
+      setCautions((c.data || []) as AdvCautionCustom[]);
+      setRelances((r.data || []) as AdvRelance[]);
+      setTrucks((t.data || []) as TruckLite[]);
+      setForecastWeeks((fw.data || []) as ForecastWeekLite[]);
+      setLinks((lk.data || []) as AccessLink[]);
+      setLoading(false);
+    })();
+  }, []);
+
+  const advByProject = useMemo(() => {
+    const m = new Map<string, AdvStatus>();
+    advs.forEach(a => m.set(a.project_id, a));
+    return m;
+  }, [advs]);
+
+  const cautionsByProject = useMemo(() => {
+    const m = new Map<string, AdvCautionCustom[]>();
+    cautions.forEach(c => {
+      if (!m.has(c.project_id)) m.set(c.project_id, []);
+      m.get(c.project_id)!.push(c);
+    });
+    return m;
+  }, [cautions]);
+
+  const startDateByProject = useMemo(() => {
+    const m = new Map<string, Date>();
+    const truckMin = new Map<string, string>();
+    trucks.forEach(t => {
+      if (!t.date) return;
+      const cur = truckMin.get(t.project_id);
+      if (!cur || t.date < cur) truckMin.set(t.project_id, t.date);
+    });
+    truckMin.forEach((d, pid) => m.set(pid, parseISO(d)));
+    // fallback: forecast
+    const fcMin = new Map<string, Date>();
+    forecastWeeks.forEach(f => {
+      const d = isoWeekMonday(f.year, f.week_number);
+      const cur = fcMin.get(f.project_id);
+      if (!cur || d < cur) fcMin.set(f.project_id, d);
+    });
+    fcMin.forEach((d, pid) => { if (!m.has(pid)) m.set(pid, d); });
+    return m;
+  }, [trucks, forecastWeeks]);
+
+  const linkByProject = useMemo(() => {
+    const m = new Map<string, string>();
+    links.forEach(l => m.set(l.project_id, l.token));
+    return m;
+  }, [links]);
+
+  const rows = useMemo(() => {
+    return projects.map(p => {
+      const adv = advByProject.get(p.id);
+      const cs = cautionsByProject.get(p.id) || [];
+      const score = calculateAdvScore(adv as any, cs);
+      const startDate = startDateByProject.get(p.id) || null;
+      const badge = badgeOf(score, startDate);
+      const cdt = formatCDTLabel(p.conductor) || '—';
+      const poseur = p.supply_only ? 'Fourniture seule' : (p.subcontractor || 'Poseur à désigner');
+      return { project: p, adv, cautions: cs, score, startDate, badge, cdt, poseur };
+    });
+  }, [projects, advByProject, cautionsByProject, startDateByProject]);
+
+  const filteredRows = useMemo(() => {
+    return rows.filter(r => {
+      const s = search.toLowerCase();
+      if (s && !(r.project.site_name || '').toLowerCase().includes(s)
+        && !(r.project.otp_number || '').toLowerCase().includes(s)
+        && !(r.project.client_name || '').toLowerCase().includes(s)) return false;
+      if (filterCdt !== 'all' && r.cdt !== filterCdt) return false;
+      if (filterPoseur !== 'all' && r.poseur !== filterPoseur) return false;
+      if (filterBadge !== 'all' && r.badge !== filterBadge) return false;
+      if (filterScore !== 'all') {
+        const [lo, hi] = filterScore.split('-').map(Number);
+        if (r.score < lo || r.score > hi) return false;
+      }
+      return true;
+    }).sort((a, b) => {
+      const order: Record<Badge, number> = { Critique: 0, Important: 1, 'En attente': 2, Conforme: 3 };
+      const d = order[a.badge] - order[b.badge];
+      if (d !== 0) return d;
+      const ta = a.startDate?.getTime() ?? Infinity;
+      const tb = b.startDate?.getTime() ?? Infinity;
+      return ta - tb;
+    });
+  }, [rows, search, filterCdt, filterPoseur, filterBadge, filterScore]);
+
+  const cdtOptions = useMemo(() => Array.from(new Set(rows.map(r => r.cdt).filter(c => c && c !== '—'))).sort(), [rows]);
+  const poseurOptions = useMemo(() => Array.from(new Set(rows.map(r => r.poseur))).sort(), [rows]);
+
+  // KPIs
+  const chantiersActifs = rows.length;
+  const chantiersRisque = rows.filter(r => r.badge === 'Critique' || r.badge === 'Important').length;
+  const actionsEnAttente = rows.reduce((sum, r) => {
+    if (!r.adv) return sum;
+    const app = getApplicableDemarches(r.adv);
+    return sum + app.filter(d => !isDemarcheFinal(d.status)).length;
+  }, 0);
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const relancesEchues = relances.filter(r => r.statut !== 'Traitée' && r.echeance <= today).length;
+
+  const relancesEnCours = useMemo(() => {
+    return relances
+      .filter(r => r.statut !== 'Traitée')
+      .map(r => ({ ...r, effective: effectiveRelanceStatus(r) }))
+      .sort((a, b) => a.echeance.localeCompare(b.echeance));
+  }, [relances]);
+
+  const openProject = (projectId: string) => {
+    const token = linkByProject.get(projectId);
+    if (token) navigate(`/p/${token}?tab=adv`);
+    else toast.error('Lien chantier introuvable');
+  };
+
+  const exportExcel = () => {
+    const maxCustom = Math.max(0, ...filteredRows.map(r => r.cautions.length));
+    const data = filteredRows.map(r => {
+      const p = r.project;
+      const adv = r.adv;
+      const projRelances = relances.filter(x => x.project_id === p.id && x.statut !== 'Traitée');
+      const base: any = {
+        OTP: p.otp_number || '',
+        'Nom chantier': p.site_name || '',
+        Client: p.client_name || '',
+        CDT: r.cdt,
+        Poseur: r.poseur,
+        'Date démarrage': r.startDate ? format(r.startDate, 'dd/MM/yyyy') : '',
+        'Score ADV': r.score + '%',
+        'Compte client': adv?.compte_client || '',
+        'Garantie SFAC': adv?.garantie_sfac || '',
+        'Contrat client': adv?.contrat_client || '',
+        'Caution RG': adv?.caution_rg || '',
+        'Contrat ST': adv?.contrat_st || '',
+        DAST: adv?.dast || '',
+      };
+      for (let i = 0; i < maxCustom; i++) {
+        const c = r.cautions[i];
+        base[`Caution ${i + 1}`] = c ? `${c.nom} : ${c.statut}` : '';
+      }
+      base['Relances en attente'] = projRelances.map(x => `${x.type} (${formatDateFR(x.echeance)})`).join(' | ');
+      base['Commentaire'] = adv?.commentaire || '';
+      return base;
+    });
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, 'Tableau ADV');
+    const today = format(new Date(), 'dd-MM-yyyy');
+    XLSX.writeFile(wb, `tableau_bord_ADV_${today}.xlsx`);
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="bg-primary text-primary-foreground shadow-lg">
+        <div className="container py-3 flex items-center gap-3">
+          <img src="/logo.png" alt="Logo" className="h-8 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          <ClipboardCheck className="h-7 w-7" />
+          <h1 className="text-lg font-bold tracking-tight flex-1">RECTOR – Tableau de bord ADV</h1>
+          <Button variant="ghost" size="sm" className="text-primary-foreground/80 hover:text-primary-foreground" onClick={() => navigate('/')}>
+            <Home className="h-4 w-4" />
+          </Button>
+        </div>
+      </header>
+
+      <main className="container py-4 space-y-4">
+        {loading ? <div className="text-muted-foreground p-8 text-center">Chargement…</div> : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <KpiCard label="Chantiers actifs" value={chantiersActifs} />
+              <KpiCard label="Chantiers à risque" value={chantiersRisque} color="text-orange-600" />
+              <KpiCard label="Actions en attente" value={actionsEnAttente} />
+              <KpiCard label="Relances échues" value={relancesEchues} color="text-red-600" />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-orange-500" />
+                    Chantiers à risque
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-1 max-h-72 overflow-y-auto">
+                  {rows.filter(r => r.badge === 'Critique' || r.badge === 'Important').length === 0 && (
+                    <p className="text-sm text-muted-foreground">Aucun chantier à risque.</p>
+                  )}
+                  {rows.filter(r => r.badge === 'Critique' || r.badge === 'Important')
+                    .sort((a, b) => (a.startDate?.getTime() || 0) - (b.startDate?.getTime() || 0))
+                    .map(r => (
+                      <button key={r.project.id} onClick={() => openProject(r.project.id)}
+                        className="w-full text-left flex items-center gap-2 py-1.5 px-2 hover:bg-muted rounded text-sm">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium border ${badgeColor(r.badge)}`}>{r.badge}</span>
+                        <span className="flex-1 truncate">
+                          {r.project.otp_number && <span className="text-muted-foreground mr-1">{r.project.otp_number}</span>}
+                          {r.project.site_name || 'Sans nom'}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{r.startDate ? format(r.startDate, 'dd/MM/yyyy') : '—'}</span>
+                        <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                    ))}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Relances en cours</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-1 max-h-72 overflow-y-auto">
+                  {relancesEnCours.length === 0 && (
+                    <p className="text-sm text-muted-foreground">Aucune relance en cours.</p>
+                  )}
+                  {relancesEnCours.map(r => {
+                    const p = projects.find(x => x.id === r.project_id);
+                    if (!p) return null;
+                    return (
+                      <button key={r.id} onClick={() => openProject(p.id)}
+                        className="w-full text-left flex items-center gap-2 py-1.5 px-2 hover:bg-muted rounded text-sm">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium border ${r.effective === 'Échue' ? 'bg-red-100 text-red-700 border-red-300' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
+                          {r.effective}
+                        </span>
+                        <span className="flex-1 truncate">
+                          <span className="text-muted-foreground mr-1">{p.otp_number || ''}</span>
+                          {p.site_name || 'Sans nom'} — {r.type}
+                        </span>
+                        <span className="text-xs tabular-nums">{formatDateFR(r.echeance)}</span>
+                      </button>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <CardTitle className="text-base">Tableau des affaires</CardTitle>
+                  <Button size="sm" variant="outline" onClick={exportExcel}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" /> Exporter Excel
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher OTP, nom, client…" className="pl-9 h-9" />
+                  </div>
+                  <Select value={filterCdt} onValueChange={setFilterCdt}>
+                    <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder="CDT" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous les CDT</SelectItem>
+                      {cdtOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select value={filterPoseur} onValueChange={setFilterPoseur}>
+                    <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder="Poseur" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous les poseurs</SelectItem>
+                      {poseurOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select value={filterBadge} onValueChange={(v: any) => setFilterBadge(v)}>
+                    <SelectTrigger className="w-[160px] h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous badges</SelectItem>
+                      <SelectItem value="Critique">Critique</SelectItem>
+                      <SelectItem value="Important">Important</SelectItem>
+                      <SelectItem value="En attente">En attente</SelectItem>
+                      <SelectItem value="Conforme">Conforme</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={filterScore} onValueChange={(v: any) => setFilterScore(v)}>
+                    <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous scores</SelectItem>
+                      <SelectItem value="0-25">0 – 25 %</SelectItem>
+                      <SelectItem value="26-50">26 – 50 %</SelectItem>
+                      <SelectItem value="51-75">51 – 75 %</SelectItem>
+                      <SelectItem value="76-100">76 – 100 %</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left">
+                        <th className="py-2 pr-2">Chantier</th>
+                        <th className="py-2 pr-2">CDT</th>
+                        <th className="py-2 pr-2">Poseur</th>
+                        <th className="py-2 pr-2">Démarrage</th>
+                        <th className="py-2 pr-2">Score</th>
+                        <th className="py-2 pr-2 w-48">Progression</th>
+                        <th className="py-2 pr-2">Alerte</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredRows.map(r => (
+                        <tr key={r.project.id} className="border-b hover:bg-muted/40 cursor-pointer" onClick={() => openProject(r.project.id)}>
+                          <td className="py-1.5 pr-2">
+                            <div className="font-medium">{r.project.site_name || 'Sans nom'}</div>
+                            <div className="text-xs text-muted-foreground">{r.project.otp_number || ''}</div>
+                          </td>
+                          <td className="py-1.5 pr-2">{r.cdt}</td>
+                          <td className="py-1.5 pr-2">{r.poseur}</td>
+                          <td className="py-1.5 pr-2 tabular-nums">{r.startDate ? format(r.startDate, 'dd/MM/yyyy') : '—'}</td>
+                          <td className={`py-1.5 pr-2 font-medium ${getScoreColorClass(r.score)}`}>{r.score}%</td>
+                          <td className="py-1.5 pr-2">
+                            <div className="h-2 bg-muted rounded-full overflow-hidden">
+                              <div className="h-full" style={{ width: `${r.score}%`, backgroundColor: getScoreHexColor(r.score) }} />
+                            </div>
+                          </td>
+                          <td className="py-1.5 pr-2">
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium border ${badgeColor(r.badge)}`}>{r.badge}</span>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredRows.length === 0 && (
+                        <tr><td colSpan={7} className="py-6 text-center text-muted-foreground">Aucun chantier.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function KpiCard({ label, value, color }: { label: string; value: number; color?: string }) {
+  return (
+    <Card>
+      <CardContent className="py-4">
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+        <div className={`text-3xl font-bold mt-1 ${color || ''}`}>{value}</div>
+      </CardContent>
+    </Card>
+  );
+}

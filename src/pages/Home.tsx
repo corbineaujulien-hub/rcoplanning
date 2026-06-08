@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Users, Calendar, LogOut, BarChart3 } from 'lucide-react';
+import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Users, Calendar, LogOut, BarChart3, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProjectsPresence } from '@/hooks/useProjectsPresence';
 import {
@@ -19,6 +19,7 @@ import {
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { getDisplayCDT, getDisplayPoseur, getFilterPoseur, SUPPLY_ONLY_LABEL, formatCDTLabel } from '@/utils/supplyOnly';
+import { calculateAdvScore, getScoreColorClass, AdvStatus, AdvCautionCustom } from '@/utils/adv';
 
 interface ProjectRow {
   id: string;
@@ -69,6 +70,8 @@ export default function Home() {
   const [filterSubcontractor, setFilterSubcontractor] = useState('all');
   const [showArchived, setShowArchived] = useState(false);
   const [filterBdd, setFilterBdd] = useState<'all' | 'complete' | 'incomplete'>('all');
+  const [advStatuses, setAdvStatuses] = useState<AdvStatus[]>([]);
+  const [advCautions, setAdvCautions] = useState<AdvCautionCustom[]>([]);
 
   const fetchAllPaginated = async (table: string, columns: string) => {
     const PAGE_SIZE = 1000;
@@ -93,16 +96,20 @@ export default function Home() {
 
   const fetchProjects = async () => {
     setLoading(true);
-    const [{ data: pData }, { data: lData }, tData, eData] = await Promise.all([
+    const [{ data: pData }, { data: lData }, tData, eData, advRes, cautionRes] = await Promise.all([
       supabase.from('projects').select('id, site_name, client_name, conductor, subcontractor, otp_number, created_at, archived, database_complete, supply_only').order('created_at', { ascending: false }),
       supabase.from('project_access_links').select('project_id, token'),
       fetchAllPaginated('trucks', 'project_id, date, element_ids'),
       fetchAllPaginated('beam_elements', 'id, project_id, weight'),
+      (supabase.from as any)('adv_status').select('*'),
+      (supabase.from as any)('adv_cautions_custom').select('*'),
     ]);
     setProjects(pData as ProjectRow[] || []);
     setLinks(lData || []);
     setAllTrucks((tData || []).map((t: any) => ({ project_id: t.project_id, element_ids: (t.element_ids as string[]) || [], date: t.date })));
     setAllElements((eData || []).map((e: any) => ({ id: e.id, project_id: e.project_id, weight: Number(e.weight) || 0 })));
+    setAdvStatuses(((advRes as any)?.data || []) as AdvStatus[]);
+    setAdvCautions(((cautionRes as any)?.data || []) as AdvCautionCustom[]);
     setLoading(false);
   };
 
@@ -302,6 +309,20 @@ export default function Home() {
   const projectIds = useMemo(() => filteredProjects.map(p => p.id), [filteredProjects]);
   const presenceMap = useProjectsPresence(projectIds);
 
+  const advByProject = useMemo(() => {
+    const m = new Map<string, AdvStatus>();
+    advStatuses.forEach(a => m.set(a.project_id, a));
+    return m;
+  }, [advStatuses]);
+  const cautionsByProject = useMemo(() => {
+    const m = new Map<string, AdvCautionCustom[]>();
+    advCautions.forEach(c => {
+      if (!m.has(c.project_id)) m.set(c.project_id, []);
+      m.get(c.project_id)!.push(c);
+    });
+    return m;
+  }, [advCautions]);
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="bg-primary text-primary-foreground shadow-lg">
@@ -319,6 +340,14 @@ export default function Home() {
           >
             <BarChart3 className="h-4 w-4 mr-2" />
             Planning de charge
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => navigate('/adv')}
+          >
+            <ClipboardCheck className="h-4 w-4 mr-2" />
+            Tableau de bord ADV
           </Button>
           <Button
             variant="ghost"
@@ -443,6 +472,9 @@ export default function Home() {
                   const deliveredW = projectDeliveredWeight.get(project.id) || 0;
                   const planningPct = totalW > 0 ? Math.round((loadedW / totalW) * 100) : 0;
                   const deliveryPct = totalW > 0 ? Math.round((deliveredW / totalW) * 100) : 0;
+                  const advRow = advByProject.get(project.id);
+                  const advCust = cautionsByProject.get(project.id) || [];
+                  const advScore = advRow ? calculateAdvScore(advRow as any, advCust) : null;
 
                   return (
                     <div
@@ -456,6 +488,9 @@ export default function Home() {
                             {project.otp_number && <span className="text-muted-foreground font-normal text-sm mr-2">OTP: {project.otp_number} —</span>}
                             {project.site_name || 'Chantier sans nom'}
                             {project.database_complete && <span className="text-xs font-medium text-green-600 ml-2">BDD ✅</span>}
+                            {advScore !== null && (
+                              <span className={`text-xs font-medium ml-2 ${getScoreColorClass(advScore)}`}>ADV : {advScore}%</span>
+                            )}
                             
                           </div>
                           <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-0.5 text-sm text-muted-foreground">
