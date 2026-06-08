@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Home, ClipboardCheck, FileSpreadsheet, Search, AlertTriangle, ArrowUpRight } from 'lucide-react';
+import { Home, ClipboardCheck, FileSpreadsheet, Search, AlertTriangle, ArrowUpRight, BarChart3 } from 'lucide-react';
 import { setISOWeek, setISOWeekYear, startOfISOWeek, differenceInCalendarDays, parseISO, format } from 'date-fns';
 import {
   AdvStatus, AdvCautionCustom, AdvRelance, DEMARCHE_LABELS,
@@ -32,15 +32,15 @@ interface TruckLite { project_id: string; date: string }
 interface ForecastWeekLite { project_id: string; year: number; week_number: number }
 interface AccessLink { project_id: string; token: string }
 
-type Badge = 'Critique' | 'Important' | 'En attente' | 'Conforme';
+type Badge = 'Critique' | 'Important' | 'À compléter' | 'Conforme';
 
 function badgeOf(score: number, startDate: Date | null): Badge {
   if (score >= 99) return 'Conforme';
-  if (!startDate) return 'En attente';
+  if (!startDate) return 'À compléter';
   const days = differenceInCalendarDays(startDate, new Date());
   if (days <= 7) return 'Critique';
   if (days <= 15) return 'Important';
-  return 'En attente';
+  return 'À compléter';
 }
 
 function badgeColor(b: Badge): string {
@@ -163,9 +163,6 @@ export default function AdvDashboard() {
       }
       return true;
     }).sort((a, b) => {
-      const order: Record<Badge, number> = { Critique: 0, Important: 1, 'En attente': 2, Conforme: 3 };
-      const d = order[a.badge] - order[b.badge];
-      if (d !== 0) return d;
       const ta = a.startDate?.getTime() ?? Infinity;
       const tb = b.startDate?.getTime() ?? Infinity;
       return ta - tb;
@@ -192,6 +189,17 @@ export default function AdvDashboard() {
       .map(r => ({ ...r, effective: effectiveRelanceStatus(r) }))
       .sort((a, b) => a.echeance.localeCompare(b.echeance));
   }, [relances]);
+
+  const chantiersRisqueRows = useMemo(() => {
+    return rows
+      .filter(r => (r.badge === 'Critique' || r.badge === 'Important') && r.adv)
+      .map(r => ({
+        ...r,
+        pendingDemarches: getApplicableDemarches(r.adv!).filter(d => !isDemarcheFinal(d.status)),
+      }))
+      .filter(r => r.pendingDemarches.length > 0)
+      .sort((a, b) => (a.startDate?.getTime() || 0) - (b.startDate?.getTime() || 0));
+  }, [rows]);
 
   const openProject = (projectId: string) => {
     const token = linkByProject.get(projectId);
@@ -224,7 +232,7 @@ export default function AdvDashboard() {
         const c = r.cautions[i];
         base[`Caution ${i + 1}`] = c ? `${c.nom} : ${c.statut}` : '';
       }
-      base['Relances en attente'] = projRelances.map(x => `${x.type} (${formatDateFR(x.echeance)})`).join(' | ');
+      base['Relances à réaliser'] = projRelances.map(x => `${x.type} (${formatDateFR(x.echeance)})`).join(' | ');
       base['Commentaire'] = adv?.commentaire || '';
       return base;
     });
@@ -242,6 +250,14 @@ export default function AdvDashboard() {
           <img src="/logo.png" alt="Logo" className="h-8 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           <ClipboardCheck className="h-7 w-7" />
           <h1 className="text-lg font-bold tracking-tight flex-1">RECTOR – Tableau de bord ADV</h1>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => navigate('/planning-charge')}
+          >
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Planning de charge
+          </Button>
           <Button variant="ghost" size="sm" className="text-primary-foreground/80 hover:text-primary-foreground" onClick={() => navigate('/')}>
             <Home className="h-4 w-4" />
           </Button>
@@ -254,7 +270,7 @@ export default function AdvDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <KpiCard label="Chantiers actifs" value={chantiersActifs} />
               <KpiCard label="Chantiers à risque" value={chantiersRisque} color="text-orange-600" />
-              <KpiCard label="Actions en attente" value={actionsEnAttente} />
+              <KpiCard label="Actions à compléter" value={actionsEnAttente} />
               <KpiCard label="Relances échues" value={relancesEchues} color="text-red-600" />
             </div>
 
@@ -267,33 +283,48 @@ export default function AdvDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-1 max-h-72 overflow-y-auto">
-                  {rows.filter(r => r.badge === 'Critique' || r.badge === 'Important').length === 0 && (
+                  {chantiersRisqueRows.length === 0 && (
                     <p className="text-sm text-muted-foreground">Aucun chantier à risque.</p>
                   )}
-                  {rows.filter(r => r.badge === 'Critique' || r.badge === 'Important')
-                    .sort((a, b) => (a.startDate?.getTime() || 0) - (b.startDate?.getTime() || 0))
-                    .map(r => (
+                  {chantiersRisqueRows.map(r => {
+                    const days = r.startDate ? differenceInCalendarDays(r.startDate, new Date()) : null;
+                    return (
                       <button key={r.project.id} onClick={() => openProject(r.project.id)}
-                        className="w-full text-left flex items-center gap-2 py-1.5 px-2 hover:bg-muted rounded text-sm">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium border ${badgeColor(r.badge)}`}>{r.badge}</span>
-                        <span className="flex-1 truncate">
-                          {r.project.otp_number && <span className="text-muted-foreground mr-1">{r.project.otp_number}</span>}
-                          {r.project.site_name || 'Sans nom'}
-                        </span>
-                        <span className="text-xs text-muted-foreground">{r.startDate ? format(r.startDate, 'dd/MM/yyyy') : '—'}</span>
-                        <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
+                        className="w-full text-left py-1.5 px-2 hover:bg-muted rounded text-sm block">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium border ${badgeColor(r.badge)}`}>{r.badge}</span>
+                          <span className="flex-1 truncate">
+                            {r.project.otp_number && <span className="text-muted-foreground mr-1">{r.project.otp_number}</span>}
+                            {r.project.site_name || 'Sans nom'}
+                          </span>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {days !== null
+                              ? days >= 0 ? `Démarrage dans ${days} j` : `Démarré il y a ${-days} j`
+                              : '—'}
+                          </span>
+                          <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
+                        </div>
+                        <ul className="mt-0.5 pl-6 text-xs" style={{ color: '#6b7280' }}>
+                          {r.pendingDemarches.map(d => (
+                            <li key={d.key}>└ {DEMARCHE_LABELS[d.key]} : {d.status}</li>
+                          ))}
+                        </ul>
                       </button>
-                    ))}
+                    );
+                  })}
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Relances en cours</CardTitle>
+                  <CardTitle className="text-base flex items-center justify-between">
+                    <span>Relances à réaliser</span>
+                    <span className="text-xs font-normal text-muted-foreground">Au plus tard</span>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-1 max-h-72 overflow-y-auto">
                   {relancesEnCours.length === 0 && (
-                    <p className="text-sm text-muted-foreground">Aucune relance en cours.</p>
+                    <p className="text-sm text-muted-foreground">Aucune relance à réaliser.</p>
                   )}
                   {relancesEnCours.map(r => {
                     const p = projects.find(x => x.id === r.project_id);
@@ -301,14 +332,10 @@ export default function AdvDashboard() {
                     return (
                       <button key={r.id} onClick={() => openProject(p.id)}
                         className="w-full text-left flex items-center gap-2 py-1.5 px-2 hover:bg-muted rounded text-sm">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium border ${r.effective === 'Échue' ? 'bg-red-100 text-red-700 border-red-300' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
-                          {r.effective}
-                        </span>
-                        <span className="flex-1 truncate">
-                          <span className="text-muted-foreground mr-1">{p.otp_number || ''}</span>
+                        <span className={`flex-1 ${r.effective === 'Échue' ? 'text-red-600 font-medium' : ''}`}>
                           {p.site_name || 'Sans nom'} — {r.type}
                         </span>
-                        <span className="text-xs tabular-nums">{formatDateFR(r.echeance)}</span>
+                        <span className="text-xs tabular-nums whitespace-nowrap">{formatDateFR(r.echeance)}</span>
                       </button>
                     );
                   })}
@@ -351,7 +378,7 @@ export default function AdvDashboard() {
                       <SelectItem value="all">Tous badges</SelectItem>
                       <SelectItem value="Critique">Critique</SelectItem>
                       <SelectItem value="Important">Important</SelectItem>
-                      <SelectItem value="En attente">En attente</SelectItem>
+                      <SelectItem value="À compléter">À compléter</SelectItem>
                       <SelectItem value="Conforme">Conforme</SelectItem>
                     </SelectContent>
                   </Select>

@@ -46,6 +46,41 @@ export default function AdvTab() {
   return (
     <div className="space-y-4">
       <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Score de préparation</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
+              <div className="h-full transition-all" style={{ width: `${score}%`, backgroundColor: scoreColor }} />
+            </div>
+            <span className="font-bold text-lg w-16 text-right" style={{ color: scoreColor }}>{score}%</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Commentaire général</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            value={commentLocal ?? adv.commentaire}
+            onChange={(e) => setCommentLocal(e.target.value)}
+            onBlur={() => {
+              if (commentLocal !== null && commentLocal !== adv.commentaire) {
+                updateCommentaire(commentLocal);
+              }
+              setCommentLocal(null);
+            }}
+            rows={3}
+            className="min-h-[72px]"
+            placeholder="Notes générales sur l'avancement ADV de ce chantier…"
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <ClipboardCheck className="h-5 w-5 text-accent" />
@@ -131,40 +166,6 @@ export default function AdvTab() {
               </Button>
             </div>
           ))}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Score de préparation</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
-              <div className="h-full transition-all" style={{ width: `${score}%`, backgroundColor: scoreColor }} />
-            </div>
-            <span className="font-bold text-lg w-16 text-right" style={{ color: scoreColor }}>{score}%</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Commentaire général</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            value={commentLocal ?? adv.commentaire}
-            onChange={(e) => setCommentLocal(e.target.value)}
-            onBlur={() => {
-              if (commentLocal !== null && commentLocal !== adv.commentaire) {
-                updateCommentaire(commentLocal);
-              }
-              setCommentLocal(null);
-            }}
-            rows={4}
-            placeholder="Notes générales sur l'avancement ADV de ce chantier…"
-          />
         </CardContent>
       </Card>
     </div>

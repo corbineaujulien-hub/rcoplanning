@@ -488,10 +488,6 @@ export default function Home() {
                             {project.otp_number && <span className="text-muted-foreground font-normal text-sm mr-2">OTP: {project.otp_number} —</span>}
                             {project.site_name || 'Chantier sans nom'}
                             {project.database_complete && <span className="text-xs font-medium text-green-600 ml-2">BDD ✅</span>}
-                            {advScore !== null && (
-                              <span className={`text-xs font-medium ml-2 ${getScoreColorClass(advScore)}`}>ADV : {advScore}%</span>
-                            )}
-                            
                           </div>
                           <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-0.5 text-sm text-muted-foreground">
                             <div className="flex flex-wrap gap-x-3">
@@ -556,7 +552,8 @@ export default function Home() {
                             );
                           })()}
                         </div>
-                        <div className="flex gap-2 shrink-0">
+                        <div className="flex flex-col items-end gap-2 shrink-0">
+                          <div className="flex gap-2">
                           {!project.archived ? (
                             <Dialog>
                               <DialogTrigger asChild>
@@ -607,6 +604,10 @@ export default function Home() {
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
+                          </div>
+                          {advScore !== null && (
+                            <span className={`text-xs font-medium ${getScoreColorClass(advScore)}`}>ADV : {advScore}%</span>
+                          )}
                         </div>
                       </div>
                     </div>
