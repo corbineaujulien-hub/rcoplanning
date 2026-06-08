@@ -283,33 +283,48 @@ export default function AdvDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-1 max-h-72 overflow-y-auto">
-                  {rows.filter(r => r.badge === 'Critique' || r.badge === 'Important').length === 0 && (
+                  {chantiersRisqueRows.length === 0 && (
                     <p className="text-sm text-muted-foreground">Aucun chantier à risque.</p>
                   )}
-                  {rows.filter(r => r.badge === 'Critique' || r.badge === 'Important')
-                    .sort((a, b) => (a.startDate?.getTime() || 0) - (b.startDate?.getTime() || 0))
-                    .map(r => (
+                  {chantiersRisqueRows.map(r => {
+                    const days = r.startDate ? differenceInCalendarDays(r.startDate, new Date()) : null;
+                    return (
                       <button key={r.project.id} onClick={() => openProject(r.project.id)}
-                        className="w-full text-left flex items-center gap-2 py-1.5 px-2 hover:bg-muted rounded text-sm">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium border ${badgeColor(r.badge)}`}>{r.badge}</span>
-                        <span className="flex-1 truncate">
-                          {r.project.otp_number && <span className="text-muted-foreground mr-1">{r.project.otp_number}</span>}
-                          {r.project.site_name || 'Sans nom'}
-                        </span>
-                        <span className="text-xs text-muted-foreground">{r.startDate ? format(r.startDate, 'dd/MM/yyyy') : '—'}</span>
-                        <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
+                        className="w-full text-left py-1.5 px-2 hover:bg-muted rounded text-sm block">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium border ${badgeColor(r.badge)}`}>{r.badge}</span>
+                          <span className="flex-1 truncate">
+                            {r.project.otp_number && <span className="text-muted-foreground mr-1">{r.project.otp_number}</span>}
+                            {r.project.site_name || 'Sans nom'}
+                          </span>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {days !== null
+                              ? days >= 0 ? `Démarrage dans ${days} j` : `Démarré il y a ${-days} j`
+                              : '—'}
+                          </span>
+                          <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
+                        </div>
+                        <ul className="mt-0.5 pl-6 text-xs" style={{ color: '#6b7280' }}>
+                          {r.pendingDemarches.map(d => (
+                            <li key={d.key}>└ {DEMARCHE_LABELS[d.key]} : {d.status}</li>
+                          ))}
+                        </ul>
                       </button>
-                    ))}
+                    );
+                  })}
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Relances en cours</CardTitle>
+                  <CardTitle className="text-base flex items-center justify-between">
+                    <span>Relances à réaliser</span>
+                    <span className="text-xs font-normal text-muted-foreground">Au plus tard</span>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-1 max-h-72 overflow-y-auto">
                   {relancesEnCours.length === 0 && (
-                    <p className="text-sm text-muted-foreground">Aucune relance en cours.</p>
+                    <p className="text-sm text-muted-foreground">Aucune relance à réaliser.</p>
                   )}
                   {relancesEnCours.map(r => {
                     const p = projects.find(x => x.id === r.project_id);
@@ -317,14 +332,10 @@ export default function AdvDashboard() {
                     return (
                       <button key={r.id} onClick={() => openProject(p.id)}
                         className="w-full text-left flex items-center gap-2 py-1.5 px-2 hover:bg-muted rounded text-sm">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium border ${r.effective === 'Échue' ? 'bg-red-100 text-red-700 border-red-300' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
-                          {r.effective}
-                        </span>
-                        <span className="flex-1 truncate">
-                          <span className="text-muted-foreground mr-1">{p.otp_number || ''}</span>
+                        <span className={`flex-1 ${r.effective === 'Échue' ? 'text-red-600 font-medium' : ''}`}>
                           {p.site_name || 'Sans nom'} — {r.type}
                         </span>
-                        <span className="text-xs tabular-nums">{formatDateFR(r.echeance)}</span>
+                        <span className="text-xs tabular-nums whitespace-nowrap">{formatDateFR(r.echeance)}</span>
                       </button>
                     );
                   })}
