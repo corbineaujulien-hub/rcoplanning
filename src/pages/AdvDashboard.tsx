@@ -378,7 +378,7 @@ export default function AdvDashboard() {
                       <SelectItem value="all">Tous badges</SelectItem>
                       <SelectItem value="Critique">Critique</SelectItem>
                       <SelectItem value="Important">Important</SelectItem>
-                      <SelectItem value="En attente">En attente</SelectItem>
+                      <SelectItem value="À compléter">À compléter</SelectItem>
                       <SelectItem value="Conforme">Conforme</SelectItem>
                     </SelectContent>
                   </Select>
