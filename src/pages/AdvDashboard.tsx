@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Home, ClipboardCheck, FileSpreadsheet, Search, AlertTriangle, ArrowUpRight } from 'lucide-react';
+import { Home, ClipboardCheck, FileSpreadsheet, Search, AlertTriangle, ArrowUpRight, BarChart3 } from 'lucide-react';
 import { setISOWeek, setISOWeekYear, startOfISOWeek, differenceInCalendarDays, parseISO, format } from 'date-fns';
 import {
   AdvStatus, AdvCautionCustom, AdvRelance, DEMARCHE_LABELS,
@@ -32,15 +32,15 @@ interface TruckLite { project_id: string; date: string }
 interface ForecastWeekLite { project_id: string; year: number; week_number: number }
 interface AccessLink { project_id: string; token: string }
 
-type Badge = 'Critique' | 'Important' | 'En attente' | 'Conforme';
+type Badge = 'Critique' | 'Important' | 'À compléter' | 'Conforme';
 
 function badgeOf(score: number, startDate: Date | null): Badge {
   if (score >= 99) return 'Conforme';
-  if (!startDate) return 'En attente';
+  if (!startDate) return 'À compléter';
   const days = differenceInCalendarDays(startDate, new Date());
   if (days <= 7) return 'Critique';
   if (days <= 15) return 'Important';
-  return 'En attente';
+  return 'À compléter';
 }
 
 function badgeColor(b: Badge): string {
@@ -163,9 +163,6 @@ export default function AdvDashboard() {
       }
       return true;
     }).sort((a, b) => {
-      const order: Record<Badge, number> = { Critique: 0, Important: 1, 'En attente': 2, Conforme: 3 };
-      const d = order[a.badge] - order[b.badge];
-      if (d !== 0) return d;
       const ta = a.startDate?.getTime() ?? Infinity;
       const tb = b.startDate?.getTime() ?? Infinity;
       return ta - tb;
