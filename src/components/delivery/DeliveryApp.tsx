@@ -9,7 +9,8 @@ import GeneralInfoTab from '@/components/delivery/GeneralInfoTab';
 import DatabaseTab from '@/components/delivery/DatabaseTab';
 import TruckCompositionTab from '@/components/delivery/TruckCompositionTab';
 import WeeklyPlanningTab from '@/components/delivery/WeeklyPlanningTab';
-import { Truck as TruckIcon, ClipboardList, Database, Calendar, FileSpreadsheet, Home, BarChart3 } from 'lucide-react';
+import AdvTab from '@/components/delivery/AdvTab';
+import { Truck as TruckIcon, ClipboardList, Database, Calendar, FileSpreadsheet, Home, BarChart3, ClipboardCheck } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getEffectiveCategory } from '@/utils/transportUtils';
 import { TRANSPORT_CATEGORIES } from '@/types/delivery';
@@ -156,6 +157,10 @@ export default function DeliveryApp() {
             <BarChart3 className="h-4 w-4 mr-2" />
             Planning de charge
           </Button>
+          <Button variant="secondary" size="sm" onClick={() => navigate('/adv')}>
+            <ClipboardCheck className="h-4 w-4 mr-2" />
+            Tableau de bord ADV
+          </Button>
         </div>
       </header>
 
@@ -164,6 +169,9 @@ export default function DeliveryApp() {
           <TabsList className="flex flex-wrap h-auto gap-1 bg-muted p-1 mb-4">
             <TabsTrigger value="info" className="flex items-center gap-1 text-xs">
               <ClipboardList className="h-3.5 w-3.5" /> Infos générales
+            </TabsTrigger>
+            <TabsTrigger value="adv" className="flex items-center gap-1 text-xs">
+              <ClipboardCheck className="h-3.5 w-3.5" /> ADV
             </TabsTrigger>
             <TabsTrigger value="database" className="flex items-center gap-1 text-xs">
               <Database className="h-3.5 w-3.5" /> Base de données
@@ -197,6 +205,7 @@ export default function DeliveryApp() {
           </TabsList>
 
           <TabsContent value="info"><GeneralInfoTab /></TabsContent>
+          <TabsContent value="adv"><AdvTab /></TabsContent>
           <TabsContent value="database"><DatabaseTab /></TabsContent>
           <TabsContent value="composition"><TruckCompositionTab /></TabsContent>
           
