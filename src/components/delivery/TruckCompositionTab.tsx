@@ -1528,6 +1528,11 @@ export default function TruckCompositionTab() {
                   )}
                 </TableBody>
               </Table>
+              {(hasMultipleTeams || calendarFactoryFilter.size > 0 || calendarTransporterFilter.size > 0 || calendarHandlingMeansFilter.size > 0) && (
+                <p className="text-xs italic text-muted-foreground mt-2">
+                  Le récapitulatif prend en compte tous les camions du chantier, filtres non appliqués
+                </p>
+              )}
             </CardContent>
           </Card>
         );
