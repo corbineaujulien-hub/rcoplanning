@@ -343,7 +343,10 @@ export default function LoadPlanning() {
         .filter(Boolean) as ISOWeek[];
       const forecastByWeek = new Map<string, Record<string, Record<TransportCategory, number>>>();
       if (!isFullyComplete && visibleForecastWeeks.length > 0) {
-        const n = visibleForecastWeeks.length;
+        // Always divide by the TOTAL number of forecast weeks selected for the project,
+        // not by the count of weeks visible in the current period. This keeps the per-week
+        // value stable when the user narrows the displayed period.
+        const n = projWeeks.length;
         const validTransports = projTransports.filter(t => t.usine && t.usine.trim());
         const totalTrucks = validTransports.reduce(
           (s, t) => s + (t.standard || 0) + (t.cat1 || 0) + (t.cat2 || 0) + (t.cat3 || 0),
