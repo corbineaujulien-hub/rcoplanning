@@ -343,29 +343,58 @@ export default function LoadPlanning() {
         .filter(Boolean) as ISOWeek[];
       const forecastByWeek = new Map<string, Record<string, Record<TransportCategory, number>>>();
       if (!isFullyComplete && visibleForecastWeeks.length > 0) {
-        // Always divide by the TOTAL number of forecast weeks selected for the project,
-        // not by the count of weeks visible in the current period. This keeps the per-week
-        // value stable when the user narrows the displayed period.
-        const n = projWeeks.length;
+        // Divide by the number of forecast weeks that DO NOT contain any real truck
+        // (forecast-only weeks). Already-planned trucks are deducted from the total
+        // forecast so we only spread the remainder over the remaining forecast weeks.
+        const forecastOnlyProjWeeks = projWeeks.filter(fw => {
+          const w = weeks.find(x => x.year === fw.year && x.week === fw.weekNumber);
+          // Week not yet in the visible range: use the project's real-truck map (covers all weeks)
+          const wk = w ? w.key : `${fw.year}-W${String(fw.weekNumber).padStart(2, '0')}`;
+          return !realByWeek.has(wk);
+        });
+        const n = forecastOnlyProjWeeks.length;
         const validTransports = projTransports.filter(t => t.usine && t.usine.trim());
-        const totalTrucks = validTransports.reduce(
-          (s, t) => s + (t.standard || 0) + (t.cat1 || 0) + (t.cat2 || 0) + (t.cat3 || 0),
-          0,
-        );
+        // Per-usine totals + per-usine already planned (real) trucks
+        const plannedByUsine: Record<string, number> = {};
+        projTrucks.forEach(t => {
+          const els = (t.element_ids || []).map(id => elementsById.get(id)).filter(Boolean) as ElementRow[];
+          const factories = Array.from(new Set(els.map(e => e.factory).filter(Boolean)));
+          const f = factories[0] || UNASSIGNED_USINE;
+          plannedByUsine[f] = (plannedByUsine[f] || 0) + 1;
+        });
+        const remainingByUsine: Record<string, { total: number; standard: number; cat1: number; cat2: number; cat3: number }> = {};
+        validTransports.forEach(t => {
+          const total = (t.standard || 0) + (t.cat1 || 0) + (t.cat2 || 0) + (t.cat3 || 0);
+          const planned = plannedByUsine[t.usine] || 0;
+          const remaining = Math.max(0, total - planned);
+          const ratio = total > 0 ? remaining / total : 0;
+          remainingByUsine[t.usine] = {
+            total: remaining,
+            standard: (t.standard || 0) * ratio,
+            cat1: (t.cat1 || 0) * ratio,
+            cat2: (t.cat2 || 0) * ratio,
+            cat3: (t.cat3 || 0) * ratio,
+          };
+        });
+        const totalRemaining = Object.values(remainingByUsine).reduce((s, r) => s + r.total, 0);
         visibleForecastWeeks.forEach(w => {
+          // Skip forecast distribution on weeks that already have real trucks
+          if (realByWeek.has(w.key)) return;
           const wk: Record<string, Record<TransportCategory, number>> = {};
-          if (totalTrucks > 0) {
+          if (totalRemaining > 0 && n > 0) {
             validTransports.forEach(t => {
               usinesSet.add(t.usine);
+              const r = remainingByUsine[t.usine];
+              if (!r) return;
               wk[t.usine] = {
-                standard: (t.standard || 0) / n,
-                cat1: (t.cat1 || 0) / n,
-                cat2: (t.cat2 || 0) / n,
-                cat3: (t.cat3 || 0) / n,
+                standard: r.standard / n,
+                cat1: r.cat1 / n,
+                cat2: r.cat2 / n,
+                cat3: r.cat3 / n,
               };
             });
           } else {
-            // Week selected but no transports — placeholder so CDT/Poseur teams still counted
+            // Week selected but nothing left to forecast — placeholder so CDT/Poseur teams still counted
             wk[UNASSIGNED_USINE] = { standard: 0, cat1: 0, cat2: 0, cat3: 0 };
           }
           forecastByWeek.set(w.key, wk);
