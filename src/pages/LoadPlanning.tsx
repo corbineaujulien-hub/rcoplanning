@@ -295,9 +295,24 @@ export default function LoadPlanning() {
 
   const computedProjects: ProjectComputed[] = useMemo(() => {
     return projects.map(project => {
-      const projTrucks = trucks.filter(t => t.project_id === project.id && t.date);
+      const allProjTrucks = trucks.filter(t => t.project_id === project.id && t.date);
       const projWeeks = forecastWeeks.filter(s => s.projectId === project.id);
-      const projTransports = project.forecasted_transports || [];
+      const allProjTransports = project.forecasted_transports || [];
+
+      // Product filter ---------------------------------------------------
+      const productFilterActive = filterProduct.size > 0;
+      const truckMatchesProduct = (t: TruckRow) => {
+        if (!productFilterActive) return true;
+        const els = (t.element_ids || []).map(id => elementsById.get(id)).filter(Boolean) as ElementRow[];
+        return els.some(e => {
+          const ft = getForecastType(e.product_type);
+          return ft != null && filterProduct.has(ft);
+        });
+      };
+      const projTrucks = allProjTrucks.filter(truckMatchesProduct);
+      const projTransports = allProjTransports.filter(ft =>
+        !productFilterActive || !ft.productType || filterProduct.has(ft.productType)
+      );
 
       const projElements = elements.filter(e => e.project_id === project.id);
       const totalWeight = projElements.reduce((s, e) => s + (e.weight || 0), 0);
