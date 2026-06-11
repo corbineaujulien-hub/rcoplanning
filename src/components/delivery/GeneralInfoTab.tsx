@@ -364,7 +364,16 @@ function ForecastedTransportsCard({
           Renseignez le nombre prévisionnel de camions par usine et par catégorie de transport.
         </p>
         <div className="overflow-x-auto">
-          <table className="w-full text-xs border-collapse">
+          <table className="w-full text-xs border-collapse forecasted-transports-table">
+            <colgroup>
+              <col style={{ width: 80, minWidth: 80 }} />
+              <col style={{ width: 200, minWidth: 200 }} />
+              {FORECAST_TRANSPORT_CATEGORIES.map(c => (
+                <col key={c.key} style={{ width: 70, minWidth: 70 }} />
+              ))}
+              <col style={{ width: 60, minWidth: 60 }} />
+              <col style={{ width: 36, minWidth: 36 }} />
+            </colgroup>
             <thead>
               <tr className="border-b">
                 <th className="text-left p-2 font-medium">Usine</th>
@@ -386,16 +395,16 @@ function ForecastedTransportsCard({
               )}
               {draft.map((t, idx) => (
                 <tr key={idx} className="border-b last:border-0">
-                  <td className="p-1">
+                  <td className="p-1 text-left">
                     <Input
                       value={t.usine}
                       onChange={e => update(idx, { usine: e.target.value })}
                       onBlur={commit}
                       placeholder="Ex : Usine Nord"
-                      className="h-8 text-xs"
+                      className="h-8 text-xs text-left"
                     />
                   </td>
-                  <td className="p-1">
+                  <td className="p-1 text-left">
                     <Select
                       value={t.productType || '__none__'}
                       onValueChange={v => {
@@ -405,7 +414,7 @@ function ForecastedTransportsCard({
                         onChange(next);
                       }}
                     >
-                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                      <SelectTrigger className="h-8 text-xs w-full text-left justify-start"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none__">— Non précisé —</SelectItem>
                         {FORECAST_PRODUCT_TYPES.map(p => (
