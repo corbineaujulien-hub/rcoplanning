@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
-import { CONDUCTORS, SUBCONTRACTORS, Team, ForecastedTransport, FORECAST_TRANSPORT_CATEGORIES, ForecastTransportCategory } from '@/types/delivery';
+import { CONDUCTORS, SUBCONTRACTORS, Team, ForecastedTransport, FORECAST_TRANSPORT_CATEGORIES, ForecastTransportCategory, FORECAST_PRODUCT_TYPES } from '@/types/delivery';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -331,7 +331,7 @@ function ForecastedTransportsCard({
   const commit = () => onChange(draft);
 
   const addRow = () => {
-    const next = [...draft, { usine: '', standard: 0, cat1: 0, cat2: 0, cat3: 0 }];
+    const next = [...draft, { usine: '', productType: '', standard: 0, cat1: 0, cat2: 0, cat3: 0 }];
     setDraft(next);
     onChange(next);
   };
@@ -368,6 +368,7 @@ function ForecastedTransportsCard({
             <thead>
               <tr className="border-b">
                 <th className="text-left p-2 font-medium">Usine</th>
+                <th className="text-left p-2 font-medium">Type de produit</th>
                 {FORECAST_TRANSPORT_CATEGORIES.map(c => (
                   <th key={c.key} className="p-2 text-center font-medium">{c.label}</th>
                 ))}
@@ -378,7 +379,7 @@ function ForecastedTransportsCard({
             <tbody>
               {draft.length === 0 && (
                 <tr>
-                  <td colSpan={FORECAST_TRANSPORT_CATEGORIES.length + 3} className="p-3 text-center text-muted-foreground italic">
+                  <td colSpan={FORECAST_TRANSPORT_CATEGORIES.length + 4} className="p-3 text-center text-muted-foreground italic">
                     Aucune usine renseignée
                   </td>
                 </tr>
@@ -393,6 +394,25 @@ function ForecastedTransportsCard({
                       placeholder="Ex : Usine Nord"
                       className="h-8 text-xs"
                     />
+                  </td>
+                  <td className="p-1">
+                    <Select
+                      value={t.productType || '__none__'}
+                      onValueChange={v => {
+                        const val = v === '__none__' ? '' : v;
+                        const next = draft.map((d, i) => i === idx ? { ...d, productType: val } : d);
+                        setDraft(next);
+                        onChange(next);
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Non précisé —</SelectItem>
+                        {FORECAST_PRODUCT_TYPES.map(p => (
+                          <SelectItem key={p} value={p}>{p}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </td>
                   {FORECAST_TRANSPORT_CATEGORIES.map(c => (
                     <td key={c.key} className="p-1 text-center">
@@ -416,7 +436,7 @@ function ForecastedTransportsCard({
               ))}
               {draft.length > 0 && (
                 <tr className="font-bold bg-muted/40">
-                  <td className="p-2">Total général</td>
+                  <td className="p-2" colSpan={2}>Total général</td>
                   {FORECAST_TRANSPORT_CATEGORIES.map(c => (
                     <td key={c.key} className="p-2 text-center">{colTotals[c.key]}</td>
                   ))}
@@ -428,7 +448,7 @@ function ForecastedTransportsCard({
           </table>
         </div>
         <Button variant="outline" size="sm" onClick={addRow}>
-          <Plus className="h-4 w-4 mr-1" /> Ajouter une usine
+          <Plus className="h-4 w-4 mr-1" /> Ajouter une ligne
         </Button>
       </CardContent>
     </Card>
