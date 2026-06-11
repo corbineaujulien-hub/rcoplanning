@@ -1405,21 +1405,79 @@ export default function TruckCompositionTab() {
       {/* Recap by factory × category */}
       {trucks.length > 0 && (() => {
         const forecastList = projectInfo.forecastedTransports || [];
+        const cats: TransportCategory[] = ['standard', 'cat1', 'cat2', 'cat3'];
+        const emptyRow = (): Record<TransportCategory, number> => ({ standard: 0, cat1: 0, cat2: 0, cat3: 0 });
+
+        // Forecast aggregated by usine (sum of all lines with same usine)
         const forecastByUsine = new Map<string, Record<TransportCategory, number>>();
         forecastList.forEach(t => {
           if (!t.usine?.trim()) return;
-          forecastByUsine.set(t.usine.trim(), {
-            standard: t.standard || 0,
-            cat1: t.cat1 || 0,
-            cat2: t.cat2 || 0,
-            cat3: t.cat3 || 0,
+          const key = t.usine.trim();
+          const acc = forecastByUsine.get(key) || emptyRow();
+          acc.standard += t.standard || 0;
+          acc.cat1 += t.cat1 || 0;
+          acc.cat2 += t.cat2 || 0;
+          acc.cat3 += t.cat3 || 0;
+          forecastByUsine.set(key, acc);
+        });
+
+        // Forecast aggregated by product type
+        const forecastByProduct = new Map<string, Record<TransportCategory, number>>();
+        forecastList.forEach(t => {
+          const pt = t.productType?.trim();
+          if (!pt) return;
+          const acc = forecastByProduct.get(pt) || emptyRow();
+          acc.standard += t.standard || 0;
+          acc.cat1 += t.cat1 || 0;
+          acc.cat2 += t.cat2 || 0;
+          acc.cat3 += t.cat3 || 0;
+          forecastByProduct.set(pt, acc);
+        });
+
+        // Real data aggregated by product type (using PRODUCT_TYPE_MAPPING)
+        const realByProduct: Record<string, Record<TransportCategory | 'total', number>> = {};
+        trucks.forEach(truck => {
+          const els = getTruckElements(truck.id);
+          const cat = getEffectiveCategory(truck, els);
+          const forecastTypes = new Set<string>();
+          els.forEach(el => {
+            const ft = getForecastType(el.productType);
+            if (ft) forecastTypes.add(ft);
+          });
+          if (forecastTypes.size === 0) forecastTypes.add('—');
+          forecastTypes.forEach(ft => {
+            if (!realByProduct[ft]) realByProduct[ft] = { standard: 0, cat1: 0, cat2: 0, cat3: 0, total: 0 };
+            realByProduct[ft][cat]++;
+            realByProduct[ft].total++;
           });
         });
-        // Merge real factories with forecast usines
-        const allFactoriesSet = new Set<string>(recapData.factories);
-        forecastByUsine.forEach((_v, k) => allFactoriesSet.add(k));
-        const allFactories = [...allFactoriesSet].sort();
-        const cats: TransportCategory[] = ['standard', 'cat1', 'cat2', 'cat3'];
+
+        // Build row keys
+        let rowKeys: string[];
+        let getReal: (key: string, cat: TransportCategory) => number;
+        let getRealTotal: (key: string) => number;
+        let getForecast: (key: string, cat: TransportCategory) => number;
+        let leftHeaderLabel: string;
+
+        if (recapPivotMode === 'usine') {
+          const allFactoriesSet = new Set<string>(recapData.factories);
+          forecastByUsine.forEach((_v, k) => allFactoriesSet.add(k));
+          rowKeys = [...allFactoriesSet].sort();
+          getReal = (k, cat) => recapData.data[k]?.[cat] || 0;
+          getRealTotal = (k) => recapData.data[k]?.total || 0;
+          getForecast = (k, cat) => forecastByUsine.get(k)?.[cat] || 0;
+          leftHeaderLabel = 'Usine';
+        } else {
+          const allKeys = new Set<string>();
+          Object.keys(realByProduct).forEach(k => { if (k !== '—') allKeys.add(k); });
+          forecastByProduct.forEach((_v, k) => allKeys.add(k));
+          // Preserve fixed order
+          rowKeys = (FORECAST_PRODUCT_TYPES as readonly string[]).filter(t => allKeys.has(t));
+          getReal = (k, cat) => realByProduct[k]?.[cat] || 0;
+          getRealTotal = (k) => realByProduct[k]?.total || 0;
+          getForecast = (k, cat) => forecastByProduct.get(k)?.[cat] || 0;
+          leftHeaderLabel = 'Type de produit';
+        }
 
         // Planning %
         const totalWeight = elements.reduce((s, e) => s + (e.weight || 0), 0);
@@ -1449,19 +1507,17 @@ export default function TruckCompositionTab() {
           );
         };
 
-        // Forecast totals helpers
-        const getForecast = (factory: string, cat: TransportCategory) => forecastByUsine.get(factory)?.[cat] || 0;
-        const getForecastRowTotal = (factory: string) =>
-          cats.reduce((s, cat) => s + getForecast(factory, cat), 0);
+        const getForecastRowTotal = (key: string) =>
+          cats.reduce((s, cat) => s + getForecast(key, cat), 0);
         const getForecastColTotal = (cat: TransportCategory) =>
-          allFactories.reduce((s, f) => s + getForecast(f, cat), 0);
+          rowKeys.reduce((s, k) => s + getForecast(k, cat), 0);
         const getForecastGrandTotal = () =>
-          allFactories.reduce((s, f) => s + getForecastRowTotal(f), 0);
+          rowKeys.reduce((s, k) => s + getForecastRowTotal(k), 0);
 
         return (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Récapitulatif par usine et catégorie de transport</CardTitle>
+              <CardTitle className="text-sm">Récapitulatif par usine/produit et catégorie de transport</CardTitle>
             </CardHeader>
             <CardContent>
               {(planningPct < 100 || !projectInfo.databaseComplete) && (
@@ -1481,7 +1537,17 @@ export default function TruckCompositionTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Usine</TableHead>
+                    <TableHead>
+                      <Select value={recapPivotMode} onValueChange={(v) => setRecapPivotMode(v as 'usine' | 'product')}>
+                        <SelectTrigger className="h-8 w-[180px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="usine">Usine</SelectItem>
+                          <SelectItem value="product">Type de produit</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableHead>
                     {Object.values(TRANSPORT_CATEGORIES).map(c => (
                       <TableHead key={c.category} className="text-center">{c.label}</TableHead>
                     ))}
@@ -1489,15 +1555,15 @@ export default function TruckCompositionTab() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {allFactories.map(factory => {
-                    const realTotal = recapData.data[factory]?.total || 0;
-                    const forecastRowTotal = getForecastRowTotal(factory);
+                  {rowKeys.map(key => {
+                    const realTotal = getRealTotal(key);
+                    const forecastRowTotal = getForecastRowTotal(key);
                     return (
-                      <TableRow key={factory}>
-                        <TableCell className="font-medium">{factory}</TableCell>
+                      <TableRow key={key}>
+                        <TableCell className="font-medium">{key}</TableCell>
                         {cats.map(cat => {
-                          const real = recapData.data[factory]?.[cat] || 0;
-                          const forecast = getForecast(factory, cat);
+                          const real = getReal(key, cat);
+                          const forecast = getForecast(key, cat);
                           return (
                             <TableCell key={cat} className="text-center">
                               {renderDeltaCell(real, forecast)}
@@ -1510,11 +1576,11 @@ export default function TruckCompositionTab() {
                       </TableRow>
                     );
                   })}
-                  {allFactories.length > 1 && (
+                  {rowKeys.length > 1 && (
                     <TableRow className="bg-muted/50 font-bold">
                       <TableCell>Total</TableCell>
                       {cats.map(cat => {
-                        const realColTotal = allFactories.reduce((sum, f) => sum + (recapData.data[f]?.[cat] || 0), 0);
+                        const realColTotal = rowKeys.reduce((sum, k) => sum + getReal(k, cat), 0);
                         const forecastColTotal = getForecastColTotal(cat);
                         return (
                           <TableCell key={cat} className="text-center">
