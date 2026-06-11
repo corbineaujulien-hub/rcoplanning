@@ -13,6 +13,7 @@ import ForecastWeeksStrip from '@/components/delivery/ForecastWeeksStrip';
 import { toast } from 'sonner';
 import {
   TransportCategory, CONDUCTORS, SUBCONTRACTORS, ForecastedTransport, ForecastWeek,
+  FORECAST_PRODUCT_TYPES, getForecastType,
 } from '@/types/delivery';
 import {
   getWeeksBetween, getWeekKeyForDate, getPoseurColor, UNASSIGNED_POSEUR,
@@ -208,6 +209,7 @@ export default function LoadPlanning() {
   const [filterCdt, setFilterCdt] = useState<Set<string>>(new Set());
   const [filterPoseur, setFilterPoseur] = useState<Set<string>>(new Set());
   const [filterUsine, setFilterUsine] = useState<Set<string>>(new Set());
+  const [filterProduct, setFilterProduct] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState<Set<'planned' | 'forecast'>>(new Set());
   const [filterBdd, setFilterBdd] = useState<Set<'complete' | 'incomplete'>>(new Set());
   const [searchText, setSearchText] = useState('');
