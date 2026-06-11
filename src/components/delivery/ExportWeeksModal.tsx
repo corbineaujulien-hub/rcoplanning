@@ -47,6 +47,34 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
 
   const showTeamFilter = teams.length > 1;
 
+  const availableWeeks = useMemo(() => {
+    const weeks = weeklyTabs.filter(w =>
+      trucks.some(t => {
+        const d = parseISO(t.date);
+        return parseInt(format(d, 'II')) === w.weekNumber && d.getFullYear() === w.year;
+      })
+    ).map(w => {
+      const firstTruck = trucks.find(t => {
+        const d = parseISO(t.date);
+        return parseInt(format(d, 'II')) === w.weekNumber && d.getFullYear() === w.year;
+      });
+      const refDate = firstTruck ? parseISO(firstTruck.date) : new Date(w.year, 0, 1 + (w.weekNumber - 1) * 7);
+      const weekStart = startOfISOWeek(refDate);
+      const weekEnd = endOfISOWeek(refDate);
+      return {
+        ...w,
+        key: `${w.year}-${w.weekNumber}`,
+        label: `Semaine ${w.weekNumber} — du ${format(weekStart, 'dd/MM', { locale: fr })} au ${format(weekEnd, 'dd/MM/yyyy', { locale: fr })}`,
+      };
+    });
+    // Sort descending: most recent first
+    weeks.sort((a, b) => {
+      if (b.year !== a.year) return b.year - a.year;
+      return b.weekNumber - a.weekNumber;
+    });
+    return weeks;
+  }, [weeklyTabs, trucks]);
+
   const handleOpenChange = (o: boolean) => {
     if (o) {
       const now = new Date();
@@ -82,34 +110,6 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, availableWeeks.length]);
-
-  const availableWeeks = useMemo(() => {
-    const weeks = weeklyTabs.filter(w =>
-      trucks.some(t => {
-        const d = parseISO(t.date);
-        return parseInt(format(d, 'II')) === w.weekNumber && d.getFullYear() === w.year;
-      })
-    ).map(w => {
-      const firstTruck = trucks.find(t => {
-        const d = parseISO(t.date);
-        return parseInt(format(d, 'II')) === w.weekNumber && d.getFullYear() === w.year;
-      });
-      const refDate = firstTruck ? parseISO(firstTruck.date) : new Date(w.year, 0, 1 + (w.weekNumber - 1) * 7);
-      const weekStart = startOfISOWeek(refDate);
-      const weekEnd = endOfISOWeek(refDate);
-      return {
-        ...w,
-        key: `${w.year}-${w.weekNumber}`,
-        label: `Semaine ${w.weekNumber} — du ${format(weekStart, 'dd/MM', { locale: fr })} au ${format(weekEnd, 'dd/MM/yyyy', { locale: fr })}`,
-      };
-    });
-    // Sort descending: most recent first
-    weeks.sort((a, b) => {
-      if (b.year !== a.year) return b.year - a.year;
-      return b.weekNumber - a.weekNumber;
-    });
-    return weeks;
-  }, [weeklyTabs, trucks]);
 
   // Trucks across ALL available weeks (used to populate filter options).
   const weekTrucks = useMemo(() => {
