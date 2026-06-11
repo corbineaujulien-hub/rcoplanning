@@ -468,7 +468,7 @@ export default function LoadPlanning() {
 
   // Filtering — archived treated like active. Supports excluding a single filter
   // (used to compute available values in dropdowns for cumulative behaviour).
-  const filterFn = useCallback((cp: ProjectComputed, exclude?: 'cdt' | 'poseur' | 'usine' | 'status' | 'bdd') => {
+  const filterFn = useCallback((cp: ProjectComputed, exclude?: 'cdt' | 'poseur' | 'usine' | 'status' | 'bdd' | 'product') => {
     const q = searchText.trim().toLowerCase();
     // Period filter: include only projects with at least one real or forecast cell in the visible range.
     const hasAnyInPeriod = Object.values(cp.weeks).some(w => w.source !== 'none');
@@ -622,6 +622,26 @@ export default function LoadPlanning() {
     computedProjects.filter(cp => filterFn(cp, 'usine')).forEach(p => p.usines.forEach(u => s.add(u)));
     return sortWithSentinelLast(Array.from(s), x => x, [UNASSIGNED_USINE]);
   }, [computedProjects, filterFn]);
+  // Available product types: union of forecast types present in real elements & forecasted transports
+  // across the projects passing every OTHER filter. Order follows the fixed list.
+  const allProducts = useMemo(() => {
+    const present = new Set<string>();
+    const visibleProjectIds = new Set(
+      computedProjects.filter(cp => filterFn(cp, 'product')).map(cp => cp.project.id),
+    );
+    elements.forEach(e => {
+      if (!visibleProjectIds.has(e.project_id)) return;
+      const ft = getForecastType(e.product_type);
+      if (ft) present.add(ft);
+    });
+    projects.forEach(p => {
+      if (!visibleProjectIds.has(p.id)) return;
+      (p.forecasted_transports || []).forEach(ft => {
+        if (ft.productType) present.add(ft.productType);
+      });
+    });
+    return FORECAST_PRODUCT_TYPES.filter(t => present.has(t));
+  }, [computedProjects, filterFn, elements, projects]);
   const availableStatus = useMemo(() => {
     const set = new Set<'planned' | 'forecast'>();
     computedProjects.filter(cp => filterFn(cp, 'status')).forEach(cp => {
@@ -633,7 +653,7 @@ export default function LoadPlanning() {
   }, [computedProjects, filterFn]);
 
   const hasActiveFilters =
-    filterCdt.size > 0 || filterPoseur.size > 0 || filterUsine.size > 0 ||
+    filterCdt.size > 0 || filterPoseur.size > 0 || filterUsine.size > 0 || filterProduct.size > 0 ||
     filterStatus.size > 0 || filterBdd.size > 0 || searchText.trim() !== '';
 
   const updateProjectField = useCallback(async (projectId: string, field: 'conductor' | 'subcontractor', value: string) => {
@@ -667,7 +687,7 @@ export default function LoadPlanning() {
   }, []);
 
   const resetFilters = () => {
-    setFilterCdt(new Set()); setFilterPoseur(new Set()); setFilterUsine(new Set());
+    setFilterCdt(new Set()); setFilterPoseur(new Set()); setFilterUsine(new Set()); setFilterProduct(new Set());
     setFilterStatus(new Set()); setFilterBdd(new Set()); setSearchText('');
   };
 
