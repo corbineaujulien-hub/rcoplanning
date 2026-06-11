@@ -7,6 +7,7 @@ import {
   getTruckWeight,
   getTruckZones,
   getProductCountsByType,
+  getTruckMaxLength,
 } from './transportUtils';
 
 const THIN_BORDER_COLOR = 'D1D5DB';
@@ -63,8 +64,8 @@ function buildSheet({ trucks, weekNumber, projectInfo, teamLabel, getTruckElemen
   // Determine if transporter column needed
   const showTransporter = trucks.some(t => !!t.transporter?.trim());
   const cols = showTransporter
-    ? ['Date', 'Heure', 'Usine', 'Transporteur', 'Catégorie', 'Zone + Repères des produits', 'POIDS EN T', 'COMMENTAIRES']
-    : ['Date', 'Heure', 'Usine', 'Catégorie', 'Zone + Repères des produits', 'POIDS EN T', 'COMMENTAIRES'];
+    ? ['Date', 'Heure', 'Usine', 'Transporteur', 'Catégorie', 'Zone + Repères des produits', 'Poids (To)', 'Longueur max (ml)', 'Commentaires']
+    : ['Date', 'Heure', 'Usine', 'Catégorie', 'Zone + Repères des produits', 'Poids (To)', 'Longueur max (ml)', 'Commentaires'];
   const nCols = cols.length;
   const lastColLetter = String.fromCharCode(64 + nCols); // up to H
 
@@ -140,6 +141,7 @@ function buildSheet({ trucks, weekNumber, projectInfo, teamLabel, getTruckElemen
     const dayLabel = formatDayFr(date);
     const row = Array(nCols).fill('');
     row[0] = dayLabel;
+    row[1] = `${dayTrucks.length} camion${dayTrucks.length > 1 ? 's' : ''}`;
     aoa.push(row);
     for (let c = 0; c < nCols; c++) {
       setStyle(r, c, {
@@ -159,15 +161,28 @@ function buildSheet({ trucks, weekNumber, projectInfo, teamLabel, getTruckElemen
       const zoneKey = zones.join(' | ');
 
       if (zoneKey && zoneKey !== prevZoneKey) {
+        // Compute group label = product types + zone, for all trucks in this day sharing the zone
+        const groupTrucks = dayTrucks.filter(dt => {
+          const dEls = getTruckElements(dt.id);
+          return getTruckZones(dEls).join(' | ') === zoneKey;
+        });
+        const typeSet = new Set<string>();
+        groupTrucks.forEach(gt => {
+          getTruckElements(gt.id).forEach(e => {
+            if (e.productType) typeSet.add(e.productType.toUpperCase());
+          });
+        });
+        const types = Array.from(typeSet);
+        const label = types.length > 0 ? `${types.join(' + ')} ${zoneKey}` : zoneKey;
         const zoneRow = Array(nCols).fill('');
-        const zoneColIdx = cols.indexOf('Zone + Repères des produits');
-        zoneRow[zoneColIdx] = zoneKey;
+        zoneRow[0] = label;
         aoa.push(zoneRow);
+        merges.push({ s: { r, c: 0 }, e: { r, c: nCols - 1 } });
         for (let c = 0; c < nCols; c++) {
           setStyle(r, c, {
             font: { italic: true, sz: 10, bold: true },
             fill: { patternType: 'solid', fgColor: { rgb: ZONE_FILL } },
-            alignment: { horizontal: 'left', vertical: 'center' },
+            alignment: { horizontal: 'center', vertical: 'center' },
             border: thinBorder,
           });
         }
@@ -179,27 +194,30 @@ function buildSheet({ trucks, weekNumber, projectInfo, teamLabel, getTruckElemen
       const usine = getTruckFactories(els).join(', ');
       const reperes = els.map(e => e.repere).join(', ');
       const weight = getTruckWeight(els);
+      const maxLen = getTruckMaxLength(els);
       const transporter = t.transporter?.trim() || '';
       const comment = t.comment?.trim() || '';
 
       const truckRow: any[] = showTransporter
-        ? ['', t.time, usine, transporter, TRANSPORT_CATEGORIES[cat].label, reperes, Number(weight.toFixed(2)), comment]
-        : ['', t.time, usine, TRANSPORT_CATEGORIES[cat].label, reperes, Number(weight.toFixed(2)), comment];
+        ? ['', t.time, usine, transporter, TRANSPORT_CATEGORIES[cat].label, reperes, Number(weight.toFixed(2)), Number(maxLen.toFixed(2)), comment]
+        : ['', t.time, usine, TRANSPORT_CATEGORIES[cat].label, reperes, Number(weight.toFixed(2)), Number(maxLen.toFixed(2)), comment];
       aoa.push(truckRow);
 
       const rowFill = altFlag ? ALT_FILL : 'FFFFFF';
       for (let c = 0; c < nCols; c++) {
-        const isWeight = cols[c] === 'POIDS EN T';
+        const isWeight = cols[c] === 'Poids (To)';
+        const isLen = cols[c] === 'Longueur max (ml)';
+        const isComment = cols[c] === 'Commentaires';
         setStyle(r, c, {
-          font: { sz: 10 },
+          font: { sz: 10, ...(isComment && comment ? { color: { rgb: 'DC2626' } } : {}) },
           fill: { patternType: 'solid', fgColor: { rgb: rowFill } },
           alignment: {
-            horizontal: c === cols.indexOf('Zone + Repères des produits') || c === cols.indexOf('COMMENTAIRES') ? 'left' : 'center',
+            horizontal: c === cols.indexOf('Zone + Repères des produits') || c === cols.indexOf('Commentaires') ? 'left' : 'center',
             vertical: 'center',
             wrapText: true,
           },
           border: thinBorder,
-          ...(isWeight ? { numFmt: '0.00' } : {}),
+          ...(isWeight || isLen ? { numFmt: '0.00' } : {}),
         });
       }
       altFlag = !altFlag;
@@ -219,27 +237,30 @@ function buildSheet({ trucks, weekNumber, projectInfo, teamLabel, getTruckElemen
       counts[k] = (counts[k] || 0) + v;
     });
   });
-  const countsStr = Object.entries(counts)
-    .map(([k, v]) => `${v}x ${k}`)
-    .join('  ');
+  const totalProducts = Object.values(counts).reduce((a, b) => a + b, 0);
+  const detailLines = Object.entries(counts).map(([k, v]) => `     ${v}x ${k}${v > 1 ? 's' : ''}`);
+  const countsStr = [`${totalProducts} produits`, ...detailLines].join('\n');
 
   const totalRow: any[] = Array(nCols).fill('');
   totalRow[1] = `${totalTrucks} camion${totalTrucks > 1 ? 's' : ''}`;
   totalRow[cols.indexOf('Zone + Repères des produits')] = countsStr;
-  totalRow[cols.indexOf('POIDS EN T')] = Number(totalWeight.toFixed(2));
+  totalRow[cols.indexOf('Poids (To)')] = Number(totalWeight.toFixed(2));
   aoa.push(totalRow);
   for (let c = 0; c < nCols; c++) {
+    const isZoneCol = c === cols.indexOf('Zone + Repères des produits');
     setStyle(r, c, {
       font: { bold: true, sz: 10 },
       fill: { patternType: 'solid', fgColor: { rgb: TOTAL_FILL } },
-      alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+      alignment: { horizontal: isZoneCol ? 'left' : 'center', vertical: 'center', wrapText: true },
       border: {
         ...thinBorder,
         top: { style: 'medium', color: { rgb: '1E3A5F' } },
       },
-      ...(cols[c] === 'POIDS EN T' ? { numFmt: '0.00 "t"' } : {}),
+      ...(cols[c] === 'Poids (To)' ? { numFmt: '0.00 " To"' } : {}),
     });
   }
+  // Auto-adjust total row height based on product detail lines
+  const totalRowIdx = r;
 
   // Build sheet
   const ws = XLSXStyle.utils.aoa_to_sheet(aoa);
@@ -261,8 +282,9 @@ function buildSheet({ trucks, weekNumber, projectInfo, teamLabel, getTruckElemen
     'Transporteur': 16,
     'Catégorie': 20,
     'Zone + Repères des produits': 36,
-    'POIDS EN T': 12,
-    'COMMENTAIRES': 22,
+    'Poids (To)': 12,
+    'Longueur max (ml)': 14,
+    'Commentaires': 22,
   };
   ws['!cols'] = cols.map(c => ({ wch: widthMap[c] || 12 }));
 
@@ -271,6 +293,9 @@ function buildSheet({ trucks, weekNumber, projectInfo, teamLabel, getTruckElemen
   ws['!rows'][0] = { hpt: 24 };
   ws['!rows'][1] = { hpt: 30 };
   ws['!rows'][3] = { hpt: 24 };
+  // total row height = base + lines
+  const detailCount = Object.keys(counts).length;
+  ws['!rows'][totalRowIdx] = { hpt: Math.max(20, 16 * (1 + detailCount)) };
 
   return { ws, lastColLetter };
 }
