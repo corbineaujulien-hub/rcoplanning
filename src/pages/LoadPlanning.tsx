@@ -693,14 +693,23 @@ export default function LoadPlanning() {
 
   const handleExportPdf = async () => {
     try {
-      await exportLoadPlanningPdf({ weeks, projects: filteredProjects, loadByCdt, loadByPoseur, loadByUsine, periodStart, periodEnd });
+      await exportLoadPlanningPdf({ weeks, projects: filteredProjects, loadByCdt, loadByPoseur, loadByUsine, periodStart, periodEnd, productSuffix: productFilenameSuffix() });
     } catch (err: any) { toast.error('Erreur export PDF : ' + err.message); }
   };
 
   const handleExportExcel = async () => {
     try {
-      await exportLoadPlanningExcel({ weeks, projects: filteredProjects, loadByCdt, loadByPoseur, loadByUsine, periodStart, periodEnd });
+      await exportLoadPlanningExcel({ weeks, projects: filteredProjects, loadByCdt, loadByPoseur, loadByUsine, periodStart, periodEnd, productSuffix: productFilenameSuffix() });
     } catch (err: any) { toast.error('Erreur export Excel : ' + err.message); }
+  };
+
+  const productFilenameSuffix = () => {
+    if (filterProduct.size === 0) return '';
+    if (filterProduct.size === 1) {
+      const v = Array.from(filterProduct)[0];
+      return '_' + v.replace(/[^A-Za-zÀ-ÿ0-9]/g, '');
+    }
+    return '_MultiProduits';
   };
 
   const todayWeekKey = getWeekKeyForDate(today.toISOString().slice(0, 10));
