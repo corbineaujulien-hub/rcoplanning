@@ -39,7 +39,7 @@ const slug = (s: string) =>
     || 'NA';
 
 export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, trucks, getTruckElements, onExport, title, teams = [] }: ExportWeeksModalProps) {
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(weeklyTabs.map(w => `${w.year}-${w.weekNumber}`)));
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [factorySet, setFactorySet] = useState<Set<string>>(new Set());
   const [transporterSet, setTransporterSet] = useState<Set<string>>(new Set());
   const [teamSet, setTeamSet] = useState<Set<string>>(new Set());
@@ -47,21 +47,8 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
 
   const showTeamFilter = teams.length > 1;
 
-  const handleOpenChange = (o: boolean) => {
-    if (o) setSelected(new Set(weeklyTabs.map(w => `${w.year}-${w.weekNumber}`)));
-    onOpenChange(o);
-  };
-
-  // When the modal opens (controlled from parent), make sure all weeks are selected by default.
-  useEffect(() => {
-    if (open) {
-      setSelected(new Set(weeklyTabs.map(w => `${w.year}-${w.weekNumber}`)));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, weeklyTabs.length]);
-
   const availableWeeks = useMemo(() => {
-    return weeklyTabs.filter(w =>
+    const weeks = weeklyTabs.filter(w =>
       trucks.some(t => {
         const d = parseISO(t.date);
         return parseInt(format(d, 'II')) === w.weekNumber && d.getFullYear() === w.year;
@@ -80,7 +67,49 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
         label: `Semaine ${w.weekNumber} — du ${format(weekStart, 'dd/MM', { locale: fr })} au ${format(weekEnd, 'dd/MM/yyyy', { locale: fr })}`,
       };
     });
+    // Sort descending: most recent first
+    weeks.sort((a, b) => {
+      if (b.year !== a.year) return b.year - a.year;
+      return b.weekNumber - a.weekNumber;
+    });
+    return weeks;
   }, [weeklyTabs, trucks]);
+
+  const handleOpenChange = (o: boolean) => {
+    if (o) {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentWeekNumber = parseInt(format(now, 'II'));
+      setSelected(new Set(
+        availableWeeks
+          .filter(w => {
+            if (w.year > currentYear) return true;
+            if (w.year < currentYear) return false;
+            return w.weekNumber >= currentWeekNumber;
+          })
+          .map(w => w.key)
+      ));
+    }
+    onOpenChange(o);
+  };
+
+  // When the modal opens, select current + future weeks by default.
+  useEffect(() => {
+    if (open) {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentWeekNumber = parseInt(format(now, 'II'));
+      const defaultSelected = availableWeeks
+        .filter(w => {
+          if (w.year > currentYear) return true;
+          if (w.year < currentYear) return false;
+          return w.weekNumber >= currentWeekNumber;
+        })
+        .map(w => w.key);
+      setSelected(new Set(defaultSelected));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, availableWeeks.length]);
 
   // Trucks across ALL available weeks (used to populate filter options).
   const weekTrucks = useMemo(() => {
@@ -248,12 +277,29 @@ export default function ExportWeeksModal({ open, onOpenChange, weeklyTabs, truck
         </div>
 
         <div className="flex-1 min-h-[80px] max-h-[250px] overflow-y-auto border rounded-md p-2 space-y-2">
-          {availableWeeks.map(w => (
-            <label key={w.key} className="flex items-center gap-2 cursor-pointer text-sm">
-              <Checkbox checked={selected.has(w.key)} onCheckedChange={() => toggleWeek(w.key)} />
-              {w.label}
-            </label>
-          ))}
+          {availableWeeks.map((w, i) => {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentWeekNumber = parseInt(format(now, 'II'));
+            const isPast = w.year < currentYear || (w.year === currentYear && w.weekNumber < currentWeekNumber);
+            const next = availableWeeks[i + 1];
+            const nextIsPast = next && (next.year < currentYear || (next.year === currentYear && next.weekNumber < currentWeekNumber));
+            const showSeparator = !isPast && nextIsPast;
+            return (
+              <div key={w.key}>
+                <label className="flex items-center gap-2 cursor-pointer text-sm">
+                  <Checkbox checked={selected.has(w.key)} onCheckedChange={() => toggleWeek(w.key)} />
+                  {w.label}
+                </label>
+                {showSeparator && (
+                  <>
+                    <div className="my-1 border-t border-[#d1d5db]" />
+                    <p className="text-[10px] italic text-gray-400">Semaines passées</p>
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <p className="text-xs text-muted-foreground shrink-0">
