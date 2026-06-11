@@ -464,7 +464,7 @@ export default function LoadPlanning() {
         planningPct,
       };
     });
-  }, [projects, trucks, forecastWeeks, elements, elementsById, weeks]);
+  }, [projects, trucks, forecastWeeks, elements, elementsById, weeks, filterProduct]);
 
   // Filtering — archived treated like active. Supports excluding a single filter
   // (used to compute available values in dropdowns for cumulative behaviour).
