@@ -72,6 +72,7 @@ function buildSheet({ trucks, weekNumber, projectInfo, teamLabel, getTruckElemen
   const aoa: any[][] = [];
   const merges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = [];
   const styles: Record<string, any> = {};
+  const richTextZones: { row: number; typeLabel: string; zone: string }[] = [];
 
   const setStyle = (r: number, c: number, st: any) => {
     const addr = XLSXStyle.utils.encode_cell({ r, c });
@@ -173,9 +174,14 @@ function buildSheet({ trucks, weekNumber, projectInfo, teamLabel, getTruckElemen
           });
         });
         const types = Array.from(typeSet);
-        const label = types.length > 0 ? `${types.join(' + ')} ${zoneKey}` : zoneKey;
+        const typeLabel = types.length > 0 ? types.join(' + ') : '';
         const zoneRow = Array(nCols).fill('');
-        zoneRow[0] = label;
+        if (typeLabel) {
+          zoneRow[0] = { v: `${typeLabel} ${zoneKey}`, t: 's' };
+          richTextZones.push({ row: r, typeLabel, zone: zoneKey });
+        } else {
+          zoneRow[0] = zoneKey;
+        }
         aoa.push(zoneRow);
         merges.push({ s: { r, c: 0 }, e: { r, c: nCols - 1 } });
         for (let c = 0; c < nCols; c++) {
@@ -238,7 +244,7 @@ function buildSheet({ trucks, weekNumber, projectInfo, teamLabel, getTruckElemen
     });
   });
   const totalProducts = Object.values(counts).reduce((a, b) => a + b, 0);
-  const detailLines = Object.entries(counts).map(([k, v]) => `     ${v}x ${k}${v > 1 ? 's' : ''}`);
+  const detailLines = Object.entries(counts).map(([k, v]) => `     ${v}x ${k}`);
   const countsStr = [`${totalProducts} produits`, ...detailLines].join('\n');
 
   const totalRow: any[] = Array(nCols).fill('');
@@ -269,6 +275,17 @@ function buildSheet({ trucks, weekNumber, projectInfo, teamLabel, getTruckElemen
   Object.entries(styles).forEach(([addr, st]) => {
     if (!ws[addr]) ws[addr] = { v: '', t: 's' };
     (ws[addr] as any).s = st;
+  });
+
+  // Apply rich text to zone rows (type in black, zone in red)
+  richTextZones.forEach(({ row, typeLabel, zone }) => {
+    const addr = XLSXStyle.utils.encode_cell({ r: row, c: 0 });
+    if (ws[addr]) {
+      (ws[addr] as any).r = [
+        { t: `${typeLabel} `, s: { font: { color: { rgb: '1F2937' }, bold: true, italic: true } } },
+        { t: zone, s: { font: { color: { rgb: 'DC2626' }, bold: true, italic: true } } },
+      ];
+    }
   });
 
   // Merges
