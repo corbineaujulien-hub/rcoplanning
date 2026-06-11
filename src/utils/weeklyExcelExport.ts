@@ -72,6 +72,7 @@ function buildSheet({ trucks, weekNumber, projectInfo, teamLabel, getTruckElemen
   const aoa: any[][] = [];
   const merges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = [];
   const styles: Record<string, any> = {};
+  const richTextZones: { row: number; typeLabel: string; zone: string }[] = [];
 
   const setStyle = (r: number, c: number, st: any) => {
     const addr = XLSXStyle.utils.encode_cell({ r, c });
