@@ -11,6 +11,7 @@ import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
 import { exportWeekPdf } from '@/utils/pdfExportUtils';
+import { exportWeeklyExcelStyled } from '@/utils/weeklyExcelExport';
 
 interface WeeklyPlanningTabProps {
   weekNumber: number;
@@ -221,25 +222,16 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
   }, [currentTeamName]);
 
   const exportExcel = () => {
-    const data = displayTrucks.map(t => {
-      const els = getTruckElements(t.id);
-      return {
-        'Date': t.date,
-        'Horaire': t.time,
-        'N° Camion': t.number,
-        'Transporteur': t.transporter?.trim() || '',
-        'Usine': getTruckFactories(els).join(', '),
-        'Poids (t)': getTruckWeight(els).toFixed(2),
-        'Plus long (m)': getTruckMaxLength(els).toFixed(2),
-        'Catégorie': TRANSPORT_CATEGORIES[getEffectiveCategory(t, els)].label,
-        'Nb produits': els.length,
-        'Repères': els.map(e => e.repere).join(', '),
-      };
+    exportWeeklyExcelStyled({
+      selectedWeeks: [{ weekNumber, year }],
+      allowedTrucks: displayTrucks,
+      getTruckElements,
+      projectInfo,
+      teams,
+      filenameSuffix: combinedSuffix,
+      teamLabelForFilename: currentTeamName || undefined,
+      mode: 'single',
     });
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `S${weekNumber}`);
-    XLSX.writeFile(wb, `planning_S${weekNumber}${combinedSuffix}${teamFilenameSuffix}.xlsx`);
   };
 
   const exportPdf = async () => {
