@@ -13,12 +13,10 @@ import WeeklyPlanningTab from '@/components/delivery/WeeklyPlanningTab';
 import AdvTab from '@/components/delivery/AdvTab';
 import { Truck as TruckIcon, ClipboardList, Database, Calendar, FileSpreadsheet, Home, BarChart3, ClipboardCheck } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getEffectiveCategory } from '@/utils/transportUtils';
-import { TRANSPORT_CATEGORIES } from '@/types/delivery';
-import * as XLSX from 'xlsx';
 import { exportAllWeeksPdf } from '@/utils/pdfExportUtils';
 import ExportWeeksModal from '@/components/delivery/ExportWeeksModal';
 import { calculatePlanningProgress } from '@/utils/progressUtils';
+import { exportWeeklyExcelStyled } from '@/utils/weeklyExcelExport';
 
 export default function DeliveryApp() {
   const { trucks, projectInfo, elements, getTruckElements, teams, projectId } = useDelivery();
@@ -76,53 +74,17 @@ export default function DeliveryApp() {
 
   const exportSelectedWeeksExcel = ({ selectedWeeks, filteredTrucks, filenameSuffix, teamLabel }: { selectedWeeks: { weekNumber: number; year: number }[]; filteredTrucks: typeof trucks; filenameSuffix: string; teamLabel?: string }) => {
     const allowedIds = new Set(filteredTrucks.map(t => t.id));
-    const wb = XLSX.utils.book_new();
-    selectedWeeks.forEach(w => {
-      const weekTrucks = trucks
-        .filter(t => {
-          if (!allowedIds.has(t.id)) return false;
-          const d = parseISO(t.date);
-          return parseInt(format(d, 'II')) === w.weekNumber && d.getFullYear() === w.year;
-        })
-        .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
-
-      const data = weekTrucks.map(t => {
-        const els = getTruckElements(t.id);
-        return {
-          'Date': t.date,
-          'Horaire': t.time,
-          'N° Camion': t.number,
-          'Équipe': hasMultipleTeams ? (teams.find(tm => tm.id === t.teamId)?.name || '—') : undefined,
-          'Usine': getTruckFactories(els).join(', '),
-          'Poids (t)': getTruckWeight(els).toFixed(2),
-          'Plus long (m)': getTruckMaxLength(els).toFixed(2),
-          'Catégorie': TRANSPORT_CATEGORIES[getEffectiveCategory(t, els)].label,
-          'Nb produits': els.length,
-          'Repères': els.map(e => e.repere).join(', '),
-          'Commentaire': t.comment || '',
-        };
-      });
-      const ws = XLSX.utils.json_to_sheet(data);
-      XLSX.utils.book_append_sheet(wb, ws, `S${String(w.weekNumber).padStart(2, '0')}`);
+    const allowed = trucks.filter(t => allowedIds.has(t.id));
+    exportWeeklyExcelStyled({
+      selectedWeeks,
+      allowedTrucks: allowed,
+      getTruckElements,
+      projectInfo,
+      teams,
+      filenameSuffix,
+      teamLabelForFilename: teamLabel,
+      mode: selectedWeeks.length === 1 ? 'single' : 'all',
     });
-
-    const nomChantier = projectInfo.siteName
-      ? projectInfo.siteName.trim().toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '')
-      : 'CHANTIER';
-    const lastYear = selectedWeeks[selectedWeeks.length - 1]?.year || new Date().getFullYear();
-    const teamSuffix = teamLabel
-      ? '_' + teamLabel.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '')
-      : '';
-
-    let filename: string;
-    if (selectedWeeks.length === 1) {
-      filename = `planning_${nomChantier}_S${String(selectedWeeks[0].weekNumber).padStart(2, '0')}_${lastYear}${filenameSuffix}${teamSuffix}.xlsx`;
-    } else {
-      const firstW = selectedWeeks[0].weekNumber;
-      const lastW = selectedWeeks[selectedWeeks.length - 1].weekNumber;
-      filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}-S${String(lastW).padStart(2, '0')}_${lastYear}${filenameSuffix}${teamSuffix}.xlsx`;
-    }
-    XLSX.writeFile(wb, filename);
   };
 
   const progress = useMemo(() => calculatePlanningProgress(elements, trucks), [elements, trucks]);
