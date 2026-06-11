@@ -778,6 +778,13 @@ export default function LoadPlanning() {
               width="w-[200px]"
             />
             <MultiSelectFilter
+              label="Produit"
+              options={allProducts as unknown as string[]}
+              selected={filterProduct}
+              onChange={setFilterProduct}
+              width="w-[200px]"
+            />
+            <MultiSelectFilter
               label="Statut"
               options={[
                 ...(availableStatus.has('planned') ? [{ value: 'planned', label: 'Planifiés' }] : []),
