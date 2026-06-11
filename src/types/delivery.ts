@@ -130,10 +130,47 @@ export const FORECAST_TRANSPORT_CATEGORIES: { key: ForecastTransportCategory; la
 
 export interface ForecastedTransport {
   usine: string;
+  productType?: string;
   standard: number;
   cat1: number;
   cat2: number;
   cat3: number;
+}
+
+// Forecast product types (fixed dropdown values) and mapping to real product types.
+export const FORECAST_PRODUCT_TYPES = [
+  'Poteaux BA',
+  'Poutres BP IC/IV',
+  'Poutres / Poteaux BP',
+  'Panneaux BA',
+  'Longrines BA',
+  'Pannes BP',
+  'Prédalles',
+  'Dalles Alvéolaires',
+] as const;
+
+export type ForecastProductType = typeof FORECAST_PRODUCT_TYPES[number];
+
+export const PRODUCT_TYPE_MAPPING: Record<string, string[]> = {
+  'Poteaux BA': ['Poteau BA', 'Potelet BA', 'Linteau BA'],
+  'Poutres BP IC/IV': ['Poutre BP IC', 'Poutre BP IV'],
+  'Poutres / Poteaux BP': ['Poutre BP R', 'Poteau BP', 'Potelet BP'],
+  'Panneaux BA': ['Panneau BA'],
+  'Longrines BA': ['Longrine BA'],
+  'Pannes BP': ['Panne BP R', 'Panne BP T'],
+  'Prédalles': ['Prédalle'],
+  'Dalles Alvéolaires': ['Dalle Alvéolaire'],
+};
+
+export function getForecastType(realType: string): string | null {
+  for (const [forecastType, realTypes] of Object.entries(PRODUCT_TYPE_MAPPING)) {
+    if (realTypes.includes(realType)) return forecastType;
+  }
+  return null;
+}
+
+export function getRealTypes(forecastType: string): string[] {
+  return PRODUCT_TYPE_MAPPING[forecastType] ?? [];
 }
 
 export const TRANSPORT_CATEGORIES: Record<TransportCategory, TransportInfo> = {

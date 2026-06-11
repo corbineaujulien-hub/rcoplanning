@@ -18,6 +18,7 @@ interface ExportArgs {
   loadByUsine: { key: string; perWeek: Record<string, number> }[];
   periodStart: string;
   periodEnd: string;
+  productSuffix?: string;
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -168,5 +169,5 @@ export async function exportLoadPlanningPdf(args: ExportArgs) {
     doc.text('Fourniture seule', lx + 3.5, y);
   }
 
-  doc.save(`planning_charge_${periodStart}_${periodEnd}.pdf`);
+  doc.save(`planning_charge_${periodStart}_${periodEnd}${args.productSuffix || ''}.pdf`);
 }

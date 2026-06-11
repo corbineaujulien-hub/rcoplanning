@@ -16,6 +16,7 @@ interface ExportArgs {
   loadByUsine: { key: string; perWeek: Record<string, number> }[];
   periodStart: string;
   periodEnd: string;
+  productSuffix?: string;
 }
 
 function buildLoadSheet(
@@ -58,5 +59,5 @@ export async function exportLoadPlanningExcel(args: ExportArgs) {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(buildLoadSheet(loadByPoseur, weeks)), 'Charge Poseur');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(buildLoadSheet(loadByUsine, weeks, true)), 'Charge Usine');
 
-  XLSX.writeFile(wb, `planning_charge_${periodStart}_${periodEnd}.xlsx`);
+  XLSX.writeFile(wb, `planning_charge_${periodStart}_${periodEnd}${args.productSuffix || ''}.xlsx`);
 }
