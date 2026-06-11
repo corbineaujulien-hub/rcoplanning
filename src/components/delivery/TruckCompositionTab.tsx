@@ -31,6 +31,7 @@ export default function TruckCompositionTab() {
   const { elements, trucks, getTrucksForDate, getTruckElements, addTruck, addElementsToTruck, removeElementFromTruck, deleteTruck, deleteAllTrucks, updateTruck, isElementAssigned, plans, projectInfo, teams, initialDate, compositionTabOpened, setCompositionTabOpened, savedViewMode, setSavedViewMode, savedCurrentDate, setSavedCurrentDate } = useDelivery();
   const hasMultipleTeams = teams.length > 1;
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [recapPivotMode, setRecapPivotMode] = useState<'usine' | 'product'>('usine');
 
   // Initialize selected team
   const activeTeamId = selectedTeamId || (teams.length > 0 ? teams[0].id : null);
