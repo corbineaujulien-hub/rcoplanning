@@ -371,7 +371,17 @@ export default function LoadPlanning() {
         });
         const n = forecastOnlyProjWeeks.length;
         const validTransports = projTransports.filter(t => t.usine && t.usine.trim());
-        // Per-usine totals + per-usine already planned (real) trucks
+        // Aggregate per-usine totals across ALL rows (a usine may appear on multiple
+        // rows with different product types — sum them, do NOT overwrite).
+        const totalsByUsine: Record<string, { standard: number; cat1: number; cat2: number; cat3: number }> = {};
+        validTransports.forEach(t => {
+          if (!totalsByUsine[t.usine]) totalsByUsine[t.usine] = { standard: 0, cat1: 0, cat2: 0, cat3: 0 };
+          totalsByUsine[t.usine].standard += t.standard || 0;
+          totalsByUsine[t.usine].cat1 += t.cat1 || 0;
+          totalsByUsine[t.usine].cat2 += t.cat2 || 0;
+          totalsByUsine[t.usine].cat3 += t.cat3 || 0;
+        });
+        // Per-usine already planned (real) trucks
         const plannedByUsine: Record<string, number> = {};
         projTrucks.forEach(t => {
           const els = (t.element_ids || []).map(id => elementsById.get(id)).filter(Boolean) as ElementRow[];
@@ -380,17 +390,17 @@ export default function LoadPlanning() {
           plannedByUsine[f] = (plannedByUsine[f] || 0) + 1;
         });
         const remainingByUsine: Record<string, { total: number; standard: number; cat1: number; cat2: number; cat3: number }> = {};
-        validTransports.forEach(t => {
-          const total = (t.standard || 0) + (t.cat1 || 0) + (t.cat2 || 0) + (t.cat3 || 0);
-          const planned = plannedByUsine[t.usine] || 0;
+        Object.entries(totalsByUsine).forEach(([usine, t]) => {
+          const total = t.standard + t.cat1 + t.cat2 + t.cat3;
+          const planned = plannedByUsine[usine] || 0;
           const remaining = Math.max(0, total - planned);
           const ratio = total > 0 ? remaining / total : 0;
-          remainingByUsine[t.usine] = {
+          remainingByUsine[usine] = {
             total: remaining,
-            standard: (t.standard || 0) * ratio,
-            cat1: (t.cat1 || 0) * ratio,
-            cat2: (t.cat2 || 0) * ratio,
-            cat3: (t.cat3 || 0) * ratio,
+            standard: t.standard * ratio,
+            cat1: t.cat1 * ratio,
+            cat2: t.cat2 * ratio,
+            cat3: t.cat3 * ratio,
           };
         });
         const totalRemaining = Object.values(remainingByUsine).reduce((s, r) => s + r.total, 0);
@@ -399,11 +409,10 @@ export default function LoadPlanning() {
           if (realByWeek.has(w.key)) return;
           const wk: Record<string, Record<TransportCategory, number>> = {};
           if (totalRemaining > 0 && n > 0) {
-            validTransports.forEach(t => {
-              usinesSet.add(t.usine);
-              const r = remainingByUsine[t.usine];
+            Object.entries(remainingByUsine).forEach(([usine, r]) => {
+              usinesSet.add(usine);
               if (!r) return;
-              wk[t.usine] = {
+              wk[usine] = {
                 standard: r.standard / n,
                 cat1: r.cat1 / n,
                 cat2: r.cat2 / n,
