@@ -352,7 +352,9 @@ export default function LoadPlanning() {
       if (!isFullyComplete) {
         projWeeks.forEach(fw => {
           const w = weeks.find(x => x.year === fw.year && x.week === fw.weekNumber);
-          if (w) visibleForecastWeekKeys.add(w.key);
+          // Règle : ne jamais afficher de prévisionnel sur une semaine passée
+          // (lundi strictement antérieur à aujourd'hui). La semaine courante reste autorisée.
+          if (w && w.start.getTime() >= today.getTime()) visibleForecastWeekKeys.add(w.key);
         });
       }
       const visibleForecastWeeks = Array.from(visibleForecastWeekKeys)
@@ -361,13 +363,17 @@ export default function LoadPlanning() {
       const forecastByWeek = new Map<string, Record<string, Record<TransportCategory, number>>>();
       if (!isFullyComplete && visibleForecastWeeks.length > 0) {
         // Divide by the number of forecast weeks that DO NOT contain any real truck
-        // (forecast-only weeks). Already-planned trucks are deducted from the total
-        // forecast so we only spread the remainder over the remaining forecast weeks.
+        // (forecast-only weeks) AND that are not in the past. Already-planned trucks are
+        // deducted from the total forecast so we only spread the remainder over the
+        // remaining (future or current) forecast weeks.
         const forecastOnlyProjWeeks = projWeeks.filter(fw => {
           const w = weeks.find(x => x.year === fw.year && x.week === fw.weekNumber);
           // Week not yet in the visible range: use the project's real-truck map (covers all weeks)
           const wk = w ? w.key : `${fw.year}-W${String(fw.weekNumber).padStart(2, '0')}`;
-          return !realByWeek.has(wk);
+          if (realByWeek.has(wk)) return false;
+          // Exclude past weeks from denominator so future weeks distribute the full remainder
+          if (w && w.start.getTime() < today.getTime()) return false;
+          return true;
         });
         const n = forecastOnlyProjWeeks.length;
         const validTransports = projTransports.filter(t => t.usine && t.usine.trim());
