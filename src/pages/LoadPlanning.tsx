@@ -373,6 +373,7 @@ export default function LoadPlanning() {
           if (realByWeek.has(wk)) return false;
           // Exclude past weeks from denominator so future weeks distribute the full remainder
           if (w && w.start.getTime() < today.getTime()) return false;
+          if (!w && simpleISOWeekStart(fw.year, fw.weekNumber).getTime() < today.getTime()) return false;
           return true;
         });
         const n = forecastOnlyProjWeeks.length;
