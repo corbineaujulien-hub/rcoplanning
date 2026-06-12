@@ -570,6 +570,13 @@ export default function LoadPlanning() {
       const match = (isPlanned && filterStatus.has('planned')) || (isForecast && filterStatus.has('forecast'));
       if (!match) return false;
     }
+    if (exclude !== 'product' && filterProduct.size > 0) {
+      const meta = baseProjectMeta.get(cp.project.id);
+      if (!meta) return false;
+      let any = false;
+      for (const pt of meta.productTypes) { if (filterProduct.has(pt)) { any = true; break; } }
+      if (!any) return false;
+    }
     if (q) {
       const hay = [
         cp.project.otp_number || '',
@@ -579,7 +586,7 @@ export default function LoadPlanning() {
       if (!hay.includes(q)) return false;
     }
     return true;
-  }, [filterCdt, filterPoseur, filterUsine, filterStatus, filterBdd, searchText]);
+  }, [filterCdt, filterPoseur, filterUsine, filterStatus, filterBdd, filterProduct, baseProjectMeta, searchText]);
 
   const filteredProjects = useMemo(
     () => computedProjects.filter(cp => filterFn(cp)).map(cp => {
