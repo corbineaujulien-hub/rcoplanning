@@ -272,6 +272,66 @@ export default function LoadPlanning() {
 
   const monthGroups = useMemo(() => buildMonthGroups(weeks), [weeks]);
 
+  // ------ Base meta per project (independent of filterProduct) -------------
+  // Used for the Product dropdown options and for the product check in filterFn
+  // so that the Product filter participates in the cumulative filter chain.
+  const baseProjectMeta = useMemo(() => {
+    const map = new Map<string, {
+      productTypes: Set<string>;
+      usines: Set<string>;
+      hasAnyInPeriod: boolean;
+      isPlanned: boolean;
+      isForecast: boolean;
+      isSupplyOnly: boolean;
+      conductorFilterKey: string;
+      poseurFilterKey: string;
+    }>();
+    const weekKeySet = new Set(weeks.map(w => w.key));
+    const weekYrSet = new Set(weeks.map(w => `${w.year}-${w.weekNumber}`));
+    projects.forEach(p => {
+      const isSupplyOnly = !!p.supply_only;
+      const meta = {
+        productTypes: new Set<string>(),
+        usines: new Set<string>(),
+        hasAnyInPeriod: false,
+        isPlanned: false,
+        isForecast: false,
+        isSupplyOnly,
+        conductorFilterKey: getFilterCDT({ ...(p as any), supply_only: false }),
+        poseurFilterKey: isSupplyOnly ? SUPPLY_ONLY_LABEL : (p.subcontractor || UNASSIGNED_POSEUR),
+      };
+      map.set(p.id, meta);
+    });
+    trucks.forEach(t => {
+      const meta = map.get(t.project_id);
+      if (!meta || !t.date) return;
+      const wk = getWeekKeyForDate(t.date);
+      if (weekKeySet.has(wk)) { meta.hasAnyInPeriod = true; meta.isPlanned = true; }
+      const els = (t.element_ids || []).map(id => elementsById.get(id)).filter(Boolean) as ElementRow[];
+      els.forEach(e => {
+        if (e.factory) meta.usines.add(e.factory);
+        const ft = getForecastType(e.product_type);
+        if (ft) meta.productTypes.add(ft);
+      });
+    });
+    forecastWeeks.forEach(fw => {
+      const meta = map.get(fw.projectId);
+      if (!meta) return;
+      if (weekYrSet.has(`${fw.year}-${fw.weekNumber}`)) {
+        meta.hasAnyInPeriod = true; meta.isForecast = true;
+      }
+    });
+    projects.forEach(p => {
+      const meta = map.get(p.id);
+      if (!meta) return;
+      (p.forecasted_transports || []).forEach(ft => {
+        if (ft.usine) meta.usines.add(ft.usine);
+        if (ft.productType) meta.productTypes.add(ft.productType);
+      });
+    });
+    return map;
+  }, [projects, trucks, forecastWeeks, elements, elementsById, weeks]);
+
   // Largeur dynamique des colonnes de semaines, calée sur la place disponible
   // dans les blocs de charge (qui ont moins de colonnes fixes que le Gantt).
   // Blocs de charge : colonne nom 180px + colonne Total 60px = 240px.
