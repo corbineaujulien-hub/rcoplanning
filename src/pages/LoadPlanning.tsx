@@ -272,6 +272,66 @@ export default function LoadPlanning() {
 
   const monthGroups = useMemo(() => buildMonthGroups(weeks), [weeks]);
 
+  // ------ Base meta per project (independent of filterProduct) -------------
+  // Used for the Product dropdown options and for the product check in filterFn
+  // so that the Product filter participates in the cumulative filter chain.
+  const baseProjectMeta = useMemo(() => {
+    const map = new Map<string, {
+      productTypes: Set<string>;
+      usines: Set<string>;
+      hasAnyInPeriod: boolean;
+      isPlanned: boolean;
+      isForecast: boolean;
+      isSupplyOnly: boolean;
+      conductorFilterKey: string;
+      poseurFilterKey: string;
+    }>();
+    const weekKeySet = new Set(weeks.map(w => w.key));
+    const weekYrSet = new Set(weeks.map(w => `${w.year}-${w.week}`));
+    projects.forEach(p => {
+      const isSupplyOnly = !!p.supply_only;
+      const meta = {
+        productTypes: new Set<string>(),
+        usines: new Set<string>(),
+        hasAnyInPeriod: false,
+        isPlanned: false,
+        isForecast: false,
+        isSupplyOnly,
+        conductorFilterKey: getFilterCDT({ ...(p as any), supply_only: false }),
+        poseurFilterKey: isSupplyOnly ? SUPPLY_ONLY_LABEL : (p.subcontractor || UNASSIGNED_POSEUR),
+      };
+      map.set(p.id, meta);
+    });
+    trucks.forEach(t => {
+      const meta = map.get(t.project_id);
+      if (!meta || !t.date) return;
+      const wk = getWeekKeyForDate(t.date);
+      if (weekKeySet.has(wk)) { meta.hasAnyInPeriod = true; meta.isPlanned = true; }
+      const els = (t.element_ids || []).map(id => elementsById.get(id)).filter(Boolean) as ElementRow[];
+      els.forEach(e => {
+        if (e.factory) meta.usines.add(e.factory);
+        const ft = getForecastType(e.product_type);
+        if (ft) meta.productTypes.add(ft);
+      });
+    });
+    forecastWeeks.forEach(fw => {
+      const meta = map.get(fw.projectId);
+      if (!meta) return;
+      if (weekYrSet.has(`${fw.year}-${fw.weekNumber}`)) {
+        meta.hasAnyInPeriod = true; meta.isForecast = true;
+      }
+    });
+    projects.forEach(p => {
+      const meta = map.get(p.id);
+      if (!meta) return;
+      (p.forecasted_transports || []).forEach(ft => {
+        if (ft.usine) meta.usines.add(ft.usine);
+        if (ft.productType) meta.productTypes.add(ft.productType);
+      });
+    });
+    return map;
+  }, [projects, trucks, forecastWeeks, elements, elementsById, weeks]);
+
   // Largeur dynamique des colonnes de semaines, calée sur la place disponible
   // dans les blocs de charge (qui ont moins de colonnes fixes que le Gantt).
   // Blocs de charge : colonne nom 180px + colonne Total 60px = 240px.
@@ -510,6 +570,13 @@ export default function LoadPlanning() {
       const match = (isPlanned && filterStatus.has('planned')) || (isForecast && filterStatus.has('forecast'));
       if (!match) return false;
     }
+    if (exclude !== 'product' && filterProduct.size > 0) {
+      const meta = baseProjectMeta.get(cp.project.id);
+      if (!meta) return false;
+      let any = false;
+      for (const pt of meta.productTypes) { if (filterProduct.has(pt)) { any = true; break; } }
+      if (!any) return false;
+    }
     if (q) {
       const hay = [
         cp.project.otp_number || '',
@@ -519,7 +586,7 @@ export default function LoadPlanning() {
       if (!hay.includes(q)) return false;
     }
     return true;
-  }, [filterCdt, filterPoseur, filterUsine, filterStatus, filterBdd, searchText]);
+  }, [filterCdt, filterPoseur, filterUsine, filterStatus, filterBdd, filterProduct, baseProjectMeta, searchText]);
 
   const filteredProjects = useMemo(
     () => computedProjects.filter(cp => filterFn(cp)).map(cp => {
@@ -638,26 +705,52 @@ export default function LoadPlanning() {
     computedProjects.filter(cp => filterFn(cp, 'usine')).forEach(p => p.usines.forEach(u => s.add(u)));
     return sortWithSentinelLast(Array.from(s), x => x, [UNASSIGNED_USINE]);
   }, [computedProjects, filterFn]);
-  // Available product types: union of forecast types present in real elements & forecasted transports
-  // across the projects passing every OTHER filter. Order follows the fixed list.
+  // Available product types: union of forecast types present in real elements & forecasted
+  // transports across projects passing every OTHER active filter (cumulative behaviour).
+  // Uses baseProjectMeta so projects whose cells were emptied by the product filter itself
+  // still contribute their available types.
   const allProducts = useMemo(() => {
     const present = new Set<string>();
-    const visibleProjectIds = new Set(
-      computedProjects.filter(cp => filterFn(cp, 'product')).map(cp => cp.project.id),
-    );
-    elements.forEach(e => {
-      if (!visibleProjectIds.has(e.project_id)) return;
-      const ft = getForecastType(e.product_type);
-      if (ft) present.add(ft);
-    });
+    const q = searchText.trim().toLowerCase();
     projects.forEach(p => {
-      if (!visibleProjectIds.has(p.id)) return;
-      (p.forecasted_transports || []).forEach(ft => {
-        if (ft.productType) present.add(ft.productType);
-      });
+      const meta = baseProjectMeta.get(p.id);
+      if (!meta || !meta.hasAnyInPeriod) return;
+      if (filterCdt.size > 0) {
+        if (meta.isSupplyOnly) return;
+        if (!filterCdt.has(meta.conductorFilterKey)) return;
+      }
+      if (filterPoseur.size > 0 && !filterPoseur.has(meta.poseurFilterKey)) return;
+      if (filterUsine.size > 0) {
+        let any = false;
+        for (const u of meta.usines) { if (filterUsine.has(u)) { any = true; break; } }
+        if (!any) return;
+      }
+      if (filterBdd.size > 0) {
+        const k = p.database_complete ? 'complete' : 'incomplete';
+        if (!filterBdd.has(k)) return;
+      }
+      if (filterStatus.size > 0) {
+        const match = (meta.isPlanned && filterStatus.has('planned')) || (meta.isForecast && filterStatus.has('forecast'));
+        if (!match) return;
+      }
+      if (q) {
+        const hay = [p.otp_number || '', p.site_name || '', p.client_name || ''].join(' ').toLowerCase();
+        if (!hay.includes(q)) return;
+      }
+      meta.productTypes.forEach(pt => present.add(pt));
     });
     return FORECAST_PRODUCT_TYPES.filter(t => present.has(t));
-  }, [computedProjects, filterFn, elements, projects]);
+  }, [projects, baseProjectMeta, filterCdt, filterPoseur, filterUsine, filterBdd, filterStatus, searchText]);
+
+  // Auto-deselect product values that became unavailable after another filter changed.
+  useEffect(() => {
+    if (filterProduct.size === 0) return;
+    const avail = new Set<string>(allProducts as readonly string[]);
+    let changed = false;
+    const next = new Set<string>();
+    filterProduct.forEach(p => { if (avail.has(p)) next.add(p); else changed = true; });
+    if (changed) setFilterProduct(next);
+  }, [allProducts]); // eslint-disable-line react-hooks/exhaustive-deps
   const availableStatus = useMemo(() => {
     const set = new Set<'planned' | 'forecast'>();
     computedProjects.filter(cp => filterFn(cp, 'status')).forEach(cp => {
