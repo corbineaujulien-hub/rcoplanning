@@ -745,7 +745,7 @@ export default function LoadPlanning() {
   // Auto-deselect product values that became unavailable after another filter changed.
   useEffect(() => {
     if (filterProduct.size === 0) return;
-    const avail = new Set(allProducts);
+    const avail = new Set<string>(allProducts as readonly string[]);
     let changed = false;
     const next = new Set<string>();
     filterProduct.forEach(p => { if (avail.has(p)) next.add(p); else changed = true; });
