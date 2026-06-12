@@ -287,7 +287,7 @@ export default function LoadPlanning() {
       poseurFilterKey: string;
     }>();
     const weekKeySet = new Set(weeks.map(w => w.key));
-    const weekYrSet = new Set(weeks.map(w => `${w.year}-${w.weekNumber}`));
+    const weekYrSet = new Set(weeks.map(w => `${w.year}-${w.week}`));
     projects.forEach(p => {
       const isSupplyOnly = !!p.supply_only;
       const meta = {
