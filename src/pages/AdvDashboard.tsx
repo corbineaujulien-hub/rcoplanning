@@ -193,11 +193,16 @@ export default function AdvDashboard() {
   const chantiersRisqueRows = useMemo(() => {
     return rows
       .filter(r => (r.badge === 'Critique' || r.badge === 'Important') && r.adv)
-      .map(r => ({
-        ...r,
-        pendingDemarches: getApplicableDemarches(r.adv!).filter(d => !isDemarcheFinal(d.status)),
-      }))
-      .filter(r => r.pendingDemarches.length > 0)
+      .map(r => {
+        const pendingDemarches = getApplicableDemarches(r.adv!)
+          .filter(d => !isDemarcheFinal(d.status))
+          .map(d => ({ label: DEMARCHE_LABELS[d.key], status: d.status, key: d.key as string }));
+        const pendingCautions = r.cautions
+          .filter(c => c.statut !== 'Non nécessaire' && !isDemarcheFinal(c.statut))
+          .map(c => ({ label: c.nom || 'Caution', status: c.statut, key: `caution-${c.id}` }));
+        return { ...r, pendingItems: [...pendingDemarches, ...pendingCautions] };
+      })
+      .filter(r => r.pendingItems.length > 0)
       .sort((a, b) => (a.startDate?.getTime() || 0) - (b.startDate?.getTime() || 0));
   }, [rows]);
 
@@ -305,8 +310,8 @@ export default function AdvDashboard() {
                           <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
                         </div>
                         <ul className="mt-0.5 pl-6 text-xs" style={{ color: '#6b7280' }}>
-                          {r.pendingDemarches.map(d => (
-                            <li key={d.key}>└ {DEMARCHE_LABELS[d.key]} : {d.status}</li>
+                          {r.pendingItems.map(d => (
+                            <li key={d.key}>└ {d.label} : {d.status}</li>
                           ))}
                         </ul>
                       </button>
