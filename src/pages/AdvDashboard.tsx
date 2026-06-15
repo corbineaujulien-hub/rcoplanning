@@ -317,9 +317,11 @@ export default function AdvDashboard() {
 
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center justify-between">
-                    <span>Relances à réaliser</span>
-                    <span className="text-xs font-normal text-muted-foreground">Au plus tard</span>
+                  <CardTitle className="text-base grid grid-cols-[1fr_auto] items-center gap-2">
+                    <span className={relancesEnCours.length === 0 ? 'text-muted-foreground' : ''}>
+                      {relancesEnCours.length} relance{relancesEnCours.length > 1 ? 's' : ''} à réaliser
+                    </span>
+                    <span className="text-xs font-normal text-muted-foreground text-center w-full">Au plus tard</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-1 max-h-72 overflow-y-auto">
@@ -331,11 +333,11 @@ export default function AdvDashboard() {
                     if (!p) return null;
                     return (
                       <button key={r.id} onClick={() => openProject(p.id)}
-                        className="w-full text-left flex items-center gap-2 py-1.5 px-2 hover:bg-muted rounded text-sm">
-                        <span className={`flex-1 ${r.effective === 'Échue' ? 'text-red-600 font-medium' : ''}`}>
+                        className="w-full text-left grid grid-cols-[1fr_auto] items-center gap-2 py-1.5 px-2 hover:bg-muted rounded text-sm odd:bg-white even:bg-gray-50 min-w-0">
+                        <span className={`truncate ${r.effective === 'Échue' ? 'text-red-600 font-medium' : ''}`}>
                           {p.site_name || 'Sans nom'} — {r.type}
                         </span>
-                        <span className="text-xs tabular-nums whitespace-nowrap">{formatDateFR(r.echeance)}</span>
+                        <span className="text-xs tabular-nums whitespace-nowrap text-center w-full">{formatDateFR(r.echeance)}</span>
                       </button>
                     );
                   })}
