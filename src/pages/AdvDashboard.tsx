@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Home, ClipboardCheck, FileSpreadsheet, Search, AlertTriangle, ArrowUpRight, BarChart3 } from 'lucide-react';
 import { setISOWeek, setISOWeekYear, startOfISOWeek, differenceInCalendarDays, parseISO, format } from 'date-fns';
 import {
-  AdvStatus, AdvCautionCustom, AdvRelance, DEMARCHE_LABELS,
+  AdvStatus, AdvCautionCustom, AdvRelance, AdvDemarcheKey, DEMARCHE_LABELS,
   calculateAdvScore, getScoreHexColor, getScoreColorClass,
   effectiveRelanceStatus, isDemarcheFinal, getApplicableDemarches, formatDateFR,
 } from '@/utils/adv';
