@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Home, ClipboardCheck, FileSpreadsheet, Search, AlertTriangle, ArrowUpRight, BarChart3 } from 'lucide-react';
 import { setISOWeek, setISOWeekYear, startOfISOWeek, differenceInCalendarDays, parseISO, format } from 'date-fns';
 import {
-  AdvStatus, AdvCautionCustom, AdvRelance, DEMARCHE_LABELS,
+  AdvStatus, AdvCautionCustom, AdvRelance, AdvDemarcheKey, DEMARCHE_LABELS,
   calculateAdvScore, getScoreHexColor, getScoreColorClass,
   effectiveRelanceStatus, isDemarcheFinal, getApplicableDemarches, formatDateFR,
 } from '@/utils/adv';
@@ -332,25 +332,33 @@ export default function AdvDashboard() {
                           <th className="py-2 px-6 text-center font-medium text-xs text-muted-foreground w-[100px]">Au plus tard</th>
                         </tr>
                       </thead>
-                      <tbody>
-                        {relancesEnCours.map(r => {
-                          const p = projects.find(x => x.id === r.project_id);
-                          if (!p) return null;
-                          return (
-                            <tr key={r.id} onClick={() => openProject(p.id)}
-                              className="border-b hover:bg-muted cursor-pointer odd:bg-white even:bg-gray-50">
-                              <td className="py-1.5 px-6">
-                                <span className={`truncate block ${r.effective === 'Échue' ? 'text-red-600 font-medium' : ''}`}>
-                                  {p.site_name || 'Sans nom'} — {r.type}
-                                </span>
-                              </td>
-                              <td className="py-1.5 px-6 text-xs tabular-nums text-center w-[100px]">
-                                {formatDateFR(r.echeance)}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
+                <tbody>
+                  {relancesEnCours.map(r => {
+                    const p = projects.find(x => x.id === r.project_id);
+                    if (!p) return null;
+                    let demarcheLabel: string;
+                    if (r.demarche === 'caution_custom') {
+                      const projectCautions = cautionsByProject.get(r.project_id) || [];
+                      const caution = projectCautions.find(c => c.id === r.source_id);
+                      demarcheLabel = caution ? caution.nom : 'Caution personnalisée';
+                    } else {
+                      demarcheLabel = DEMARCHE_LABELS[r.demarche as AdvDemarcheKey] || r.demarche;
+                    }
+                    return (
+                      <tr key={r.id} onClick={() => openProject(p.id)}
+                        className="border-b hover:bg-muted cursor-pointer odd:bg-white even:bg-gray-50">
+                        <td className="py-1.5 px-6">
+                          <span className={`truncate block ${r.effective === 'Échue' ? 'text-red-600 font-medium' : ''}`}>
+                            {p.site_name || 'Sans nom'} — {demarcheLabel}
+                          </span>
+                        </td>
+                        <td className="py-1.5 px-6 text-xs tabular-nums text-center w-[100px]">
+                          {formatDateFR(r.echeance)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
                     </table>
                   )}
                 </CardContent>
