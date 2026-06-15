@@ -317,30 +317,42 @@ export default function AdvDashboard() {
 
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base grid grid-cols-[1fr_auto] items-center gap-2">
-                    <span className={relancesEnCours.length === 0 ? 'text-muted-foreground' : ''}>
-                      {relancesEnCours.length} relance{relancesEnCours.length > 1 ? 's' : ''} à réaliser
-                    </span>
-                    <span className="text-xs font-normal text-muted-foreground text-center w-full">Au plus tard</span>
+                  <CardTitle className={`text-base ${relancesEnCours.length === 0 ? 'text-muted-foreground' : ''}`}>
+                    {relancesEnCours.length} relance{relancesEnCours.length > 1 ? 's' : ''} à réaliser
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-1 max-h-72 overflow-y-auto">
-                  {relancesEnCours.length === 0 && (
-                    <p className="text-sm text-muted-foreground">Aucune relance à réaliser.</p>
+                <CardContent className="p-0 max-h-72 overflow-y-auto">
+                  {relancesEnCours.length === 0 ? (
+                    <p className="text-sm text-muted-foreground px-6 py-4">Aucune relance à réaliser.</p>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="py-2 px-6 text-left font-medium text-xs text-muted-foreground">Relance</th>
+                          <th className="py-2 px-6 text-center font-medium text-xs text-muted-foreground w-[100px]">Au plus tard</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {relancesEnCours.map(r => {
+                          const p = projects.find(x => x.id === r.project_id);
+                          if (!p) return null;
+                          return (
+                            <tr key={r.id} onClick={() => openProject(p.id)}
+                              className="border-b hover:bg-muted cursor-pointer odd:bg-white even:bg-gray-50">
+                              <td className="py-1.5 px-6">
+                                <span className={`truncate block ${r.effective === 'Échue' ? 'text-red-600 font-medium' : ''}`}>
+                                  {p.site_name || 'Sans nom'} — {r.type}
+                                </span>
+                              </td>
+                              <td className="py-1.5 px-6 text-xs tabular-nums text-center w-[100px]">
+                                {formatDateFR(r.echeance)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   )}
-                  {relancesEnCours.map(r => {
-                    const p = projects.find(x => x.id === r.project_id);
-                    if (!p) return null;
-                    return (
-                      <button key={r.id} onClick={() => openProject(p.id)}
-                        className="w-full text-left grid grid-cols-[1fr_auto] items-center gap-2 py-1.5 px-2 hover:bg-muted rounded text-sm odd:bg-white even:bg-gray-50 min-w-0">
-                        <span className={`truncate ${r.effective === 'Échue' ? 'text-red-600 font-medium' : ''}`}>
-                          {p.site_name || 'Sans nom'} — {r.type}
-                        </span>
-                        <span className="text-xs tabular-nums whitespace-nowrap text-center w-full">{formatDateFR(r.echeance)}</span>
-                      </button>
-                    );
-                  })}
                 </CardContent>
               </Card>
             </div>
