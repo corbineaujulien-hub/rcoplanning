@@ -278,9 +278,6 @@ function ForecastWeeksCard({
     () => forecastWeeks.map(w => ({ year: w.year, weekNumber: w.weekNumber })),
     [forecastWeeks]
   );
-  const { history } = useForecastHistory(projectId, currentWeeks, true);
-  const [historyOpen, setHistoryOpen] = useState(false);
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
@@ -288,22 +285,11 @@ function ForecastWeeksCard({
           <CalendarDays className="h-5 w-5 text-accent" />
           Planning prévisionnel
         </CardTitle>
-        <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
-              <HistoryIcon className="h-4 w-4 mr-2" />
-              Historique
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="w-fit max-w-4xl">
-            <DialogHeader>
-              <DialogTitle>
-                Historique du planning prévisionnel{siteName ? ` — ${siteName}` : ''}
-              </DialogTitle>
-            </DialogHeader>
-            <ForecastHistoryList history={history} />
-          </DialogContent>
-        </Dialog>
+        <ForecastHistoryDialog
+          projectId={projectId}
+          currentWeeks={currentWeeks}
+          siteLabel={siteName}
+        />
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
