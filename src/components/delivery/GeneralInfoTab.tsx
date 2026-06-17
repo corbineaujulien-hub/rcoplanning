@@ -14,6 +14,124 @@ import { cn } from '@/lib/utils';
 import ForecastWeeksStrip from '@/components/delivery/ForecastWeeksStrip';
 import { useForecastHistory, ForecastSnapshot, ForecastSnapshotWeek } from '@/hooks/useForecastHistory';
 
+// =================== Forecast history list ===================
+
+function weekToOrdinal(w: { year: number; weekNumber: number }): number {
+  return w.year * 53 + w.weekNumber;
+}
+
+function formatSnapshotDate(iso: string): string {
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+}
+
+function describeWeeks(weeks: ForecastSnapshotWeek[]): string {
+  if (weeks.length === 0) return 'Aucune semaine cochée';
+  const sorted = [...weeks].sort((a, b) => weekToOrdinal(a) - weekToOrdinal(b));
+  return sorted.map(w => `S${w.weekNumber}`).join(', ');
+}
+
+function shiftLabel(snapshot: ForecastSnapshot, initial: ForecastSnapshot | null): { text: string; color: string } {
+  if (!initial || snapshot.id === initial.id) {
+    return { text: 'Référence — planning de signature du contrat', color: 'text-muted-foreground' };
+  }
+  if (snapshot.weeks.length === 0 || initial.weeks.length === 0) {
+    return { text: 'Décalage non calculable', color: 'text-muted-foreground' };
+  }
+  const initStart = Math.min(...initial.weeks.map(weekToOrdinal));
+  const initEnd = Math.max(...initial.weeks.map(weekToOrdinal));
+  const curStart = Math.min(...snapshot.weeks.map(weekToOrdinal));
+  const curEnd = Math.max(...snapshot.weeks.map(weekToOrdinal));
+  const startShift = curStart - initStart;
+  const endShift = curEnd - initEnd;
+  if (startShift === 0 && endShift === 0) {
+    return { text: 'Aucun changement', color: 'text-muted-foreground' };
+  }
+  const parts: string[] = [];
+  if (startShift !== 0) {
+    parts.push(`début ${startShift > 0 ? `décalé de +${startShift}` : `avancé de ${startShift}`} semaine${Math.abs(startShift) > 1 ? 's' : ''}`);
+  }
+  if (endShift !== 0) {
+    parts.push(`fin ${endShift > 0 ? `repoussée de +${endShift}` : `avancée de ${endShift}`} semaine${Math.abs(endShift) > 1 ? 's' : ''}`);
+  }
+  const worst = Math.max(startShift, endShift, -startShift, -endShift);
+  const direction = (endShift > 0 || startShift > 0) ? 1 : (endShift < 0 || startShift < 0) ? -1 : 0;
+  const color = direction > 0 ? 'text-red-600' : direction < 0 ? 'text-green-600' : 'text-muted-foreground';
+  void worst;
+  return { text: `Décalage vs planning initial : ${parts.join(', ')}`, color };
+}
+
+function MiniStrip({ weeks }: { weeks: ForecastSnapshotWeek[] }) {
+  if (weeks.length === 0) return null;
+  const ords = weeks.map(weekToOrdinal).sort((a, b) => a - b);
+  const min = ords[0];
+  const max = ords[ords.length - 1];
+  const total = Math.max(1, max - min + 1);
+  const set = new Set(ords);
+  const cells: JSX.Element[] = [];
+  for (let i = 0; i < total; i++) {
+    const filled = set.has(min + i);
+    cells.push(
+      <span
+        key={i}
+        className={cn('inline-block h-2 w-2 rounded-sm', filled ? 'bg-accent' : 'bg-muted')}
+      />
+    );
+  }
+  return <div className="flex flex-wrap gap-[2px] mt-1">{cells}</div>;
+}
+
+function ForecastHistoryList({ history }: { history: ForecastSnapshot[] }) {
+  const initial = history.find(h => h.isInitial) || (history.length > 0 ? history[history.length - 1] : null);
+  if (history.length === 0) {
+    return <p className="text-sm text-muted-foreground py-4">Aucun snapshot enregistré.</p>;
+  }
+  return (
+    <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-2 text-sm min-w-[480px]">
+      {history.map(snap => {
+        const shift = shiftLabel(snap, initial);
+        const isInit = snap.isInitial;
+        return (
+          <div
+            key={snap.id}
+            className={cn(
+              'border rounded-md px-3 py-2',
+              isInit ? 'bg-accent/10 border-accent/40' : 'bg-background'
+            )}
+          >
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span className="font-medium tabular-nums whitespace-nowrap">
+                📅 {formatSnapshotDate(snap.snapshotDate)}
+              </span>
+              <span className="text-muted-foreground whitespace-nowrap">
+                — {snap.userEmail || 'inconnu'}
+              </span>
+              {isInit && (
+                <span className="ml-1 inline-flex items-center rounded bg-accent text-accent-foreground px-1.5 py-0.5 text-[10px] font-semibold tracking-wide">
+                  PLANNING INITIAL
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              <span className="font-medium text-foreground">Semaines :</span>{' '}
+              {describeWeeks(snap.weeks)}
+            </div>
+            <div className={cn('text-xs mt-0.5 font-medium', shift.color)}>
+              {shift.text}
+            </div>
+            <MiniStrip weeks={snap.weeks} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function GeneralInfoTab() {
   const {
     projectInfo, setProjectInfo, projectId, teams, addTeam, updateTeam, deleteTeam,
