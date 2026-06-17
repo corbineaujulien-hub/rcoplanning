@@ -69,7 +69,7 @@ export default function AdvDashboard() {
   const [filterCdt, setFilterCdt] = useState('all');
   const [filterPoseur, setFilterPoseur] = useState('all');
   const [filterBadge, setFilterBadge] = useState<'all' | Badge>('all');
-  const [filterScore, setFilterScore] = useState<'all' | '0-25' | '26-50' | '51-75' | '76-100'>('all');
+  
   const [filterDemarche, setFilterDemarche] = useState<string>('all');
   const [filterDemarcheStatut, setFilterDemarcheStatut] = useState<string>('all');
 
