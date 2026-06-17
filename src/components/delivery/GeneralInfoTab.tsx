@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
 import { CONDUCTORS, SUBCONTRACTORS, Team, ForecastedTransport, FORECAST_TRANSPORT_CATEGORIES, ForecastTransportCategory, FORECAST_PRODUCT_TYPES } from '@/types/delivery';
 import { Input } from '@/components/ui/input';
