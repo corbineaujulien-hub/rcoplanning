@@ -69,7 +69,7 @@ export default function AdvDashboard() {
   const [filterCdt, setFilterCdt] = useState('all');
   const [filterPoseur, setFilterPoseur] = useState('all');
   const [filterBadge, setFilterBadge] = useState<'all' | Badge>('all');
-  const [filterScore, setFilterScore] = useState<'all' | '0-25' | '26-50' | '51-75' | '76-100'>('all');
+  
   const [filterDemarche, setFilterDemarche] = useState<string>('all');
   const [filterDemarcheStatut, setFilterDemarcheStatut] = useState<string>('all');
 
@@ -178,10 +178,6 @@ export default function AdvDashboard() {
       if (filterCdt !== 'all' && r.cdt !== filterCdt) return false;
       if (filterPoseur !== 'all' && r.poseur !== filterPoseur) return false;
       if (filterBadge !== 'all' && r.badge !== filterBadge) return false;
-      if (filterScore !== 'all') {
-        const [lo, hi] = filterScore.split('-').map(Number);
-        if (r.score < lo || r.score > hi) return false;
-      }
       if (filterDemarche !== 'all' && filterDemarcheStatut !== 'all') {
         if (filterDemarche === 'caution_supplementaire') {
           if (!r.cautions.some(c => c.statut === filterDemarcheStatut)) return false;
@@ -196,7 +192,7 @@ export default function AdvDashboard() {
       const tb = b.startDate?.getTime() ?? Infinity;
       return ta - tb;
     });
-  }, [rows, search, filterCdt, filterPoseur, filterBadge, filterScore, filterDemarche, filterDemarcheStatut]);
+  }, [rows, search, filterCdt, filterPoseur, filterBadge, filterDemarche, filterDemarcheStatut]);
 
   const cdtOptions = useMemo(() => Array.from(new Set(rows.map(r => r.cdt).filter(c => c && c !== '—'))).sort(), [rows]);
   const poseurOptions = useMemo(() => Array.from(new Set(rows.map(r => r.poseur))).sort(), [rows]);
@@ -409,27 +405,33 @@ export default function AdvDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  <div className="relative flex-1 min-w-[200px]">
+                <div className="flex items-center gap-2 mb-3 flex-nowrap overflow-x-auto">
+                  <div className="relative flex-shrink-0" style={{ width: 220, minWidth: 180 }}>
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher OTP, nom, client…" className="pl-9 h-9" />
                   </div>
                   <Select value={filterCdt} onValueChange={setFilterCdt}>
-                    <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder="CDT" /></SelectTrigger>
+                    <SelectTrigger className={`h-9 flex-shrink-0 ${filterCdt !== 'all' ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90' : 'hover:bg-accent hover:text-accent-foreground'}`} style={{ width: 160 }}>
+                      <SelectValue placeholder="CDT" />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Tous les CDT</SelectItem>
                       {cdtOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <Select value={filterPoseur} onValueChange={setFilterPoseur}>
-                    <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder="Poseur" /></SelectTrigger>
+                    <SelectTrigger className={`h-9 flex-shrink-0 ${filterPoseur !== 'all' ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90' : 'hover:bg-accent hover:text-accent-foreground'}`} style={{ width: 160 }}>
+                      <SelectValue placeholder="Poseur" />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Tous les poseurs</SelectItem>
                       {poseurOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <Select value={filterBadge} onValueChange={(v: any) => setFilterBadge(v)}>
-                    <SelectTrigger className="w-[160px] h-9"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className={`h-9 flex-shrink-0 ${filterBadge !== 'all' ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90' : 'hover:bg-accent hover:text-accent-foreground'}`} style={{ width: 140 }}>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Tous badges</SelectItem>
                       <SelectItem value="Critique">Critique</SelectItem>
@@ -438,59 +440,44 @@ export default function AdvDashboard() {
                       <SelectItem value="Conforme">Conforme</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select value={filterScore} onValueChange={(v: any) => setFilterScore(v)}>
-                    <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tous scores</SelectItem>
-                      <SelectItem value="0-25">0 – 25 %</SelectItem>
-                      <SelectItem value="26-50">26 – 50 %</SelectItem>
-                      <SelectItem value="51-75">51 – 75 %</SelectItem>
-                      <SelectItem value="76-100">76 – 100 %</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={filterDemarche}
-                    onValueChange={(v) => { setFilterDemarche(v); setFilterDemarcheStatut('all'); }}
-                  >
-                    <SelectTrigger className={`w-[200px] h-9 ${filterDemarche !== 'all' && filterDemarcheStatut !== 'all' ? 'border-primary text-primary' : ''}`}>
-                      <SelectValue placeholder="Démarche" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Toutes démarches</SelectItem>
-                      {Object.entries(demarcheLabelsExt).map(([k, l]) => (
-                        <SelectItem key={k} value={k}>{l}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {filterDemarche !== 'all' && (
-                    <Select value={filterDemarcheStatut} onValueChange={setFilterDemarcheStatut}>
-                      <SelectTrigger className={`w-[200px] h-9 ${filterDemarcheStatut !== 'all' ? 'border-primary text-primary' : ''}`}>
-                        <SelectValue placeholder="Statut" />
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Select
+                      value={filterDemarche}
+                      onValueChange={(v) => { setFilterDemarche(v); setFilterDemarcheStatut('all'); }}
+                    >
+                      <SelectTrigger className={`h-9 flex-shrink-0 ${filterDemarche !== 'all' ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90' : 'hover:bg-accent hover:text-accent-foreground'}`} style={{ width: 180 }}>
+                        <SelectValue placeholder="Démarche" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Tous statuts</SelectItem>
-                        {(demarcheStatusOptions[filterDemarche] || []).map(s => (
-                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        <SelectItem value="all">Toutes démarches</SelectItem>
+                        {Object.entries(demarcheLabelsExt).map(([k, l]) => (
+                          <SelectItem key={k} value={k}>{l}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                  )}
-                  {(filterDemarche !== 'all' || filterDemarcheStatut !== 'all') && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-9"
-                      onClick={() => { setFilterDemarche('all'); setFilterDemarcheStatut('all'); }}
-                    >
-                      Réinitialiser
-                    </Button>
-                  )}
-                </div>
-                {filterDemarche !== 'all' && filterDemarcheStatut !== 'all' && (
-                  <div className="mb-3 text-xs text-muted-foreground">
-                    Filtre actif : <span className="font-medium text-foreground">{demarcheLabelsExt[filterDemarche]} : {filterDemarcheStatut}</span>
+                    {filterDemarche !== 'all' && (
+                      <Select value={filterDemarcheStatut} onValueChange={setFilterDemarcheStatut}>
+                        <SelectTrigger className={`h-9 flex-shrink-0 ${filterDemarcheStatut !== 'all' ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90' : 'hover:bg-accent hover:text-accent-foreground'}`} style={{ width: 180 }}>
+                          <SelectValue placeholder="Statut" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Tous statuts</SelectItem>
+                          {(demarcheStatusOptions[filterDemarche] || []).map(s => (
+                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
-                )}
+                  <Button
+                    variant={filterCdt !== 'all' || filterPoseur !== 'all' || filterBadge !== 'all' || filterDemarche !== 'all' || filterDemarcheStatut !== 'all' || search ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-9 flex-shrink-0"
+                    onClick={() => { setSearch(''); setFilterCdt('all'); setFilterPoseur('all'); setFilterBadge('all'); setFilterDemarche('all'); setFilterDemarcheStatut('all'); }}
+                  >
+                    Réinitialiser
+                  </Button>
+                </div>
 
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
