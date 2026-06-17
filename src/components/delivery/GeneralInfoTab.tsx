@@ -73,7 +73,7 @@ function MiniStrip({ weeks }: { weeks: ForecastSnapshotWeek[] }) {
   const max = ords[ords.length - 1];
   const total = Math.max(1, max - min + 1);
   const set = new Set(ords);
-  const cells: JSX.Element[] = [];
+  const cells: React.ReactNode[] = [];
   for (let i = 0; i < total; i++) {
     const filled = set.has(min + i);
     cells.push(
