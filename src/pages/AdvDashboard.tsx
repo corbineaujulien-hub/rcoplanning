@@ -178,10 +178,6 @@ export default function AdvDashboard() {
       if (filterCdt !== 'all' && r.cdt !== filterCdt) return false;
       if (filterPoseur !== 'all' && r.poseur !== filterPoseur) return false;
       if (filterBadge !== 'all' && r.badge !== filterBadge) return false;
-      if (filterScore !== 'all') {
-        const [lo, hi] = filterScore.split('-').map(Number);
-        if (r.score < lo || r.score > hi) return false;
-      }
       if (filterDemarche !== 'all' && filterDemarcheStatut !== 'all') {
         if (filterDemarche === 'caution_supplementaire') {
           if (!r.cautions.some(c => c.statut === filterDemarcheStatut)) return false;
@@ -196,7 +192,7 @@ export default function AdvDashboard() {
       const tb = b.startDate?.getTime() ?? Infinity;
       return ta - tb;
     });
-  }, [rows, search, filterCdt, filterPoseur, filterBadge, filterScore, filterDemarche, filterDemarcheStatut]);
+  }, [rows, search, filterCdt, filterPoseur, filterBadge, filterDemarche, filterDemarcheStatut]);
 
   const cdtOptions = useMemo(() => Array.from(new Set(rows.map(r => r.cdt).filter(c => c && c !== '—'))).sort(), [rows]);
   const poseurOptions = useMemo(() => Array.from(new Set(rows.map(r => r.poseur))).sort(), [rows]);
@@ -436,18 +432,8 @@ export default function AdvDashboard() {
                       <SelectItem value="Important">Important</SelectItem>
                       <SelectItem value="À compléter">À compléter</SelectItem>
                       <SelectItem value="Conforme">Conforme</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={filterScore} onValueChange={(v: any) => setFilterScore(v)}>
-                    <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tous scores</SelectItem>
-                      <SelectItem value="0-25">0 – 25 %</SelectItem>
-                      <SelectItem value="26-50">26 – 50 %</SelectItem>
-                      <SelectItem value="51-75">51 – 75 %</SelectItem>
-                      <SelectItem value="76-100">76 – 100 %</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  </SelectContent>
+                </Select>
                   <Select
                     value={filterDemarche}
                     onValueChange={(v) => { setFilterDemarche(v); setFilterDemarcheStatut('all'); }}
