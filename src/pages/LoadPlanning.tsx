@@ -10,6 +10,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, BarChart3, FileDown, FileSpreadsheet, RotateCcw, X, ChevronRight, ChevronDown } from 'lucide-react';
 import ForecastWeeksStrip from '@/components/delivery/ForecastWeeksStrip';
+import ForecastHistoryDialog from '@/components/delivery/ForecastHistoryDialog';
+import { History as HistoryIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   TransportCategory, CONDUCTORS, SUBCONTRACTORS, ForecastedTransport, ForecastWeek,
