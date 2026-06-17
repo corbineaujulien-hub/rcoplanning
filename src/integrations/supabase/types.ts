@@ -222,6 +222,44 @@ export type Database = {
           },
         ]
       }
+      forecast_history: {
+        Row: {
+          created_at: string
+          id: string
+          is_initial: boolean
+          project_id: string
+          snapshot_date: string
+          user_email: string
+          weeks: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_initial?: boolean
+          project_id: string
+          snapshot_date?: string
+          user_email?: string
+          weeks?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_initial?: boolean
+          project_id?: string
+          snapshot_date?: string
+          user_email?: string
+          weeks?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forecast_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       forecast_slots: {
         Row: {
           created_at: string
