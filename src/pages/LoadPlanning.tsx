@@ -1420,9 +1420,22 @@ function GanttView({
                           <div className="text-sm font-semibold">
                             Planning prévisionnel — {cp.project.otp_number || '—'} {cp.project.site_name || ''}
                           </div>
-                          <Button variant="ghost" size="sm" onClick={() => setPopoverProjectId(null)}>
-                            <X className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <ForecastHistoryDialog
+                              projectId={cp.project.id}
+                              currentWeeks={projWeeksAll.map(w => ({ year: w.year, weekNumber: w.weekNumber }))}
+                              siteLabel={`${cp.project.otp_number || ''} ${cp.project.site_name || ''}`.trim()}
+                              trigger={
+                                <Button variant="outline" size="sm">
+                                  <HistoryIcon className="h-4 w-4 mr-2" />
+                                  Historique
+                                </Button>
+                              }
+                            />
+                            <Button variant="ghost" size="sm" onClick={() => setPopoverProjectId(null)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="space-y-2">
                           <ForecastWeeksStrip
