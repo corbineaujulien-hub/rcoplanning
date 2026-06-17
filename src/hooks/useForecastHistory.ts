@@ -19,6 +19,16 @@ function normalizeWeeks(weeks: ForecastSnapshotWeek[]): string {
     .join(',');
 }
 
+function normalizeWeekRows(raw: any): ForecastSnapshotWeek[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((w: any) => ({
+      year: Number(w?.year),
+      weekNumber: Number(w?.weekNumber ?? w?.week_number),
+    }))
+    .filter(w => Number.isFinite(w.year) && Number.isFinite(w.weekNumber));
+}
+
 export function useForecastHistory(projectId: string, currentWeeks: ForecastSnapshotWeek[], ready: boolean) {
   const { user } = useAuth();
   const [history, setHistory] = useState<ForecastSnapshot[]>([]);
