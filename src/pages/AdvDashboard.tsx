@@ -70,6 +70,27 @@ export default function AdvDashboard() {
   const [filterPoseur, setFilterPoseur] = useState('all');
   const [filterBadge, setFilterBadge] = useState<'all' | Badge>('all');
   const [filterScore, setFilterScore] = useState<'all' | '0-25' | '26-50' | '51-75' | '76-100'>('all');
+  const [filterDemarche, setFilterDemarche] = useState<string>('all');
+  const [filterDemarcheStatut, setFilterDemarcheStatut] = useState<string>('all');
+
+  const demarcheLabelsExt: Record<string, string> = {
+    compte_client: 'Compte client',
+    garantie_sfac: 'Garantie bancaire (SFAC)',
+    contrat_client: 'Contrat client',
+    caution_rg: 'Caution Retenue de garantie',
+    contrat_st: 'Contrat sous-traitant',
+    dast: 'DAST',
+    caution_supplementaire: 'Caution supplémentaire',
+  };
+  const demarcheStatusOptions: Record<string, string[]> = {
+    compte_client: ['À ouvrir', 'Demande effectuée', 'Ouvert'],
+    garantie_sfac: ['À demander', 'Demandée', 'Accord obtenu', 'Refusée'],
+    contrat_client: ['Non reçu', 'Envoyé', 'Signé'],
+    caution_rg: ['Non nécessaire', 'À demander', 'Demandée', 'Obtenue'],
+    contrat_st: ['Non nécessaire', 'En attente devis poseur', 'Contrat envoyé', 'Contrat signé'],
+    dast: ['Non nécessaire', 'À préparer', 'Envoyée', 'Acceptée', 'Refusée'],
+    caution_supplementaire: ['Non nécessaire', 'À demander', 'Demandée', 'Obtenue'],
+  };
 
   useEffect(() => {
     (async () => {
@@ -161,13 +182,21 @@ export default function AdvDashboard() {
         const [lo, hi] = filterScore.split('-').map(Number);
         if (r.score < lo || r.score > hi) return false;
       }
+      if (filterDemarche !== 'all' && filterDemarcheStatut !== 'all') {
+        if (filterDemarche === 'caution_supplementaire') {
+          if (!r.cautions.some(c => c.statut === filterDemarcheStatut)) return false;
+        } else {
+          if (!r.adv) return false;
+          if ((r.adv as any)[filterDemarche] !== filterDemarcheStatut) return false;
+        }
+      }
       return true;
     }).sort((a, b) => {
       const ta = a.startDate?.getTime() ?? Infinity;
       const tb = b.startDate?.getTime() ?? Infinity;
       return ta - tb;
     });
-  }, [rows, search, filterCdt, filterPoseur, filterBadge, filterScore]);
+  }, [rows, search, filterCdt, filterPoseur, filterBadge, filterScore, filterDemarche, filterDemarcheStatut]);
 
   const cdtOptions = useMemo(() => Array.from(new Set(rows.map(r => r.cdt).filter(c => c && c !== '—'))).sort(), [rows]);
   const poseurOptions = useMemo(() => Array.from(new Set(rows.map(r => r.poseur))).sort(), [rows]);
@@ -419,7 +448,49 @@ export default function AdvDashboard() {
                       <SelectItem value="76-100">76 – 100 %</SelectItem>
                     </SelectContent>
                   </Select>
+                  <Select
+                    value={filterDemarche}
+                    onValueChange={(v) => { setFilterDemarche(v); setFilterDemarcheStatut('all'); }}
+                  >
+                    <SelectTrigger className={`w-[200px] h-9 ${filterDemarche !== 'all' && filterDemarcheStatut !== 'all' ? 'border-primary text-primary' : ''}`}>
+                      <SelectValue placeholder="Démarche" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Toutes démarches</SelectItem>
+                      {Object.entries(demarcheLabelsExt).map(([k, l]) => (
+                        <SelectItem key={k} value={k}>{l}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {filterDemarche !== 'all' && (
+                    <Select value={filterDemarcheStatut} onValueChange={setFilterDemarcheStatut}>
+                      <SelectTrigger className={`w-[200px] h-9 ${filterDemarcheStatut !== 'all' ? 'border-primary text-primary' : ''}`}>
+                        <SelectValue placeholder="Statut" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tous statuts</SelectItem>
+                        {(demarcheStatusOptions[filterDemarche] || []).map(s => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {(filterDemarche !== 'all' || filterDemarcheStatut !== 'all') && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-9"
+                      onClick={() => { setFilterDemarche('all'); setFilterDemarcheStatut('all'); }}
+                    >
+                      Réinitialiser
+                    </Button>
+                  )}
                 </div>
+                {filterDemarche !== 'all' && filterDemarcheStatut !== 'all' && (
+                  <div className="mb-3 text-xs text-muted-foreground">
+                    Filtre actif : <span className="font-medium text-foreground">{demarcheLabelsExt[filterDemarche]} : {filterDemarcheStatut}</span>
+                  </div>
+                )}
 
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
