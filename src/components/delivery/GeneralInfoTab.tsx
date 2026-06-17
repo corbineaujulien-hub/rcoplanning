@@ -8,13 +8,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
-import { Building2, User, Phone, MapPin, FileText, HardHat, Calendar, Users, Plus, Trash2, Pencil, Check, X, CalendarDays, Truck as TruckIcon } from 'lucide-react';
+import { Building2, User, Phone, MapPin, FileText, HardHat, Calendar, Users, Plus, Trash2, Pencil, Check, X, CalendarDays, Truck as TruckIcon, History as HistoryIcon } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import ForecastWeeksStrip from '@/components/delivery/ForecastWeeksStrip';
+import { useForecastHistory, ForecastSnapshot, ForecastSnapshotWeek } from '@/hooks/useForecastHistory';
 
 export default function GeneralInfoTab() {
   const {
-    projectInfo, setProjectInfo, teams, addTeam, updateTeam, deleteTeam,
+    projectInfo, setProjectInfo, projectId, teams, addTeam, updateTeam, deleteTeam,
     forecastWeeks, toggleForecastWeek, clearForecastWeeks,
     setForecastPeriod,
     setForecastedTransports,
@@ -214,6 +216,8 @@ export default function GeneralInfoTab() {
       </Card>
 
       <ForecastWeeksCard
+        projectId={projectId}
+        siteName={projectInfo.siteName}
         forecastWeeks={forecastWeeks}
         periodStart={projectInfo.forecastPeriodStart || null}
         periodEnd={projectInfo.forecastPeriodEnd || null}
@@ -244,9 +248,11 @@ export default function GeneralInfoTab() {
 // =================== Forecast Weeks Strip ===================
 
 function ForecastWeeksCard({
-  forecastWeeks, periodStart, periodEnd, onSetPeriod,
+  projectId, siteName, forecastWeeks, periodStart, periodEnd, onSetPeriod,
   onToggle, onClear,
 }: {
+  projectId: string;
+  siteName: string;
   forecastWeeks: { year: number; weekNumber: number }[];
   periodStart: string | null;
   periodEnd: string | null;
@@ -268,13 +274,36 @@ function ForecastWeeksCard({
   };
   const hiddenCount = forecastWeeks.filter(w => !inRange(w.year, w.weekNumber)).length;
 
+  const currentWeeks = useMemo<ForecastSnapshotWeek[]>(
+    () => forecastWeeks.map(w => ({ year: w.year, weekNumber: w.weekNumber })),
+    [forecastWeeks]
+  );
+  const { history } = useForecastHistory(projectId, currentWeeks, true);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle className="flex items-center gap-2">
           <CalendarDays className="h-5 w-5 text-accent" />
           Planning prévisionnel
         </CardTitle>
+        <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">
+              <HistoryIcon className="h-4 w-4 mr-2" />
+              Historique
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="w-fit max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>
+                Historique du planning prévisionnel{siteName ? ` — ${siteName}` : ''}
+              </DialogTitle>
+            </DialogHeader>
+            <ForecastHistoryList history={history} />
+          </DialogContent>
+        </Dialog>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
