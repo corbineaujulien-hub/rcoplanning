@@ -41,7 +41,7 @@ function shiftLabel(snapshot: ForecastSnapshot, initial: ForecastSnapshot | null
     return { text: 'Référence — planning de signature du contrat', color: 'text-muted-foreground' };
   }
   if (snapshot.weeks.length === 0 || initial.weeks.length === 0) {
-    return { text: 'Décalage non calculable', color: 'text-muted-foreground' };
+    return { text: 'Décalage vs planning initial : non calculable', color: 'text-muted-foreground' };
   }
   const initStart = Math.min(...initial.weeks.map(weekToOrdinal));
   const initEnd = Math.max(...initial.weeks.map(weekToOrdinal));
@@ -50,40 +50,25 @@ function shiftLabel(snapshot: ForecastSnapshot, initial: ForecastSnapshot | null
   const startShift = curStart - initStart;
   const endShift = curEnd - initEnd;
   if (startShift === 0 && endShift === 0) {
-    return { text: 'Aucun changement', color: 'text-muted-foreground' };
+    return { text: 'Décalage vs planning initial : Aucun changement', color: 'text-muted-foreground' };
   }
-  const parts: string[] = [];
-  if (startShift !== 0) {
-    parts.push(`début ${startShift > 0 ? `décalé de +${startShift}` : `avancé de ${startShift}`} semaine${Math.abs(startShift) > 1 ? 's' : ''}`);
+  const sortedInit = [...initial.weeks].sort((a, b) => weekToOrdinal(a) - weekToOrdinal(b));
+  const sortedCur = [...snapshot.weeks].sort((a, b) => weekToOrdinal(a) - weekToOrdinal(b));
+  const initEndW = sortedInit[sortedInit.length - 1];
+  const curEndW = sortedCur[sortedCur.length - 1];
+  const abs = Math.abs(endShift);
+  const plural = abs > 1 ? 's' : '';
+  let detail: string;
+  if (endShift > 0) {
+    detail = `+${endShift} semaine${plural} (fin repoussée du S${initEndW.weekNumber} au S${curEndW.weekNumber})`;
+  } else if (endShift < 0) {
+    detail = `${endShift} semaine${plural} (fin avancée du S${initEndW.weekNumber} au S${curEndW.weekNumber})`;
+  } else {
+    const absS = Math.abs(startShift);
+    detail = `${startShift > 0 ? '+' : ''}${startShift} semaine${absS > 1 ? 's' : ''} (début décalé)`;
   }
-  if (endShift !== 0) {
-    parts.push(`fin ${endShift > 0 ? `repoussée de +${endShift}` : `avancée de ${endShift}`} semaine${Math.abs(endShift) > 1 ? 's' : ''}`);
-  }
-  const worst = Math.max(startShift, endShift, -startShift, -endShift);
-  const direction = (endShift > 0 || startShift > 0) ? 1 : (endShift < 0 || startShift < 0) ? -1 : 0;
-  const color = direction > 0 ? 'text-red-600' : direction < 0 ? 'text-green-600' : 'text-muted-foreground';
-  void worst;
-  return { text: `Décalage vs planning initial : ${parts.join(', ')}`, color };
-}
-
-function MiniStrip({ weeks }: { weeks: ForecastSnapshotWeek[] }) {
-  if (weeks.length === 0) return null;
-  const ords = weeks.map(weekToOrdinal).sort((a, b) => a - b);
-  const min = ords[0];
-  const max = ords[ords.length - 1];
-  const total = Math.max(1, max - min + 1);
-  const set = new Set(ords);
-  const cells: React.ReactNode[] = [];
-  for (let i = 0; i < total; i++) {
-    const filled = set.has(min + i);
-    cells.push(
-      <span
-        key={i}
-        className={cn('inline-block h-2 w-2 rounded-sm', filled ? 'bg-accent' : 'bg-muted')}
-      />
-    );
-  }
-  return <div className="flex flex-wrap gap-[2px] mt-1">{cells}</div>;
+  const color = endShift > 0 || startShift > 0 ? 'text-red-600' : 'text-green-600';
+  return { text: `Décalage vs planning initial : ${detail}`, color };
 }
 
 function ForecastHistoryList({ history }: { history: ForecastSnapshot[] }) {
@@ -92,19 +77,13 @@ function ForecastHistoryList({ history }: { history: ForecastSnapshot[] }) {
     return <p className="text-sm text-muted-foreground py-4">Aucun snapshot enregistré.</p>;
   }
   return (
-    <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-2 text-sm min-w-[480px]">
+    <div className="max-h-[60vh] overflow-y-auto pr-2 text-sm min-w-[480px] divide-y">
       {history.map(snap => {
         const shift = shiftLabel(snap, initial);
-        const isInit = snap.isInitial;
+        const isInit = initial ? snap.id === initial.id : false;
         return (
-          <div
-            key={snap.id}
-            className={cn(
-              'border rounded-md px-3 py-2',
-              isInit ? 'bg-accent/10 border-accent/40' : 'bg-background'
-            )}
-          >
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <div key={snap.id} className="py-3 space-y-1">
+            <div className="flex flex-wrap items-center gap-x-2">
               <span className="font-medium tabular-nums whitespace-nowrap">
                 📅 {formatSnapshotDate(snap.snapshotDate)}
               </span>
@@ -117,14 +96,13 @@ function ForecastHistoryList({ history }: { history: ForecastSnapshot[] }) {
                 </span>
               )}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              <span className="font-medium text-foreground">Semaines :</span>{' '}
-              {describeWeeks(snap.weeks)}
+            <div className="text-xs">
+              <span className="font-medium">Semaines :</span>{' '}
+              <span className="text-muted-foreground">{describeWeeks(snap.weeks)}</span>
             </div>
-            <div className={cn('text-xs mt-0.5 font-medium', shift.color)}>
+            <div className={cn('text-xs font-medium', shift.color)}>
               {shift.text}
             </div>
-            <MiniStrip weeks={snap.weeks} />
           </div>
         );
       })}

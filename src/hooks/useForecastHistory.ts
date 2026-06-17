@@ -19,6 +19,16 @@ function normalizeWeeks(weeks: ForecastSnapshotWeek[]): string {
     .join(',');
 }
 
+function normalizeWeekRows(raw: any): ForecastSnapshotWeek[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((w: any) => ({
+      year: Number(w?.year),
+      weekNumber: Number(w?.weekNumber ?? w?.week_number),
+    }))
+    .filter(w => Number.isFinite(w.year) && Number.isFinite(w.weekNumber));
+}
+
 export function useForecastHistory(projectId: string, currentWeeks: ForecastSnapshotWeek[], ready: boolean) {
   const { user } = useAuth();
   const [history, setHistory] = useState<ForecastSnapshot[]>([]);
@@ -38,7 +48,7 @@ export function useForecastHistory(projectId: string, currentWeeks: ForecastSnap
       if (cancel) return;
       const rows: ForecastSnapshot[] = (data || []).map((r: any) => ({
         id: r.id, projectId: r.project_id, snapshotDate: r.snapshot_date,
-        weeks: (r.weeks as ForecastSnapshotWeek[]) || [],
+        weeks: normalizeWeekRows(r.weeks),
         userEmail: r.user_email || '', isInitial: !!r.is_initial,
       }));
       setHistory(rows);
@@ -62,7 +72,7 @@ export function useForecastHistory(projectId: string, currentWeeks: ForecastSnap
             if (prev.some(s => s.id === r.id)) return prev;
             return [{
               id: r.id, projectId: r.project_id, snapshotDate: r.snapshot_date,
-              weeks: (r.weeks as ForecastSnapshotWeek[]) || [],
+              weeks: normalizeWeekRows(r.weeks),
               userEmail: r.user_email || '', isInitial: !!r.is_initial,
             }, ...prev].sort((a, b) => b.snapshotDate.localeCompare(a.snapshotDate));
           });
