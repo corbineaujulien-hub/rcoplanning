@@ -1068,7 +1068,7 @@ export default function TruckCompositionTab() {
                               setCurrentDate(day);
                               setViewMode('day');
                             }}
-                            className={`bg-card p-1 min-h-[80px] ${!inMonth ? 'opacity-40' : ''} ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''} ${holiday ? 'bg-muted/60' : ''} transition-colors cursor-pointer hover:bg-secondary/30`}
+                            className={`bg-card p-1 min-h-[80px] min-w-0 overflow-hidden ${!inMonth ? 'opacity-40' : ''} ${isToday(day) ? 'ring-2 ring-accent ring-inset' : ''} ${holiday ? 'bg-muted/60' : ''} transition-colors cursor-pointer hover:bg-secondary/30`}
                           >
                             <div className={`text-xs font-medium mb-1 ${isToday(day) ? 'text-accent' : holiday ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
                               {format(day, 'd')}
