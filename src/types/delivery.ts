@@ -8,6 +8,7 @@ export interface ProjectInfo {
   contactName: string;
   contactPhone: string;
   showSaturdays?: boolean;
+  showSundays?: boolean;
   databaseComplete?: boolean;
   databaseComment?: string;
   supplyOnly?: boolean;
@@ -190,6 +191,7 @@ export const DEFAULT_PROJECT_INFO: ProjectInfo = {
   contactName: '',
   contactPhone: '',
   showSaturdays: false,
+  showSundays: false,
   databaseComplete: false,
   databaseComment: '',
   supplyOnly: false,

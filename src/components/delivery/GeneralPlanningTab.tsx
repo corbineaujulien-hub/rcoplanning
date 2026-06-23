@@ -19,11 +19,12 @@ export default function GeneralPlanningTab() {
   const [detailTruck, setDetailTruck] = useState<Truck | null>(null);
 
   const showSaturdays = projectInfo.showSaturdays || false;
+  const showSundays = projectInfo.showSundays || false;
 
   const filterWeekendDays = (days: Date[]): Date[] => {
     return days.filter(day => {
       const dow = getDay(day);
-      if (dow === 0) return false; // Always hide Sunday
+      if (dow === 0 && !showSundays) return false;
       if (dow === 6 && !showSaturdays) return false;
       return true;
     });
@@ -39,7 +40,7 @@ export default function GeneralPlanningTab() {
       const end = endOfWeek(currentDate, { weekStartsOn: 1 });
       return filterWeekendDays(eachDayOfInterval({ start, end }));
     }
-  }, [currentDate, viewMode, showSaturdays]);
+  }, [currentDate, viewMode, showSaturdays, showSundays]);
 
   const getTrucksForDate = (dateStr: string) =>
     trucks.filter(t => t.date === dateStr).sort((a, b) => a.time.localeCompare(b.time));
@@ -73,11 +74,13 @@ export default function GeneralPlanningTab() {
   };
 
   const dayNames = useMemo(() => {
-    const all = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
-    return showSaturdays ? all : all.slice(0, 5);
-  }, [showSaturdays]);
+    const base = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
+    if (showSaturdays) base.push('Sam');
+    if (showSundays) base.push('Dim');
+    return base;
+  }, [showSaturdays, showSundays]);
 
-  const gridCols = showSaturdays ? 6 : 5;
+  const gridCols = 5 + (showSaturdays ? 1 : 0) + (showSundays ? 1 : 0);
 
   return (
     <div className="space-y-4">

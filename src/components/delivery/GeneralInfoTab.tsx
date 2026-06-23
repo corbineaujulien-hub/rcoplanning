@@ -232,14 +232,25 @@ export default function GeneralInfoTab() {
       />
 
       {/* Discreet Saturday toggle */}
-      <div className="flex items-center justify-end gap-3 px-2">
-        <Calendar className="h-4 w-4 text-muted-foreground" />
-        <Label htmlFor="show-sat" className="text-sm text-muted-foreground cursor-pointer">Afficher les samedis dans le calendrier</Label>
-        <Switch
-          id="show-sat"
-          checked={projectInfo.showSaturdays || false}
-          onCheckedChange={v => update('showSaturdays', v)}
-        />
+      <div className="flex flex-col items-end gap-2 px-2">
+        <div className="flex items-center gap-3">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <Label htmlFor="show-sat" className="text-sm text-muted-foreground cursor-pointer">Afficher les samedis dans le calendrier</Label>
+          <Switch
+            id="show-sat"
+            checked={projectInfo.showSaturdays || false}
+            onCheckedChange={v => update('showSaturdays', v)}
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <Label htmlFor="show-sun" className="text-sm text-muted-foreground cursor-pointer">Afficher les dimanches dans le calendrier</Label>
+          <Switch
+            id="show-sun"
+            checked={projectInfo.showSundays || false}
+            onCheckedChange={v => update('showSundays', v)}
+          />
+        </div>
       </div>
     </div>
   );

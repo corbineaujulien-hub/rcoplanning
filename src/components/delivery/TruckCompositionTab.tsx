@@ -111,6 +111,7 @@ export default function TruckCompositionTab() {
   const [bulkTargetTeam, setBulkTargetTeam] = useState<string>('');
 
   const showSaturdays = projectInfo.showSaturdays || false;
+  const showSundays = projectInfo.showSundays || false;
 
   const getElementTruck = (elementId: string): Truck | undefined => {
     return trucks.find(t => t.elementIds.includes(elementId));
@@ -302,7 +303,7 @@ export default function TruckCompositionTab() {
   const filterWeekendDays = (days: Date[]): Date[] => {
     return days.filter(day => {
       const dow = getDay(day);
-      if (dow === 0) return false; // Always hide Sunday
+      if (dow === 0 && !showSundays) return false; // Hide Sunday unless enabled
       if (dow === 6 && !showSaturdays) return false; // Hide Saturday unless enabled
       return true;
     });
@@ -329,16 +330,17 @@ export default function TruckCompositionTab() {
   }, [currentDate]);
 
   // Filtered days for month/week views (no weekends)
-  const filteredCalendarDays = useMemo(() => filterWeekendDays(calendarDays), [calendarDays, showSaturdays]);
-  const filteredWeekDays = useMemo(() => filterWeekendDays(weekDays), [weekDays, showSaturdays]);
+  const filteredCalendarDays = useMemo(() => filterWeekendDays(calendarDays), [calendarDays, showSaturdays, showSundays]);
+  const filteredWeekDays = useMemo(() => filterWeekendDays(weekDays), [weekDays, showSaturdays, showSundays]);
 
   const dayNames = useMemo(() => {
-    const all = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-    if (showSaturdays) return all.slice(0, 6); // Mon-Sat
-    return all.slice(0, 5); // Mon-Fri
-  }, [showSaturdays]);
+    const base = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
+    if (showSaturdays) base.push('Sam');
+    if (showSundays) base.push('Dim');
+    return base;
+  }, [showSaturdays, showSundays]);
 
-  const gridCols = showSaturdays ? 6 : 5;
+  const gridCols = 5 + (showSaturdays ? 1 : 0) + (showSundays ? 1 : 0);
 
   const navigate = (dir: number) => {
     setCurrentDate(prev => {
@@ -346,7 +348,7 @@ export default function TruckCompositionTab() {
       if (viewMode === 'week') return dir > 0 ? addWeeks(prev, 1) : subWeeks(prev, 1);
       // Day view: skip Sundays always, Saturdays if disabled
       let next = dir > 0 ? addDays(prev, 1) : subDays(prev, 1);
-      while (getDay(next) === 0 || (getDay(next) === 6 && !showSaturdays)) {
+      while ((getDay(next) === 0 && !showSundays) || (getDay(next) === 6 && !showSaturdays)) {
         next = dir > 0 ? addDays(next, 1) : subDays(next, 1);
       }
       return next;
@@ -490,7 +492,7 @@ export default function TruckCompositionTab() {
   // Check if a day is non-working (Sunday, Saturday if hidden, French holiday)
   const isNonWorkingDay = (date: Date): boolean => {
     const dow = date.getDay();
-    if (dow === 0) return true; // Dimanche
+    if (dow === 0 && !showSundays) return true; // Dimanche si non affiché
     if (dow === 6 && !showSaturdays) return true; // Samedi si non affiché
     const dateStr = format(date, 'yyyy-MM-dd');
     return isHoliday(dateStr);
@@ -1680,6 +1682,7 @@ export default function TruckCompositionTab() {
         })}
         getTruckElements={getTruckElements}
         showSaturdays={showSaturdays}
+        showSundays={showSundays}
         onShiftConfirm={handleShiftConfirm}
       />
 

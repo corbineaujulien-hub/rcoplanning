@@ -20,6 +20,7 @@ interface ShiftCalendarDialogProps {
   trucks: Truck[];
   getTruckElements: (truckId: string) => BeamElement[];
   showSaturdays: boolean;
+  showSundays?: boolean;
   onShiftConfirm: (selectedTruckIds: Set<string>, shiftType: 'weeks' | 'days' | 'hours', shiftValue: number) => void;
 }
 
@@ -29,6 +30,7 @@ export default function ShiftCalendarDialog({
   trucks,
   getTruckElements,
   showSaturdays,
+  showSundays = false,
   onShiftConfirm,
 }: ShiftCalendarDialogProps) {
   const [shiftViewMode, setShiftViewMode] = useState<'month' | 'week'>('month');
@@ -59,10 +61,10 @@ export default function ShiftCalendarDialog({
 
   const isNonWorkingDay = useCallback((date: Date): boolean => {
     const dow = date.getDay();
-    if (dow === 0) return true;
+    if (dow === 0 && !showSundays) return true;
     if (dow === 6 && !showSaturdays) return true;
     return isHoliday(format(date, 'yyyy-MM-dd'));
-  }, [showSaturdays]);
+  }, [showSaturdays, showSundays]);
 
   // Build a map of date -> trucks
   const trucksByDate = useMemo(() => {
@@ -77,17 +79,22 @@ export default function ShiftCalendarDialog({
     return map;
   }, [trucks]);
 
-  const gridCols = showSaturdays ? 6 : 5;
-  const dayNames = showSaturdays ? ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'] : ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
+  const gridCols = 5 + (showSaturdays ? 1 : 0) + (showSundays ? 1 : 0);
+  const dayNames = (() => {
+    const base = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
+    if (showSaturdays) base.push('Sam');
+    if (showSundays) base.push('Dim');
+    return base;
+  })();
 
   const filterWeekendDays = useCallback((days: Date[]): Date[] => {
     return days.filter(day => {
       const dow = getDay(day);
-      if (dow === 0) return false;
+      if (dow === 0 && !showSundays) return false;
       if (dow === 6 && !showSaturdays) return false;
       return true;
     });
-  }, [showSaturdays]);
+  }, [showSaturdays, showSundays]);
 
   // Calendar days
   const calendarDays = useMemo(() => {
