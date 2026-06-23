@@ -407,6 +407,7 @@ export type Database = {
           id: string
           otp_number: string | null
           show_saturdays: boolean | null
+          show_sundays: boolean
           site_address: string | null
           site_name: string | null
           subcontractor: string | null
@@ -429,6 +430,7 @@ export type Database = {
           id?: string
           otp_number?: string | null
           show_saturdays?: boolean | null
+          show_sundays?: boolean
           site_address?: string | null
           site_name?: string | null
           subcontractor?: string | null
@@ -451,6 +453,7 @@ export type Database = {
           id?: string
           otp_number?: string | null
           show_saturdays?: boolean | null
+          show_sundays?: boolean
           site_address?: string | null
           site_name?: string | null
           subcontractor?: string | null

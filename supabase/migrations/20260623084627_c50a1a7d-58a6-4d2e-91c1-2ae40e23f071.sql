@@ -1,0 +1,1 @@
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS show_sundays boolean NOT NULL DEFAULT false;
