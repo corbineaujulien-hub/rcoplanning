@@ -202,6 +202,17 @@ export default function LoadPlanning() {
   const [tokens, setTokens] = useState<Record<string, string>>({});
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
+  // Start (Monday) of the current ISO week — forecast weeks whose Monday is
+  // strictly before this date are considered "past" and hidden. The current
+  // week itself stays visible even after Monday.
+  const currentWeekStart = useMemo(() => {
+    const d = new Date(today);
+    const dow = d.getDay(); // 0=Sun..6=Sat
+    const diff = dow === 0 ? -6 : 1 - dow;
+    d.setDate(d.getDate() + diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, [today]);
   const defaultStart = useMemo(() => { const d = new Date(today); d.setMonth(d.getMonth() - 1); return d; }, [today]);
   const defaultEnd = useMemo(() => { const d = new Date(today); d.setMonth(d.getMonth() + 11); return d; }, [today]);
 
@@ -416,7 +427,7 @@ export default function LoadPlanning() {
           const w = weeks.find(x => x.year === fw.year && x.week === fw.weekNumber);
           // Règle : ne jamais afficher de prévisionnel sur une semaine passée
           // (lundi strictement antérieur à aujourd'hui). La semaine courante reste autorisée.
-          if (w && w.start.getTime() >= today.getTime()) visibleForecastWeekKeys.add(w.key);
+          if (w && w.start.getTime() >= currentWeekStart.getTime()) visibleForecastWeekKeys.add(w.key);
         });
       }
       const visibleForecastWeeks = Array.from(visibleForecastWeekKeys)
@@ -434,8 +445,8 @@ export default function LoadPlanning() {
           const wk = w ? w.key : `${fw.year}-W${String(fw.weekNumber).padStart(2, '0')}`;
           if (realByWeek.has(wk)) return false;
           // Exclude past weeks from denominator so future weeks distribute the full remainder
-          if (w && w.start.getTime() < today.getTime()) return false;
-          if (!w && simpleISOWeekStart(fw.year, fw.weekNumber).getTime() < today.getTime()) return false;
+          if (w && w.start.getTime() < currentWeekStart.getTime()) return false;
+          if (!w && simpleISOWeekStart(fw.year, fw.weekNumber).getTime() < currentWeekStart.getTime()) return false;
           return true;
         });
         const n = forecastOnlyProjWeeks.length;
@@ -542,7 +553,7 @@ export default function LoadPlanning() {
         planningPct,
       };
     });
-  }, [projects, trucks, forecastWeeks, elements, elementsById, weeks, filterProduct]);
+  }, [projects, trucks, forecastWeeks, elements, elementsById, weeks, filterProduct, currentWeekStart]);
 
   // Filtering — archived treated like active. Supports excluding a single filter
   // (used to compute available values in dropdowns for cumulative behaviour).
