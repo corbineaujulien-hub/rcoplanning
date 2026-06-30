@@ -427,7 +427,7 @@ export default function LoadPlanning() {
           const w = weeks.find(x => x.year === fw.year && x.week === fw.weekNumber);
           // Règle : ne jamais afficher de prévisionnel sur une semaine passée
           // (lundi strictement antérieur à aujourd'hui). La semaine courante reste autorisée.
-          if (w && w.start.getTime() >= today.getTime()) visibleForecastWeekKeys.add(w.key);
+          if (w && w.start.getTime() >= currentWeekStart.getTime()) visibleForecastWeekKeys.add(w.key);
         });
       }
       const visibleForecastWeeks = Array.from(visibleForecastWeekKeys)
@@ -445,8 +445,8 @@ export default function LoadPlanning() {
           const wk = w ? w.key : `${fw.year}-W${String(fw.weekNumber).padStart(2, '0')}`;
           if (realByWeek.has(wk)) return false;
           // Exclude past weeks from denominator so future weeks distribute the full remainder
-          if (w && w.start.getTime() < today.getTime()) return false;
-          if (!w && simpleISOWeekStart(fw.year, fw.weekNumber).getTime() < today.getTime()) return false;
+          if (w && w.start.getTime() < currentWeekStart.getTime()) return false;
+          if (!w && simpleISOWeekStart(fw.year, fw.weekNumber).getTime() < currentWeekStart.getTime()) return false;
           return true;
         });
         const n = forecastOnlyProjWeeks.length;
