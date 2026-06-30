@@ -202,6 +202,17 @@ export default function LoadPlanning() {
   const [tokens, setTokens] = useState<Record<string, string>>({});
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
+  // Start (Monday) of the current ISO week — forecast weeks whose Monday is
+  // strictly before this date are considered "past" and hidden. The current
+  // week itself stays visible even after Monday.
+  const currentWeekStart = useMemo(() => {
+    const d = new Date(today);
+    const dow = d.getDay(); // 0=Sun..6=Sat
+    const diff = dow === 0 ? -6 : 1 - dow;
+    d.setDate(d.getDate() + diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, [today]);
   const defaultStart = useMemo(() => { const d = new Date(today); d.setMonth(d.getMonth() - 1); return d; }, [today]);
   const defaultEnd = useMemo(() => { const d = new Date(today); d.setMonth(d.getMonth() + 11); return d; }, [today]);
 
