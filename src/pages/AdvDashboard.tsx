@@ -25,6 +25,7 @@ interface ProjectRow {
   otp_number: string | null;
   conductor: string | null;
   subcontractor: string | null;
+  business_manager: string | null;
   archived: boolean;
   supply_only: boolean;
 }
@@ -68,6 +69,7 @@ export default function AdvDashboard() {
   const [search, setSearch] = useState('');
   const [filterCdt, setFilterCdt] = useState('all');
   const [filterPoseur, setFilterPoseur] = useState('all');
+  const [filterCda, setFilterCda] = useState('all');
   const [filterBadge, setFilterBadge] = useState<'all' | Badge>('all');
   
   const [filterDemarche, setFilterDemarche] = useState<string>('all');
@@ -96,7 +98,7 @@ export default function AdvDashboard() {
     (async () => {
       setLoading(true);
       const [p, a, c, r, t, fw, lk] = await Promise.all([
-        supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, archived, supply_only').eq('archived', false),
+        supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, business_manager, archived, supply_only').eq('archived', false),
         sb.from('adv_status').select('*'),
         sb.from('adv_cautions_custom').select('*'),
         sb.from('adv_relances').select('*'),
@@ -165,7 +167,8 @@ export default function AdvDashboard() {
       const badge = badgeOf(score, startDate);
       const cdt = formatCDTLabel(p.conductor) || '—';
       const poseur = p.supply_only ? 'Fourniture seule' : (p.subcontractor || 'Poseur à désigner');
-      return { project: p, adv, cautions: cs, score, startDate, badge, cdt, poseur };
+      const cda = (p.business_manager || '').trim();
+      return { project: p, adv, cautions: cs, score, startDate, badge, cdt, poseur, cda };
     });
   }, [projects, advByProject, cautionsByProject, startDateByProject]);
 
@@ -177,6 +180,10 @@ export default function AdvDashboard() {
         && !(r.project.client_name || '').toLowerCase().includes(s)) return false;
       if (filterCdt !== 'all' && r.cdt !== filterCdt) return false;
       if (filterPoseur !== 'all' && r.poseur !== filterPoseur) return false;
+      if (filterCda !== 'all') {
+        if (filterCda === '__unassigned__') { if (r.cda) return false; }
+        else if (r.cda !== filterCda) return false;
+      }
       if (filterBadge !== 'all' && r.badge !== filterBadge) return false;
       if (filterDemarche !== 'all' && filterDemarcheStatut !== 'all') {
         if (filterDemarche === 'caution_supplementaire') {
@@ -192,10 +199,12 @@ export default function AdvDashboard() {
       const tb = b.startDate?.getTime() ?? Infinity;
       return ta - tb;
     });
-  }, [rows, search, filterCdt, filterPoseur, filterBadge, filterDemarche, filterDemarcheStatut]);
+  }, [rows, search, filterCdt, filterPoseur, filterCda, filterBadge, filterDemarche, filterDemarcheStatut]);
 
   const cdtOptions = useMemo(() => Array.from(new Set(rows.map(r => r.cdt).filter(c => c && c !== '—'))).sort(), [rows]);
   const poseurOptions = useMemo(() => Array.from(new Set(rows.map(r => r.poseur))).sort(), [rows]);
+  const cdaOptions = useMemo(() => Array.from(new Set(rows.map(r => r.cda).filter(Boolean))).sort(), [rows]);
+  const hasUnassignedCda = useMemo(() => rows.some(r => !r.cda), [rows]);
 
   // KPIs
   const chantiersActifs = rows.length;
