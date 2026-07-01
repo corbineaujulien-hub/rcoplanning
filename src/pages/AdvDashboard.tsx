@@ -257,6 +257,7 @@ export default function AdvDashboard() {
         'Nom chantier': p.site_name || '',
         Client: p.client_name || '',
         CDT: r.cdt,
+        CDA: r.cda,
         Poseur: r.poseur,
         'Date démarrage': r.startDate ? format(r.startDate, 'dd/MM/yyyy') : '',
         'Score ADV': r.score + '%',
@@ -428,6 +429,16 @@ export default function AdvDashboard() {
                       {cdtOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  <Select value={filterCda} onValueChange={setFilterCda}>
+                    <SelectTrigger className={`h-9 flex-shrink-0 ${filterCda !== 'all' ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90' : 'hover:bg-accent hover:text-accent-foreground'}`} style={{ width: 160 }}>
+                      <SelectValue placeholder="CDA" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous les CDA</SelectItem>
+                      {hasUnassignedCda && <SelectItem value="__unassigned__">CDA à désigner</SelectItem>}
+                      {cdaOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                   <Select value={filterPoseur} onValueChange={setFilterPoseur}>
                     <SelectTrigger className={`h-9 flex-shrink-0 ${filterPoseur !== 'all' ? 'bg-primary text-primary-foreground border-primary hover:bg-primary/90' : 'hover:bg-accent hover:text-accent-foreground'}`} style={{ width: 160 }}>
                       <SelectValue placeholder="Poseur" />
@@ -479,10 +490,10 @@ export default function AdvDashboard() {
                     )}
                   </div>
                   <Button
-                    variant={filterCdt !== 'all' || filterPoseur !== 'all' || filterBadge !== 'all' || filterDemarche !== 'all' || filterDemarcheStatut !== 'all' || search ? 'default' : 'outline'}
+                    variant={filterCdt !== 'all' || filterCda !== 'all' || filterPoseur !== 'all' || filterBadge !== 'all' || filterDemarche !== 'all' || filterDemarcheStatut !== 'all' || search ? 'default' : 'outline'}
                     size="sm"
                     className="h-9 flex-shrink-0"
-                    onClick={() => { setSearch(''); setFilterCdt('all'); setFilterPoseur('all'); setFilterBadge('all'); setFilterDemarche('all'); setFilterDemarcheStatut('all'); }}
+                    onClick={() => { setSearch(''); setFilterCdt('all'); setFilterCda('all'); setFilterPoseur('all'); setFilterBadge('all'); setFilterDemarche('all'); setFilterDemarcheStatut('all'); }}
                   >
                     Réinitialiser
                   </Button>
@@ -493,6 +504,7 @@ export default function AdvDashboard() {
                     <thead>
                       <tr className="border-b text-left">
                         <th className="py-2 pr-2">Chantier</th>
+                        <th className="py-2 pr-2">CDA</th>
                         <th className="py-2 pr-2">CDT</th>
                         <th className="py-2 pr-2">Poseur</th>
                         <th className="py-2 pr-2">Démarrage</th>
@@ -508,6 +520,7 @@ export default function AdvDashboard() {
                             <div className="font-medium">{r.project.site_name || 'Sans nom'}</div>
                             <div className="text-xs text-muted-foreground">{r.project.otp_number || ''}</div>
                           </td>
+                          <td className="py-1.5 pr-2">{r.cda || ''}</td>
                           <td className="py-1.5 pr-2">{r.cdt}</td>
                           <td className="py-1.5 pr-2">{r.poseur}</td>
                           <td className="py-1.5 pr-2 tabular-nums">{r.startDate ? format(r.startDate, 'dd/MM/yyyy') : '—'}</td>
@@ -523,7 +536,7 @@ export default function AdvDashboard() {
                         </tr>
                       ))}
                       {filteredRows.length === 0 && (
-                        <tr><td colSpan={7} className="py-6 text-center text-muted-foreground">Aucun chantier.</td></tr>
+                        <tr><td colSpan={8} className="py-6 text-center text-muted-foreground">Aucun chantier.</td></tr>
                       )}
                     </tbody>
                   </table>
