@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx';
 import { ISOWeek } from './loadPlanningUtils';
 
 interface ProjectComputedLite {
-  project: { id: string; site_name: string | null; otp_number: string | null };
+  project: { id: string; site_name: string | null; otp_number: string | null; site_address?: string | null };
   poseur: string;
   conductor: string;
   weeks: Record<string, { count: number; source: 'real' | 'forecast' | 'mixed' | 'none' }>;
@@ -33,16 +33,27 @@ function buildLoadSheet(
   return [header, ...data];
 }
 
+function extractDepartement(address: string | null | undefined): string {
+  if (!address) return '';
+  const match = address.match(/\b(\d{5})\b/);
+  if (!match) return '';
+  const postalCode = match[1];
+  if (postalCode.startsWith('97')) return postalCode.substring(0, 3);
+  return postalCode.substring(0, 2);
+}
+
 export async function exportLoadPlanningExcel(args: ExportArgs) {
   const { weeks, projects, loadByCdt, loadByPoseur, loadByUsine, periodStart, periodEnd } = args;
   const wb = XLSX.utils.book_new();
 
   // Gantt
-  const ganttHeader = ['Chantier', 'OTP', 'CDT', 'Poseur', ...weeks.map(w => w.label), 'Total'];
+  const ganttHeader = ['Chantier', 'Département', 'OTP', 'CDT', 'Poseur', ...weeks.map(w => w.label), 'Total'];
   const ganttRows = projects.map(cp => {
     const total = weeks.reduce((s, w) => s + (cp.weeks[w.key]?.count || 0), 0);
     return [
-      cp.project.site_name || '', cp.project.otp_number || '',
+      cp.project.site_name || '',
+      extractDepartement(cp.project.site_address),
+      cp.project.otp_number || '',
       cp.conductor, cp.poseur,
       ...weeks.map(w => {
         const c = cp.weeks[w.key];
@@ -53,6 +64,15 @@ export async function exportLoadPlanningExcel(args: ExportArgs) {
     ];
   });
   const wsGantt = XLSX.utils.aoa_to_sheet([ganttHeader, ...ganttRows]);
+  wsGantt['!cols'] = [
+    { wpx: 200 }, // Chantier
+    { wpx: 50 },  // Département
+    { wpx: 90 },  // OTP
+    { wpx: 90 },  // CDT
+    { wpx: 90 },  // Poseur
+    ...weeks.map(() => ({ wpx: 45 })),
+    { wpx: 60 },  // Total
+  ];
   XLSX.utils.book_append_sheet(wb, wsGantt, 'Gantt');
 
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(buildLoadSheet(loadByCdt, weeks)), 'Charge CDT');
