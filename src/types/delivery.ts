@@ -7,6 +7,7 @@ export interface ProjectInfo {
   subcontractor: string;
   contactName: string;
   contactPhone: string;
+  businessManager?: string;
   showSaturdays?: boolean;
   showSundays?: boolean;
   databaseComplete?: boolean;
@@ -190,6 +191,7 @@ export const DEFAULT_PROJECT_INFO: ProjectInfo = {
   subcontractor: '',
   contactName: '',
   contactPhone: '',
+  businessManager: '',
   showSaturdays: false,
   showSundays: false,
   databaseComplete: false,
