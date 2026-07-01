@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
-import { CONDUCTORS, SUBCONTRACTORS, Team, ForecastedTransport, FORECAST_TRANSPORT_CATEGORIES, ForecastTransportCategory, FORECAST_PRODUCT_TYPES } from '@/types/delivery';
+import { CONDUCTORS, SUBCONTRACTORS, BUSINESS_MANAGERS, Team, ForecastedTransport, FORECAST_TRANSPORT_CATEGORIES, ForecastTransportCategory, FORECAST_PRODUCT_TYPES } from '@/types/delivery';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -88,10 +88,28 @@ export default function GeneralInfoTab() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <HardHat className="h-5 w-5 text-accent" />
-            Équipe
-          </CardTitle>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <CardTitle className="flex items-center gap-2">
+              <HardHat className="h-5 w-5 text-accent" />
+              Équipe
+            </CardTitle>
+            <div className="w-64">
+              <Select
+                value={projectInfo.businessManager ? projectInfo.businessManager : '__none__'}
+                onValueChange={v => update('businessManager', v === '__none__' ? '' : v)}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="— Chargé d'affaires —" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Chargé d'affaires —</SelectItem>
+                  {BUSINESS_MANAGERS.map(m => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2 flex items-center gap-2">
