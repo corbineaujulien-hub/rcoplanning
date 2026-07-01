@@ -7,6 +7,7 @@ export interface ProjectInfo {
   subcontractor: string;
   contactName: string;
   contactPhone: string;
+  businessManager?: string;
   showSaturdays?: boolean;
   showSundays?: boolean;
   databaseComplete?: boolean;
@@ -94,6 +95,14 @@ export const CONDUCTORS = [
 
 export const SUBCONTRACTORS = [
   'DUTHIL', 'JP&B CONSTRUCTION', 'LB MONTAGE', 'MD', 'MPI', 'SAUVAGEON', 'SG POSE'
+] as const;
+
+export const BUSINESS_MANAGERS = [
+  'Romain BERTEL',
+  'Yoan BONNAIRE',
+  'Arnaud CARUSO',
+  'Cyril NICOUD',
+  'Bernard SIAUVE',
 ] as const;
 
 export interface ForecastedTruck {
@@ -190,6 +199,7 @@ export const DEFAULT_PROJECT_INFO: ProjectInfo = {
   subcontractor: '',
   contactName: '',
   contactPhone: '',
+  businessManager: '',
   showSaturdays: false,
   showSundays: false,
   databaseComplete: false,
