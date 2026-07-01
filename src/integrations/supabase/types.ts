@@ -393,6 +393,7 @@ export type Database = {
       projects: {
         Row: {
           archived: boolean
+          business_manager: string | null
           client_name: string | null
           conductor: string | null
           contact_name: string | null
@@ -416,6 +417,7 @@ export type Database = {
         }
         Insert: {
           archived?: boolean
+          business_manager?: string | null
           client_name?: string | null
           conductor?: string | null
           contact_name?: string | null
@@ -439,6 +441,7 @@ export type Database = {
         }
         Update: {
           archived?: boolean
+          business_manager?: string | null
           client_name?: string | null
           conductor?: string | null
           contact_name?: string | null
