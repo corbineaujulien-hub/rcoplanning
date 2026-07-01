@@ -97,6 +97,14 @@ export const SUBCONTRACTORS = [
   'DUTHIL', 'JP&B CONSTRUCTION', 'LB MONTAGE', 'MD', 'MPI', 'SAUVAGEON', 'SG POSE'
 ] as const;
 
+export const BUSINESS_MANAGERS = [
+  'Romain BERTEL',
+  'Yoan BONNAIRE',
+  'Arnaud CARUSO',
+  'Cyril NICOUD',
+  'Bernard SIAUVE',
+] as const;
+
 export interface ForecastedTruck {
   usine: string;
   category: TransportCategory;
