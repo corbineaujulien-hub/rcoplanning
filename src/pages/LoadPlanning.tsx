@@ -33,6 +33,7 @@ interface ProjectRow {
   site_name: string | null;
   client_name: string | null;
   otp_number: string | null;
+  site_address: string | null;
   conductor: string | null;
   subcontractor: string | null;
   archived: boolean;
@@ -232,7 +233,7 @@ export default function LoadPlanning() {
       setLoading(true);
       try {
         const [pData, tData, eData, fData, lData] = await Promise.all([
-          supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, archived, database_complete, supply_only, forecasted_transports'),
+          supabase.from('projects').select('id, site_name, client_name, otp_number, site_address, conductor, subcontractor, archived, database_complete, supply_only, forecasted_transports'),
           fetchAllPaginated<TruckRow>('trucks', 'id, project_id, date, element_ids, forced_category, team_id'),
           fetchAllPaginated<ElementRow>('beam_elements', 'id, project_id, product_type, length, weight, factory'),
           fetchAllPaginated<any>('forecast_weeks', 'id, project_id, year, week_number'),
