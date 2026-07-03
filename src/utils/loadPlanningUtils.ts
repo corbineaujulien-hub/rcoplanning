@@ -77,8 +77,8 @@ export const UNASSIGNED_COLOR = 'hsl(220 9% 64%)';
 
 // Explicit color overrides to ensure high visual contrast between similar poseurs.
 const POSEUR_COLOR_OVERRIDES: Record<string, string> = {
-  'MCB BATIMENT': '#2563eb', // bleu vif
-  'MD': '#16a34a',           // vert vif
+  'MCB BATIMENT': '#a16207', // jaune foncé (ocre/or)
+  'MD': '#2563eb',           // bleu vif
   'SG POSE': '#dc2626',      // rouge vif
 };
 
