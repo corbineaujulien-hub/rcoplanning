@@ -94,7 +94,7 @@ export const CONDUCTORS = [
 ] as const;
 
 export const SUBCONTRACTORS = [
-  'DUTHIL', 'JP&B CONSTRUCTION', 'LB MONTAGE', 'MD', 'MPI', 'SAUVAGEON', 'SG POSE'
+  'DUTHIL', 'JP&B CONSTRUCTION', 'MCB BATIMENT', 'MD', 'MPI', 'SAUVAGEON', 'SG POSE'
 ] as const;
 
 export const BUSINESS_MANAGERS = [
