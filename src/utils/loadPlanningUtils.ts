@@ -75,8 +75,16 @@ const POSEUR_PALETTE = [
 export const UNASSIGNED_POSEUR = 'Poseur à désigner';
 export const UNASSIGNED_COLOR = 'hsl(220 9% 64%)';
 
+// Explicit color overrides to ensure high visual contrast between similar poseurs.
+const POSEUR_COLOR_OVERRIDES: Record<string, string> = {
+  'MCB BATIMENT': '#2563eb', // bleu vif
+  'MD': '#16a34a',           // vert vif
+  'SG POSE': '#dc2626',      // rouge vif
+};
+
 export function getPoseurColor(poseur: string | null | undefined): string {
   if (!poseur || poseur === UNASSIGNED_POSEUR) return UNASSIGNED_COLOR;
+  if (POSEUR_COLOR_OVERRIDES[poseur]) return POSEUR_COLOR_OVERRIDES[poseur];
   return POSEUR_PALETTE[hashStr(poseur) % POSEUR_PALETTE.length];
 }
 
