@@ -79,9 +79,11 @@ function countWorkingDaysBetween(start: Date, end: Date): number {
 function badgeOf(score: number, startDate: Date | null): Badge {
   if (score >= 99) return 'Conforme';
   if (!startDate) return 'À compléter';
-  const today = new Date();
-  const workingDays = countWorkingDaysBetween(today, startDate);
-  if (workingDays <= 0) return 'Conforme';
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const sd = new Date(startDate); sd.setHours(0, 0, 0, 0);
+  // Chantier déjà démarré avec dossier incomplet → Critique
+  if (sd.getTime() <= today.getTime()) return 'Critique';
+  const workingDays = countWorkingDaysBetween(today, sd);
   if (workingDays <= 5) return 'Critique';
   if (workingDays <= 10) return 'Important';
   return 'À compléter';
@@ -373,7 +375,17 @@ export default function AdvDashboard() {
                     <p className="text-sm text-muted-foreground">Aucun chantier à risque.</p>
                   )}
                   {chantiersRisqueRows.map(r => {
-                    const days = r.startDate ? countWorkingDaysBetween(new Date(), r.startDate) : null;
+                    let label = '—';
+                    if (r.startDate) {
+                      const today = new Date(); today.setHours(0, 0, 0, 0);
+                      const sd = new Date(r.startDate); sd.setHours(0, 0, 0, 0);
+                      if (sd.getTime() <= today.getTime()) {
+                        label = `Démarré le ${format(sd, 'dd/MM/yyyy')} — Dossier incomplet`;
+                      } else {
+                        const days = countWorkingDaysBetween(today, sd);
+                        label = `Démarrage dans ${days} jour${days > 1 ? 's' : ''} ouvré${days > 1 ? 's' : ''}`;
+                      }
+                    }
                     return (
                       <button key={r.project.id} onClick={() => openProject(r.project.id)}
                         className="w-full text-left py-1.5 px-2 hover:bg-muted rounded text-sm block">
@@ -384,9 +396,7 @@ export default function AdvDashboard() {
                             {r.project.site_name || 'Sans nom'}
                           </span>
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            {days !== null
-                              ? days >= 0 ? `Démarrage dans ${days} jour${days > 1 ? 's' : ''} ouvré${days > 1 ? 's' : ''}` : `Démarré il y a ${-days} jour${-days > 1 ? 's' : ''} ouvré${-days > 1 ? 's' : ''}`
-                              : '—'}
+                            {label}
                           </span>
                           <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
                         </div>
