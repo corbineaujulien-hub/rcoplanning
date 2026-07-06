@@ -380,7 +380,7 @@ export default function AdvDashboard() {
                       const today = new Date(); today.setHours(0, 0, 0, 0);
                       const sd = new Date(r.startDate); sd.setHours(0, 0, 0, 0);
                       if (sd.getTime() <= today.getTime()) {
-                        label = `Démarré le ${format(sd, 'dd/MM/yyyy')} — Dossier incomplet`;
+                        label = `Démarré le ${format(sd, 'dd/MM/yyyy')}`;
                       } else {
                         const days = countWorkingDaysBetween(today, sd);
                         label = `Démarrage dans ${days} jour${days > 1 ? 's' : ''} ouvré${days > 1 ? 's' : ''}`;
