@@ -19,6 +19,21 @@ import * as XLSX from 'xlsx';
 
 const sb = supabase as any;
 
+async function fetchAllPaginated<T = any>(builder: () => any, pageSize = 1000): Promise<T[]> {
+  const out: T[] = [];
+  let from = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data, error } = await builder().range(from, from + pageSize - 1);
+    if (error) throw error;
+    const rows = (data || []) as T[];
+    out.push(...rows);
+    if (rows.length < pageSize) break;
+    from += pageSize;
+  }
+  return out;
+}
+
 interface ProjectRow {
   id: string;
   site_name: string | null;
@@ -130,16 +145,16 @@ export default function AdvDashboard() {
         sb.from('adv_status').select('*'),
         sb.from('adv_cautions_custom').select('*'),
         sb.from('adv_relances').select('*'),
-        supabase.from('trucks').select('project_id, date'),
-        sb.from('forecast_weeks').select('project_id, year, week_number'),
+        fetchAllPaginated<TruckLite>(() => supabase.from('trucks').select('project_id, date').order('project_id')),
+        fetchAllPaginated<ForecastWeekLite>(() => sb.from('forecast_weeks').select('project_id, year, week_number').order('project_id')),
         supabase.from('project_access_links').select('project_id, token'),
       ]);
       setProjects((p.data || []) as ProjectRow[]);
       setAdvs((a.data || []) as AdvStatus[]);
       setCautions((c.data || []) as AdvCautionCustom[]);
       setRelances((r.data || []) as AdvRelance[]);
-      setTrucks((t.data || []) as TruckLite[]);
-      setForecastWeeks((fw.data || []) as ForecastWeekLite[]);
+      setTrucks(t as TruckLite[]);
+      setForecastWeeks(fw as ForecastWeekLite[]);
       setLinks((lk.data || []) as AccessLink[]);
       setLoading(false);
     })();
