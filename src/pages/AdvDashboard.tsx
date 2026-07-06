@@ -13,6 +13,7 @@ import {
   effectiveRelanceStatus, isDemarcheFinal, getApplicableDemarches, formatDateFR,
 } from '@/utils/adv';
 import { formatCDTLabel } from '@/utils/supplyOnly';
+import { isHoliday } from '@/utils/frenchHolidays';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
@@ -35,12 +36,39 @@ interface AccessLink { project_id: string; token: string }
 
 type Badge = 'Critique' | 'Important' | 'À compléter' | 'Conforme';
 
+function isNonWorkingDay(date: Date): boolean {
+  const day = date.getDay();
+  if (day === 0 || day === 6) return true;
+  const s = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return isHoliday(s);
+}
+
+function getFirstWorkingDay(monday: Date): Date {
+  const d = new Date(monday);
+  while (isNonWorkingDay(d)) d.setDate(d.getDate() + 1);
+  return d;
+}
+
+function countWorkingDaysBetween(start: Date, end: Date): number {
+  const current = new Date(start); current.setHours(0, 0, 0, 0);
+  const target = new Date(end); target.setHours(0, 0, 0, 0);
+  const sign = current <= target ? 1 : -1;
+  let count = 0;
+  while (current.getTime() !== target.getTime()) {
+    current.setDate(current.getDate() + sign);
+    if (!isNonWorkingDay(current)) count += sign;
+  }
+  return count;
+}
+
 function badgeOf(score: number, startDate: Date | null): Badge {
   if (score >= 99) return 'Conforme';
   if (!startDate) return 'À compléter';
-  const days = differenceInCalendarDays(startDate, new Date());
-  if (days <= 7) return 'Critique';
-  if (days <= 15) return 'Important';
+  const today = new Date();
+  const workingDays = countWorkingDaysBetween(today, startDate);
+  if (workingDays <= 0) return 'Conforme';
+  if (workingDays <= 5) return 'Critique';
+  if (workingDays <= 10) return 'Important';
   return 'À compléter';
 }
 
@@ -140,7 +168,10 @@ export default function AdvDashboard() {
       const cur = truckMin.get(t.project_id);
       if (!cur || t.date < cur) truckMin.set(t.project_id, t.date);
     });
-    truckMin.forEach((d, pid) => m.set(pid, parseISO(d)));
+    truckMin.forEach((d, pid) => {
+      const [y, mo, da] = d.slice(0, 10).split('-').map(Number);
+      m.set(pid, new Date(y, (mo || 1) - 1, da || 1));
+    });
     // fallback: forecast
     const fcMin = new Map<string, Date>();
     forecastWeeks.forEach(f => {
@@ -148,7 +179,7 @@ export default function AdvDashboard() {
       const cur = fcMin.get(f.project_id);
       if (!cur || d < cur) fcMin.set(f.project_id, d);
     });
-    fcMin.forEach((d, pid) => { if (!m.has(pid)) m.set(pid, d); });
+    fcMin.forEach((d, pid) => { if (!m.has(pid)) m.set(pid, getFirstWorkingDay(d)); });
     return m;
   }, [trucks, forecastWeeks]);
 
@@ -327,7 +358,7 @@ export default function AdvDashboard() {
                     <p className="text-sm text-muted-foreground">Aucun chantier à risque.</p>
                   )}
                   {chantiersRisqueRows.map(r => {
-                    const days = r.startDate ? differenceInCalendarDays(r.startDate, new Date()) : null;
+                    const days = r.startDate ? countWorkingDaysBetween(new Date(), r.startDate) : null;
                     return (
                       <button key={r.project.id} onClick={() => openProject(r.project.id)}
                         className="w-full text-left py-1.5 px-2 hover:bg-muted rounded text-sm block">
@@ -339,7 +370,7 @@ export default function AdvDashboard() {
                           </span>
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
                             {days !== null
-                              ? days >= 0 ? `Démarrage dans ${days} j` : `Démarré il y a ${-days} j`
+                              ? days >= 0 ? `Démarrage dans ${days} jour${days > 1 ? 's' : ''} ouvré${days > 1 ? 's' : ''}` : `Démarré il y a ${-days} jour${-days > 1 ? 's' : ''} ouvré${-days > 1 ? 's' : ''}`
                               : '—'}
                           </span>
                           <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
