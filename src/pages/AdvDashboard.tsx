@@ -79,9 +79,11 @@ function countWorkingDaysBetween(start: Date, end: Date): number {
 function badgeOf(score: number, startDate: Date | null): Badge {
   if (score >= 99) return 'Conforme';
   if (!startDate) return 'À compléter';
-  const today = new Date();
-  const workingDays = countWorkingDaysBetween(today, startDate);
-  if (workingDays <= 0) return 'Conforme';
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const sd = new Date(startDate); sd.setHours(0, 0, 0, 0);
+  // Chantier déjà démarré avec dossier incomplet → Critique
+  if (sd.getTime() <= today.getTime()) return 'Critique';
+  const workingDays = countWorkingDaysBetween(today, sd);
   if (workingDays <= 5) return 'Critique';
   if (workingDays <= 10) return 'Important';
   return 'À compléter';
