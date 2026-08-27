@@ -315,10 +315,13 @@ export interface ExportWeeklyArgs {
   teamLabelForFilename?: string;
   // mode: single week or all weeks
   mode: 'single' | 'all';
+  // when true, return the workbook as a Blob instead of triggering a download
+  asBlob?: boolean;
 }
 
-export function exportWeeklyExcelStyled(args: ExportWeeklyArgs) {
+export function exportWeeklyExcelStyled(args: ExportWeeklyArgs): Blob | void {
   const { selectedWeeks, allowedTrucks, getTruckElements, projectInfo, teams, filenameSuffix = '', teamLabelForFilename, mode } = args;
+
 
   const hasMultipleTeams = teams.length > 1;
 
