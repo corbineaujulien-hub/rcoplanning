@@ -204,7 +204,9 @@ export async function exportProjectArchiveZip(projectId: string): Promise<void> 
   }
 
   zip.file(`base_donnees_${base}.xlsx`, buildDatabaseExcelBlob(elements, trucks, teams));
-  zip.file('reimport.json', JSON.stringify(bundle, null, 2));
+  const nomChantier = (projectInfo.siteName || projectInfo.otpNumber || 'chantier')
+    .trim().toUpperCase().replace(/\s+/g, '_').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  zip.file(`Reimport_${nomChantier}.json`, JSON.stringify(bundle, null, 2));
 
   const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
   saveAs(blob, `archive_${base}_${format(new Date(), 'yyyy-MM-dd')}.zip`);
