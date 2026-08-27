@@ -312,6 +312,55 @@ export default function Home() {
     }
   };
 
+  const handleExternalArchive = async (projectId: string) => {
+    setArchivingId(projectId);
+    const t = toast.loading('Génération du dossier d\'archivage...');
+    try {
+      await exportProjectArchiveZip(projectId);
+      toast.success('Archive ZIP téléchargée', { id: t });
+    } catch (err: any) {
+      toast.error('Erreur d\'archivage : ' + err.message, { id: t });
+    } finally {
+      setArchivingId(null);
+    }
+  };
+
+  const handleImportFile = async (file: File) => {
+    try {
+      const bundle = await readArchiveFile(file);
+      setImportBundle(bundle);
+      setImportOtp(bundle.project.otp_number || '');
+    } catch (err: any) {
+      toast.error('Fichier illisible : ' + err.message);
+    }
+  };
+
+  const otpCollision = useMemo(() => {
+    if (!importOtp.trim()) return false;
+    return projects.some(p => (p.otp_number || '').trim().toLowerCase() === importOtp.trim().toLowerCase());
+  }, [projects, importOtp]);
+
+  const handleConfirmImport = async () => {
+    if (!importBundle) return;
+    setImporting(true);
+    const t = toast.loading('Import du chantier en cours...');
+    try {
+      const res = await importProjectBundle(importBundle, importOtp.trim());
+      toast.success('Chantier importé (archivé)', { id: t });
+      setImportOpen(false);
+      setImportBundle(null);
+      await fetchProjects();
+      setShowArchived(true);
+      navigate(`/p/${res.token}`);
+    } catch (err: any) {
+      toast.error('Erreur d\'import : ' + err.message, { id: t });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+
+
   const activeCount = projects.filter(p => !p.archived).length;
   const archivedCount = projects.filter(p => p.archived).length;
 
