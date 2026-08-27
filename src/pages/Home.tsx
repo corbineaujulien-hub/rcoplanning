@@ -458,6 +458,15 @@ export default function Home() {
             Tableau de bord ADV
           </Button>
           <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setBackupsOpen(true)}
+          >
+            <HardDriveDownload className="h-4 w-4 mr-2" />
+            Sauvegardes
+          </Button>
+
+          <Button
             variant="ghost"
             size="sm"
             onClick={async () => { await signOut(); navigate('/login', { replace: true }); }}
