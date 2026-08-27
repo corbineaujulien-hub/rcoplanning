@@ -204,7 +204,9 @@ export async function exportProjectArchiveZip(projectId: string): Promise<void> 
   }
 
   zip.file(`base_donnees_${base}.xlsx`, buildDatabaseExcelBlob(elements, trucks, teams));
-  zip.file('reimport.json', JSON.stringify(bundle, null, 2));
+  const nomChantier = (projectInfo.siteName || projectInfo.otpNumber || 'chantier')
+    .trim().toUpperCase().replace(/\s+/g, '_').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  zip.file(`Reimport_${nomChantier}.json`, JSON.stringify(bundle, null, 2));
 
   const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
   saveAs(blob, `archive_${base}_${format(new Date(), 'yyyy-MM-dd')}.zip`);
@@ -217,8 +219,10 @@ export async function readArchiveFile(file: File): Promise<ProjectBundle> {
     text = await file.text();
   } else {
     const zip = await JSZip.loadAsync(file);
-    const entry = zip.file('reimport.json') || zip.file(/reimport\.json$/)[0];
-    if (!entry) throw new Error("Le fichier ZIP ne contient pas de fichier reimport.json");
+    const entry = zip.file('reimport.json')
+      || zip.file(/Reimport_.*\.json$/i)[0]
+      || zip.file(/reimport\.json$/i)[0];
+    if (!entry) throw new Error("Le fichier ZIP ne contient pas de fichier de réimportation");
     text = await entry.async('string');
   }
   const bundle = JSON.parse(text) as ProjectBundle;
