@@ -81,8 +81,6 @@ export default function Home() {
   const [importBundle, setImportBundle] = useState<ProjectBundle | null>(null);
   const [importOtp, setImportOtp] = useState('');
   const [importing, setImporting] = useState(false);
-  const [backupRunning, setBackupRunning] = useState(false);
-  const [backupProgress, setBackupProgress] = useState({ done: 0, total: 0 });
   const [globalBackup, setGlobalBackup] = useState<GlobalBackupFile | null>(null);
   const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0, current: '' });
 
@@ -331,19 +329,8 @@ export default function Home() {
     }
   };
 
-  const handleGlobalBackup = async () => {
-    setBackupRunning(true);
-    setBackupProgress({ done: 0, total: 0 });
-    const t = toast.loading('Sauvegarde globale en cours...');
-    try {
-      const index = await exportGlobalBackupZip((done, total) => setBackupProgress({ done, total }));
-      toast.success(`Sauvegarde téléchargée (${index.total_projects} chantiers)`, { id: t });
-    } catch (err: any) {
-      toast.error('Erreur de sauvegarde : ' + err.message, { id: t });
-    } finally {
-      setBackupRunning(false);
-    }
-  };
+
+  const handleImportFile = async (file: File) => {
 
   const handleImportFile = async (file: File) => {
     try {
