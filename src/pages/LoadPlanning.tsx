@@ -227,6 +227,11 @@ export default function LoadPlanning() {
   const [filterStatus, setFilterStatus] = useState<Set<'planned' | 'forecast'>>(new Set());
   const [filterBdd, setFilterBdd] = useState<Set<'complete' | 'incomplete'>>(new Set());
   const [searchText, setSearchText] = useState('');
+  // Les recalculs lourds (Gantt, blocs de charge) sont différés de 300 ms
+  const debouncedSearchText = useDebounce(searchText, 300);
+  const debouncedPeriodStart = useDebounce(periodStart, 300);
+  const debouncedPeriodEnd = useDebounce(periodEnd, 300);
+
 
   useEffect(() => {
     const load = async () => {
