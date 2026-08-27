@@ -704,6 +704,8 @@ export async function exportAllWeeksPdf(
 
   const nomChantier = getNomChantier(projectInfo);
   const lastYear = weeklyTabs[weeklyTabs.length - 1]?.year || new Date().getFullYear();
+  if (asBlob) return pdf.output('blob');
+
 
   const teamSuffix = teamLabel ? `_${normalizeTeamForFilename(teamLabel)}` : '';
   let filename: string;
