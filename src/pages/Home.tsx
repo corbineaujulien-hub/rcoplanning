@@ -698,10 +698,48 @@ export default function Home() {
                               </DialogContent>
                             </Dialog>
                           ) : (
-                            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleArchive(project.id, false); }} title="Désarchiver">
-                              <ArchiveRestore className="h-4 w-4" />
-                            </Button>
+                            <>
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" size="sm" onClick={(e) => e.stopPropagation()} title="Archivage externe" disabled={archivingId === project.id}>
+                                    <Package className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="w-fit max-w-[95vw]" onClick={e => e.stopPropagation()}>
+                                  <DialogHeader>
+                                    <DialogTitle>Archivage externe</DialogTitle>
+                                    <DialogDescription>
+                                      Générer un dossier ZIP complet du chantier {project.otp_number || '—'} — {project.site_name || 'Chantier sans nom'}.
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="text-sm space-y-1">
+                                    <p className="font-medium">Contenu de l'archive :</p>
+                                    <ul className="list-disc pl-5 text-muted-foreground space-y-0.5">
+                                      <li>Planning complet (PDF, toutes les semaines)</li>
+                                      <li>Planning complet (Excel, un onglet par semaine)</li>
+                                      <li>Base de données produits (Excel)</li>
+                                      <li>Fichier de réimportation (reimport.json)</li>
+                                    </ul>
+                                  </div>
+                                  <DialogFooter className="flex gap-2">
+                                    <DialogClose asChild>
+                                      <Button variant="outline">Annuler</Button>
+                                    </DialogClose>
+                                    <DialogClose asChild>
+                                      <Button onClick={() => handleExternalArchive(project.id)}>
+                                        <Package className="h-4 w-4 mr-2" />
+                                        Générer l'archive
+                                      </Button>
+                                    </DialogClose>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                              <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleArchive(project.id, false); }} title="Désarchiver">
+                                <ArchiveRestore className="h-4 w-4" />
+                              </Button>
+                            </>
                           )}
+
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="destructive" size="sm" onClick={(e) => e.stopPropagation()}>
