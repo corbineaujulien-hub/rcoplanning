@@ -284,10 +284,11 @@ export default function LoadPlanning() {
   }, [elements]);
 
   const weeks: ISOWeek[] = useMemo(() => {
-    const s = new Date(periodStart); const e = new Date(periodEnd);
+    const s = new Date(debouncedPeriodStart); const e = new Date(debouncedPeriodEnd);
     if (isNaN(s.getTime()) || isNaN(e.getTime())) return [];
     return getWeeksBetween(s, e);
-  }, [periodStart, periodEnd]);
+  }, [debouncedPeriodStart, debouncedPeriodEnd]);
+
 
   const monthGroups = useMemo(() => buildMonthGroups(weeks), [weeks]);
 
