@@ -331,8 +331,6 @@ export default function Home() {
 
 
   const handleImportFile = async (file: File) => {
-
-  const handleImportFile = async (file: File) => {
     try {
       setGlobalBackup(null);
       setImportBundle(null);
