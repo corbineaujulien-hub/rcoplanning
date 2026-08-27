@@ -9,8 +9,6 @@ const corsHeaders = {
 };
 
 const BACKUP_RECIPIENT = Deno.env.get("BACKUP_RECIPIENT_EMAIL") ?? "julien.corbineau@rector.fr";
-const BACKUP_FROM = Deno.env.get("BACKUP_FROM_EMAIL") ?? "onboarding@resend.dev";
-const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024; // ~20 Mo
 
 const CHILD_TABLES = [
   "teams",
@@ -122,15 +120,6 @@ async function buildGlobalBackup() {
   return { zipBuffer, index };
 }
 
-function toBase64(bytes: Uint8Array): string {
-  let binary = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
-}
-
 async function uploadBackup(fileName: string, zipBuffer: Uint8Array): Promise<string | null> {
   const supabase = createAdminClient();
   const path = `auto/${fileName}`;
@@ -147,60 +136,39 @@ async function uploadBackup(fileName: string, zipBuffer: Uint8Array): Promise<st
   return data?.signedUrl ?? null;
 }
 
-async function sendBackupEmail(zipBuffer: Uint8Array, index: any) {
-  const apiKey = Deno.env.get("RESEND_API_KEY");
-  if (!apiKey) throw new Error("RESEND_API_KEY manquant");
-
+async function notifyBackup(zipBuffer: Uint8Array, index: any) {
   const date = new Date().toLocaleDateString("fr-FR");
   const fileName = `sauvegarde_RCO_${date.replace(/\//g, "-")}.zip`;
-  const tooBig = zipBuffer.length > MAX_ATTACHMENT_BYTES;
-  const link = tooBig ? await uploadBackup(fileName, zipBuffer) : null;
+  const link = await uploadBackup(fileName, zipBuffer);
 
-  const html = `
-    <div style="font-family:Arial,Helvetica,sans-serif;color:#1e3a5f">
-      <h2 style="color:#1e3a5f">Sauvegarde hebdomadaire RCO Planning</h2>
-      <p>Bonjour,</p>
-      <p>Veuillez trouver ${tooBig ? "le lien de téléchargement" : "en pièce jointe"} la sauvegarde hebdomadaire automatique de l'outil RCO Planning.</p>
-      <ul>
-        <li><strong>Date :</strong> ${date}</li>
-        <li><strong>Chantiers actifs :</strong> ${index.active_projects}</li>
-        <li><strong>Chantiers archivés :</strong> ${index.archived_projects}</li>
-        <li><strong>Total :</strong> ${index.total_projects} chantiers</li>
-      </ul>
-      ${tooBig
-        ? link
-          ? `<p><a href="${link}">Télécharger ${fileName}</a> (lien valable 30 jours)</p>`
-          : `<p style="color:#dc2626">Le fichier est trop volumineux et son stockage a échoué. Utilisez la sauvegarde manuelle depuis l'application.</p>`
-        : ""}
-      <p>Ce fichier ZIP contient un fichier JSON par chantier permettant une réimportation complète.</p>
-      <p style="color:#64748b;font-size:12px">RCO Planning — Sauvegarde automatique</p>
-    </div>`;
-
-  const payload: Record<string, unknown> = {
-    from: BACKUP_FROM,
-    to: [BACKUP_RECIPIENT],
-    subject: `Sauvegarde RCO Planning — ${date}`,
-    html,
-  };
-  if (!tooBig) {
-    payload.attachments = [{ filename: fileName, content: toBase64(zipBuffer) }];
+  // L'envoi de l'email nécessite un domaine expéditeur configuré (Emails Lovable).
+  // Tant qu'il n'est pas en place, la sauvegarde reste disponible dans le stockage.
+  const supabase = createAdminClient();
+  try {
+    await supabase.functions.invoke("send-transactional-email", {
+      body: {
+        templateName: "weekly-backup",
+        recipientEmail: BACKUP_RECIPIENT,
+        idempotencyKey: `weekly-backup-${fileName}`,
+        templateData: {
+          date,
+          totalProjects: index.total_projects,
+          activeProjects: index.active_projects,
+          archivedProjects: index.archived_projects,
+          fileName,
+          downloadUrl: link,
+        },
+      },
+    });
+  } catch (err) {
+    console.error("email notification skipped", err);
   }
-
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error(`Resend: ${res.status} ${await res.text()}`);
-  return { fileName, attached: !tooBig, link };
+  return { fileName, link };
 }
 
 async function runBackup() {
   const { zipBuffer, index } = await buildGlobalBackup();
-  const sent = await sendBackupEmail(zipBuffer, index);
+  const sent = await notifyBackup(zipBuffer, index);
   console.log("weekly-backup done", { projects: index.total_projects, bytes: zipBuffer.length, ...sent });
   return { ...sent, index };
 }
@@ -227,7 +195,7 @@ Deno.serve(async (req) => {
         ok: true,
         total_projects: result.index.total_projects,
         file: result.fileName,
-        attached: result.attached,
+        link: result.link,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
