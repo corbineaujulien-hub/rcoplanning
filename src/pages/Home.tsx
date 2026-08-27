@@ -428,12 +428,73 @@ export default function Home() {
               Nouveau chantier
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <Button onClick={handleCreate} disabled={creating} className="w-full" size="lg">
+          <CardContent className="flex flex-col sm:flex-row gap-3">
+            <Button onClick={handleCreate} disabled={creating} className="flex-1" size="lg">
               {creating ? 'Création en cours...' : 'Créer un chantier'}
+            </Button>
+            <Button variant="outline" size="lg" onClick={() => { setImportBundle(null); setImportOtp(''); setImportOpen(true); }}>
+              <Upload className="h-4 w-4 mr-2" />
+              Importer un chantier
             </Button>
           </CardContent>
         </Card>
+
+        <Dialog open={importOpen} onOpenChange={o => { setImportOpen(o); if (!o) { setImportBundle(null); setImportOtp(''); } }}>
+          <DialogContent className="w-fit max-w-[95vw]">
+            <DialogHeader>
+              <DialogTitle>Importer un chantier</DialogTitle>
+              <DialogDescription>
+                Sélectionnez un fichier d'archivage externe (.zip) ou son fichier reimport.json.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Input
+                type="file"
+                accept=".zip,.json"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); }}
+              />
+              {importBundle && (() => {
+                const s = summarizeBundle(importBundle);
+                return (
+                  <div className="space-y-3 text-sm">
+                    <div className="rounded-md border p-3 space-y-1">
+                      <div className="font-semibold">{importBundle.project.site_name || 'Chantier sans nom'}</div>
+                      <div className="text-muted-foreground">Client : {importBundle.project.client_name || '—'}</div>
+                      <div className="text-muted-foreground">Conducteur : {importBundle.project.conductor || '—'} — Poseur : {importBundle.project.subcontractor || '—'}</div>
+                      <div className="text-muted-foreground">
+                        {s.elements} produits · {s.trucks} camions · {s.weeks} semaine(s) · {s.plans} plan(s)
+                      </div>
+                      <div className="text-muted-foreground">
+                        Exporté le {new Date(importBundle.exportedAt).toLocaleDateString('fr-FR')}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">Numéro OTP</label>
+                      <Input value={importOtp} onChange={e => setImportOtp(e.target.value)} placeholder="OTP" />
+                      {otpCollision && (
+                        <p className="text-xs text-destructive">
+                          Ce numéro OTP existe déjà. Modifiez-le pour éviter les doublons (l'import reste possible).
+                        </p>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Le chantier sera recréé en tant que chantier archivé.
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
+            <DialogFooter className="flex gap-2">
+              <DialogClose asChild>
+                <Button variant="outline">Annuler</Button>
+              </DialogClose>
+              <Button onClick={handleConfirmImport} disabled={!importBundle || importing}>
+                {importing ? 'Import...' : 'Importer'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
 
         <Card>
           <CardHeader>
