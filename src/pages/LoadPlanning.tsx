@@ -949,7 +949,11 @@ export default function LoadPlanning() {
         </Card>
 
         {loading ? (
-          <div className="text-center py-16 text-muted-foreground">Chargement…</div>
+          <div className="space-y-2 py-4">
+            <Skeleton className="h-8 w-full" />
+            {Array.from({ length: 14 }).map((_, i) => <Skeleton key={i} className="h-7 w-full" />)}
+          </div>
+
         ) : (
           <>
             <PoseurLegend projects={filteredProjects} />
