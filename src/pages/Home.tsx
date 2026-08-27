@@ -493,14 +493,6 @@ export default function Home() {
               Sauvegardes
             </Button>
           </CardContent>
-          {backupRunning && backupProgress.total > 0 && (
-            <CardContent className="pt-0">
-              <Progress value={(backupProgress.done / backupProgress.total) * 100} className="h-2" />
-              <p className="text-xs text-muted-foreground mt-1">
-                Génération : {backupProgress.done}/{backupProgress.total} chantiers
-              </p>
-            </CardContent>
-          )}
         </Card>
 
         <BackupsDialog open={backupsOpen} onOpenChange={setBackupsOpen} />
