@@ -219,8 +219,10 @@ export async function readArchiveFile(file: File): Promise<ProjectBundle> {
     text = await file.text();
   } else {
     const zip = await JSZip.loadAsync(file);
-    const entry = zip.file('reimport.json') || zip.file(/reimport\.json$/)[0];
-    if (!entry) throw new Error("Le fichier ZIP ne contient pas de fichier reimport.json");
+    const entry = zip.file('reimport.json')
+      || zip.file(/Reimport_.*\.json$/i)[0]
+      || zip.file(/reimport\.json$/i)[0];
+    if (!entry) throw new Error("Le fichier ZIP ne contient pas de fichier de réimportation");
     text = await entry.async('string');
   }
   const bundle = JSON.parse(text) as ProjectBundle;
