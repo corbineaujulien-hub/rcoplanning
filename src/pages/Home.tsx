@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Users, Calendar, LogOut, BarChart3, ClipboardCheck, Package, Upload } from 'lucide-react';
+import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Users, Calendar, LogOut, BarChart3, ClipboardCheck, Package, Upload, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import { exportProjectArchiveZip, readArchiveFile, importProjectBundle, summarizeBundle, ProjectBundle, exportGlobalBackupZip, readGlobalBackupFile, importGlobalBackup, GlobalBackupFile } from '@/utils/projectArchive';
 
