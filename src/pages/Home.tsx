@@ -329,8 +329,29 @@ export default function Home() {
     }
   };
 
+  const handleGlobalBackup = async () => {
+    setBackupRunning(true);
+    setBackupProgress({ done: 0, total: 0 });
+    const t = toast.loading('Sauvegarde globale en cours...');
+    try {
+      const index = await exportGlobalBackupZip((done, total) => setBackupProgress({ done, total }));
+      toast.success(`Sauvegarde téléchargée (${index.total_projects} chantiers)`, { id: t });
+    } catch (err: any) {
+      toast.error('Erreur de sauvegarde : ' + err.message, { id: t });
+    } finally {
+      setBackupRunning(false);
+    }
+  };
+
   const handleImportFile = async (file: File) => {
     try {
+      setGlobalBackup(null);
+      setImportBundle(null);
+      const global = await readGlobalBackupFile(file);
+      if (global) {
+        setGlobalBackup(global);
+        return;
+      }
       const bundle = await readArchiveFile(file);
       setImportBundle(bundle);
       setImportOtp(bundle.project.otp_number || '');
@@ -338,6 +359,31 @@ export default function Home() {
       toast.error('Fichier illisible : ' + err.message);
     }
   };
+
+  const handleConfirmBulkImport = async () => {
+    if (!globalBackup) return;
+    setImporting(true);
+    setBulkProgress({ done: 0, total: globalBackup.index.projects.length, current: '' });
+    const t = toast.loading('Réimportation en masse en cours...');
+    try {
+      const res = await importGlobalBackup(globalBackup, (done, total, current) =>
+        setBulkProgress({ done, total, current }));
+      if (res.failed.length > 0) {
+        toast.warning(`${res.imported} chantier(s) importé(s), ${res.failed.length} en échec`, { id: t });
+      } else {
+        toast.success(`${res.imported} chantier(s) importé(s)`, { id: t });
+      }
+      setImportOpen(false);
+      setGlobalBackup(null);
+      await fetchProjects();
+      setShowArchived(true);
+    } catch (err: any) {
+      toast.error('Erreur d\'import : ' + err.message, { id: t });
+    } finally {
+      setImporting(false);
+    }
+  };
+
 
   const otpCollision = useMemo(() => {
     if (!importOtp.trim()) return false;
