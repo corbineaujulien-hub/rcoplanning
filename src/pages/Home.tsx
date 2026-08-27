@@ -61,8 +61,7 @@ interface TruckElementInfo {
 
 export default function Home() {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
-  const canManageBackups = user?.email === 'julien.corbineau@rector.fr';
+  const { signOut } = useAuth();
   const [creating, setCreating] = useState(false);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [links, setLinks] = useState<ProjectLink[]>([]);
@@ -461,6 +460,15 @@ export default function Home() {
             Tableau de bord ADV
           </Button>
           <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setBackupsOpen(true)}
+          >
+            <HardDriveDownload className="h-4 w-4 mr-2" />
+            Sauvegardes
+          </Button>
+
+          <Button
             variant="ghost"
             size="sm"
             onClick={async () => { await signOut(); navigate('/login', { replace: true }); }}
@@ -489,12 +497,12 @@ export default function Home() {
               <Upload className="h-4 w-4 mr-2" />
               Importer un chantier
             </Button>
-            {canManageBackups && (
-              <Button variant="outline" size="lg" onClick={() => setBackupsOpen(true)}>
-                <HardDriveDownload className="h-4 w-4 mr-2" />
-                Sauvegardes
-              </Button>
-            )}
+            <Button variant="outline" size="lg" onClick={handleGlobalBackup} disabled={backupRunning}>
+              <Database className="h-4 w-4 mr-2" />
+              {backupRunning
+                ? `Sauvegarde... ${backupProgress.done}/${backupProgress.total || '…'}`
+                : 'Sauvegarde globale'}
+            </Button>
           </CardContent>
           {backupRunning && backupProgress.total > 0 && (
             <CardContent className="pt-0">
