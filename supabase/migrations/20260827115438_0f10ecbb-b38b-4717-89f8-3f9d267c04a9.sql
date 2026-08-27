@@ -1,0 +1,3 @@
+CREATE POLICY "Authenticated can read RCO backups" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'sauvegardes-rco');
+CREATE POLICY "Authenticated can upload RCO backups" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'sauvegardes-rco');
+CREATE POLICY "Authenticated can delete RCO backups" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'sauvegardes-rco');
