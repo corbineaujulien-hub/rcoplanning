@@ -129,9 +129,12 @@ async function cleanOldBackups(supabase: any) {
     console.error("list backups failed", error.message);
     return;
   }
-  const toDelete = (files ?? []).slice(KEEP).map((f: any) => f.name);
+  const zips = (files ?? []).filter((f: any) => f.name.endsWith(".zip"));
+  const toDelete = zips.slice(KEEP).map((f: any) => f.name);
   if (toDelete.length > 0) {
-    const { error: delError } = await supabase.storage.from(BUCKET).remove(toDelete);
+    const { error: delError } = await supabase.storage
+      .from(BUCKET)
+      .remove([...toDelete, ...toDelete.map((n: string) => `meta/${n}.json`)]);
     if (delError) console.error("cleanup failed", delError.message);
     else console.log("old backups removed", toDelete);
   }
@@ -149,9 +152,24 @@ async function runBackup() {
   if (error) throw new Error(`Erreur upload sauvegarde : ${error.message}`);
   console.log(`Sauvegarde ${fileName} stockée avec succès (${zipBuffer.length} octets)`);
 
+  // Métadonnées légères pour l'affichage côté application
+  await supabase.storage.from(BUCKET).upload(
+    `meta/${fileName}.json`,
+    new TextEncoder().encode(JSON.stringify({
+      file: fileName,
+      backup_date: index.backup_date,
+      total_projects: index.total_projects,
+      active_projects: index.active_projects,
+      archived_projects: index.archived_projects,
+      size: zipBuffer.length,
+    })),
+    { contentType: "application/json", upsert: true },
+  );
+
   await cleanOldBackups(supabase);
   return { fileName, size: zipBuffer.length, index };
 }
+
 
 // Chaque lundi à 2h du matin (UTC)
 try {
