@@ -204,12 +204,127 @@ export async function exportProjectArchiveZip(projectId: string): Promise<void> 
   }
 
   zip.file(`base_donnees_${base}.xlsx`, buildDatabaseExcelBlob(elements, trucks, teams));
-  const nomChantier = (projectInfo.siteName || projectInfo.otpNumber || 'chantier')
-    .trim().toUpperCase().replace(/\s+/g, '_').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  zip.file(`Reimport_${nomChantier}.json`, JSON.stringify(bundle, null, 2));
+  zip.file(reimportFileName(projectInfo.siteName || projectInfo.otpNumber), JSON.stringify(bundle, null, 2));
 
   const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
   saveAs(blob, `archive_${base}_${format(new Date(), 'yyyy-MM-dd')}.zip`);
+}
+
+/** Normalized reimport JSON filename: Reimport_NOM_DU_CHANTIER.json */
+export function reimportFileName(name: string): string {
+  const nom = (name || 'chantier')
+    .trim().toUpperCase().replace(/\s+/g, '_').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return `Reimport_${nom || 'CHANTIER'}.json`;
+}
+
+export interface BackupIndexEntry {
+  otp: string;
+  name: string;
+  file: string;
+  archived: boolean;
+}
+
+export interface BackupIndex {
+  version: string;
+  backup_date: string;
+  total_projects: number;
+  active_projects: number;
+  archived_projects: number;
+  projects: BackupIndexEntry[];
+}
+
+/** Build and download a global backup ZIP containing one reimport JSON per project. */
+export async function exportGlobalBackupZip(
+  onProgress?: (done: number, total: number) => void,
+): Promise<BackupIndex> {
+  const { data: rows, error } = await sb.from('projects')
+    .select('id, site_name, otp_number, archived')
+    .order('site_name', { ascending: true });
+  if (error) throw error;
+  const list = (rows || []) as any[];
+
+  const zip = new JSZip();
+  const index: BackupIndex = {
+    version: '1.0',
+    backup_date: new Date().toISOString(),
+    total_projects: list.length,
+    active_projects: list.filter(p => !p.archived).length,
+    archived_projects: list.filter(p => p.archived).length,
+    projects: [],
+  };
+  const used = new Set<string>();
+
+  for (let i = 0; i < list.length; i++) {
+    const p = list[i];
+    const bundle = await fetchProjectBundle(p.id);
+    let fileName = reimportFileName(p.site_name || p.otp_number || 'chantier');
+    if (used.has(fileName)) {
+      let n = 2;
+      while (used.has(fileName.replace(/\.json$/, `_${n}.json`))) n++;
+      fileName = fileName.replace(/\.json$/, `_${n}.json`);
+    }
+    used.add(fileName);
+    zip.file(fileName, JSON.stringify(bundle, null, 2));
+    index.projects.push({
+      otp: p.otp_number || '',
+      name: p.site_name || '',
+      file: fileName,
+      archived: !!p.archived,
+    });
+    onProgress?.(i + 1, list.length);
+  }
+
+  zip.file('index.json', JSON.stringify(index, null, 2));
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+  saveAs(blob, `sauvegarde_RCO_${format(new Date(), 'dd-MM-yyyy')}.zip`);
+  return index;
+}
+
+export interface GlobalBackupFile {
+  index: BackupIndex;
+  zip: JSZip;
+}
+
+/** Detect and read a global backup ZIP (contains index.json). Returns null if not one. */
+export async function readGlobalBackupFile(file: File): Promise<GlobalBackupFile | null> {
+  if (!file.name.toLowerCase().endsWith('.zip')) return null;
+  const zip = await JSZip.loadAsync(file);
+  const idx = zip.file('index.json');
+  if (!idx) return null;
+  const index = JSON.parse(await idx.async('string')) as BackupIndex;
+  if (!Array.isArray(index?.projects)) return null;
+  return { index, zip };
+}
+
+export interface BulkImportResult {
+  imported: number;
+  failed: { name: string; error: string }[];
+}
+
+/** Import every project contained in a global backup ZIP, sequentially. */
+export async function importGlobalBackup(
+  backup: GlobalBackupFile,
+  onProgress?: (done: number, total: number, currentName: string) => void,
+): Promise<BulkImportResult> {
+  const total = backup.index.projects.length;
+  const failed: { name: string; error: string }[] = [];
+  let imported = 0;
+  for (let i = 0; i < total; i++) {
+    const entry = backup.index.projects[i];
+    onProgress?.(i, total, entry.name || entry.otp || entry.file);
+    try {
+      const f = backup.zip.file(entry.file);
+      if (!f) throw new Error('fichier manquant dans le ZIP');
+      const bundle = JSON.parse(await f.async('string')) as ProjectBundle;
+      if (!bundle?.project?.id) throw new Error('données du chantier manquantes');
+      await importProjectBundle(bundle);
+      imported++;
+    } catch (err: any) {
+      failed.push({ name: entry.name || entry.file, error: err?.message || String(err) });
+    }
+    onProgress?.(i + 1, total, entry.name || entry.file);
+  }
+  return { imported, failed };
 }
 
 /** Read a ZIP (or raw JSON) archive file and return its reimport bundle. */
@@ -229,6 +344,7 @@ export async function readArchiveFile(file: File): Promise<ProjectBundle> {
   if (!bundle?.project?.id) throw new Error('Archive invalide : données du chantier manquantes');
   return bundle;
 }
+
 
 async function insertBatched(table: string, rows: any[]) {
   const SIZE = 500;

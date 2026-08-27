@@ -7,9 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Users, Calendar, LogOut, BarChart3, ClipboardCheck, Package, Upload } from 'lucide-react';
+import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Users, Calendar, LogOut, BarChart3, ClipboardCheck, Package, Upload, Database } from 'lucide-react';
 import { toast } from 'sonner';
-import { exportProjectArchiveZip, readArchiveFile, importProjectBundle, summarizeBundle, ProjectBundle } from '@/utils/projectArchive';
+import { exportProjectArchiveZip, readArchiveFile, importProjectBundle, summarizeBundle, ProjectBundle, exportGlobalBackupZip, readGlobalBackupFile, importGlobalBackup, GlobalBackupFile } from '@/utils/projectArchive';
 
 import { useProjectsPresence } from '@/hooks/useProjectsPresence';
 import {
@@ -79,6 +79,10 @@ export default function Home() {
   const [importBundle, setImportBundle] = useState<ProjectBundle | null>(null);
   const [importOtp, setImportOtp] = useState('');
   const [importing, setImporting] = useState(false);
+  const [backupRunning, setBackupRunning] = useState(false);
+  const [backupProgress, setBackupProgress] = useState({ done: 0, total: 0 });
+  const [globalBackup, setGlobalBackup] = useState<GlobalBackupFile | null>(null);
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0, current: '' });
 
 
 
@@ -325,8 +329,29 @@ export default function Home() {
     }
   };
 
+  const handleGlobalBackup = async () => {
+    setBackupRunning(true);
+    setBackupProgress({ done: 0, total: 0 });
+    const t = toast.loading('Sauvegarde globale en cours...');
+    try {
+      const index = await exportGlobalBackupZip((done, total) => setBackupProgress({ done, total }));
+      toast.success(`Sauvegarde téléchargée (${index.total_projects} chantiers)`, { id: t });
+    } catch (err: any) {
+      toast.error('Erreur de sauvegarde : ' + err.message, { id: t });
+    } finally {
+      setBackupRunning(false);
+    }
+  };
+
   const handleImportFile = async (file: File) => {
     try {
+      setGlobalBackup(null);
+      setImportBundle(null);
+      const global = await readGlobalBackupFile(file);
+      if (global) {
+        setGlobalBackup(global);
+        return;
+      }
       const bundle = await readArchiveFile(file);
       setImportBundle(bundle);
       setImportOtp(bundle.project.otp_number || '');
@@ -334,6 +359,31 @@ export default function Home() {
       toast.error('Fichier illisible : ' + err.message);
     }
   };
+
+  const handleConfirmBulkImport = async () => {
+    if (!globalBackup) return;
+    setImporting(true);
+    setBulkProgress({ done: 0, total: globalBackup.index.projects.length, current: '' });
+    const t = toast.loading('Réimportation en masse en cours...');
+    try {
+      const res = await importGlobalBackup(globalBackup, (done, total, current) =>
+        setBulkProgress({ done, total, current }));
+      if (res.failed.length > 0) {
+        toast.warning(`${res.imported} chantier(s) importé(s), ${res.failed.length} en échec`, { id: t });
+      } else {
+        toast.success(`${res.imported} chantier(s) importé(s)`, { id: t });
+      }
+      setImportOpen(false);
+      setGlobalBackup(null);
+      await fetchProjects();
+      setShowArchived(true);
+    } catch (err: any) {
+      toast.error('Erreur d\'import : ' + err.message, { id: t });
+    } finally {
+      setImporting(false);
+    }
+  };
+
 
   const otpCollision = useMemo(() => {
     if (!importOtp.trim()) return false;
@@ -432,27 +482,66 @@ export default function Home() {
             <Button onClick={handleCreate} disabled={creating} className="flex-1" size="lg">
               {creating ? 'Création en cours...' : 'Créer un chantier'}
             </Button>
-            <Button variant="outline" size="lg" onClick={() => { setImportBundle(null); setImportOtp(''); setImportOpen(true); }}>
+            <Button variant="outline" size="lg" onClick={() => { setImportBundle(null); setGlobalBackup(null); setImportOtp(''); setImportOpen(true); }}>
               <Upload className="h-4 w-4 mr-2" />
               Importer un chantier
             </Button>
+            <Button variant="outline" size="lg" onClick={handleGlobalBackup} disabled={backupRunning}>
+              <Database className="h-4 w-4 mr-2" />
+              {backupRunning
+                ? `Sauvegarde... ${backupProgress.done}/${backupProgress.total || '…'}`
+                : 'Sauvegarde globale'}
+            </Button>
           </CardContent>
+          {backupRunning && backupProgress.total > 0 && (
+            <CardContent className="pt-0">
+              <Progress value={(backupProgress.done / backupProgress.total) * 100} className="h-2" />
+              <p className="text-xs text-muted-foreground mt-1">
+                Génération : {backupProgress.done}/{backupProgress.total} chantiers
+              </p>
+            </CardContent>
+          )}
         </Card>
 
-        <Dialog open={importOpen} onOpenChange={o => { setImportOpen(o); if (!o) { setImportBundle(null); setImportOtp(''); } }}>
+        <Dialog open={importOpen} onOpenChange={o => { if (importing) return; setImportOpen(o); if (!o) { setImportBundle(null); setGlobalBackup(null); setImportOtp(''); } }}>
           <DialogContent className="w-fit max-w-[95vw]">
             <DialogHeader>
-              <DialogTitle>Importer un chantier</DialogTitle>
+              <DialogTitle>{globalBackup ? 'Réimportation en masse' : 'Importer un chantier'}</DialogTitle>
               <DialogDescription>
-                Sélectionnez un fichier d'archivage externe (.zip) ou son fichier reimport.json.
+                Sélectionnez un fichier d'archivage externe (.zip / .json) ou une sauvegarde globale (.zip).
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <Input
                 type="file"
                 accept=".zip,.json"
+                disabled={importing}
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); }}
               />
+              {globalBackup && (
+                <div className="space-y-3 text-sm">
+                  <div className="rounded-md border p-3 space-y-1">
+                    <div className="text-muted-foreground">
+                      Date de sauvegarde : {new Date(globalBackup.index.backup_date).toLocaleString('fr-FR')}
+                    </div>
+                    <div className="font-semibold">Chantiers détectés : {globalBackup.index.projects.length}</div>
+                    <div className="text-muted-foreground">→ {globalBackup.index.active_projects ?? globalBackup.index.projects.filter(p => !p.archived).length} chantiers actifs</div>
+                    <div className="text-muted-foreground">→ {globalBackup.index.archived_projects ?? globalBackup.index.projects.filter(p => p.archived).length} chantiers archivés</div>
+                  </div>
+                  <p className="text-xs text-destructive">
+                    ⚠️ Tous les chantiers de la sauvegarde seront recréés en tant que chantiers archivés (aucun chantier existant n'est écrasé).
+                  </p>
+                  {importing && (
+                    <div className="space-y-1">
+                      <Progress value={(bulkProgress.done / Math.max(1, bulkProgress.total)) * 100} className="h-2" />
+                      <p className="text-xs text-muted-foreground">
+                        Importation en cours : {bulkProgress.done}/{bulkProgress.total} chantiers
+                        {bulkProgress.current ? ` — ${bulkProgress.current}` : ''}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
               {importBundle && (() => {
                 const s = summarizeBundle(importBundle);
                 return (
@@ -486,12 +575,19 @@ export default function Home() {
             </div>
             <DialogFooter className="flex gap-2">
               <DialogClose asChild>
-                <Button variant="outline">Annuler</Button>
+                <Button variant="outline" disabled={importing}>Annuler</Button>
               </DialogClose>
-              <Button onClick={handleConfirmImport} disabled={!importBundle || importing}>
-                {importing ? 'Import...' : 'Importer'}
-              </Button>
+              {globalBackup ? (
+                <Button onClick={handleConfirmBulkImport} disabled={importing}>
+                  {importing ? 'Réimportation...' : 'Confirmer la réimportation'}
+                </Button>
+              ) : (
+                <Button onClick={handleConfirmImport} disabled={!importBundle || importing}>
+                  {importing ? 'Import...' : 'Importer'}
+                </Button>
+              )}
             </DialogFooter>
+
           </DialogContent>
         </Dialog>
 
