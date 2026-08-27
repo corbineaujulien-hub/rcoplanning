@@ -7,10 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Users, Calendar, LogOut, BarChart3, ClipboardCheck, Package, Upload, Database, HardDriveDownload } from 'lucide-react';
+import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Users, Calendar, LogOut, BarChart3, ClipboardCheck, Package, Upload, HardDriveDownload } from 'lucide-react';
 import { toast } from 'sonner';
 import { BackupsDialog } from '@/components/BackupsDialog';
-import { exportProjectArchiveZip, readArchiveFile, importProjectBundle, summarizeBundle, ProjectBundle, exportGlobalBackupZip, readGlobalBackupFile, importGlobalBackup, GlobalBackupFile } from '@/utils/projectArchive';
+import { exportProjectArchiveZip, readArchiveFile, importProjectBundle, summarizeBundle, ProjectBundle, readGlobalBackupFile, importGlobalBackup, GlobalBackupFile } from '@/utils/projectArchive';
 
 import { useProjectsPresence } from '@/hooks/useProjectsPresence';
 import {
@@ -81,8 +81,6 @@ export default function Home() {
   const [importBundle, setImportBundle] = useState<ProjectBundle | null>(null);
   const [importOtp, setImportOtp] = useState('');
   const [importing, setImporting] = useState(false);
-  const [backupRunning, setBackupRunning] = useState(false);
-  const [backupProgress, setBackupProgress] = useState({ done: 0, total: 0 });
   const [globalBackup, setGlobalBackup] = useState<GlobalBackupFile | null>(null);
   const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0, current: '' });
 
@@ -331,19 +329,6 @@ export default function Home() {
     }
   };
 
-  const handleGlobalBackup = async () => {
-    setBackupRunning(true);
-    setBackupProgress({ done: 0, total: 0 });
-    const t = toast.loading('Sauvegarde globale en cours...');
-    try {
-      const index = await exportGlobalBackupZip((done, total) => setBackupProgress({ done, total }));
-      toast.success(`Sauvegarde téléchargée (${index.total_projects} chantiers)`, { id: t });
-    } catch (err: any) {
-      toast.error('Erreur de sauvegarde : ' + err.message, { id: t });
-    } finally {
-      setBackupRunning(false);
-    }
-  };
 
   const handleImportFile = async (file: File) => {
     try {
@@ -459,16 +444,7 @@ export default function Home() {
             <ClipboardCheck className="h-4 w-4 mr-2" />
             Tableau de bord ADV
           </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setBackupsOpen(true)}
-          >
-            <HardDriveDownload className="h-4 w-4 mr-2" />
-            Sauvegardes
-          </Button>
-
-          <Button
+           <Button
             variant="ghost"
             size="sm"
             onClick={async () => { await signOut(); navigate('/login', { replace: true }); }}
@@ -497,21 +473,11 @@ export default function Home() {
               <Upload className="h-4 w-4 mr-2" />
               Importer un chantier
             </Button>
-            <Button variant="outline" size="lg" onClick={handleGlobalBackup} disabled={backupRunning}>
-              <Database className="h-4 w-4 mr-2" />
-              {backupRunning
-                ? `Sauvegarde... ${backupProgress.done}/${backupProgress.total || '…'}`
-                : 'Sauvegarde globale'}
+            <Button variant="outline" size="lg" onClick={() => setBackupsOpen(true)}>
+              <HardDriveDownload className="h-4 w-4 mr-2" />
+              Sauvegardes
             </Button>
           </CardContent>
-          {backupRunning && backupProgress.total > 0 && (
-            <CardContent className="pt-0">
-              <Progress value={(backupProgress.done / backupProgress.total) * 100} className="h-2" />
-              <p className="text-xs text-muted-foreground mt-1">
-                Génération : {backupProgress.done}/{backupProgress.total} chantiers
-              </p>
-            </CardContent>
-          )}
         </Card>
 
         <BackupsDialog open={backupsOpen} onOpenChange={setBackupsOpen} />
