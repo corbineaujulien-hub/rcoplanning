@@ -514,6 +514,8 @@ export default function Home() {
           )}
         </Card>
 
+        <BackupsDialog open={backupsOpen} onOpenChange={setBackupsOpen} />
+
         <Dialog open={importOpen} onOpenChange={o => { if (importing) return; setImportOpen(o); if (!o) { setImportBundle(null); setGlobalBackup(null); setImportOtp(''); } }}>
           <DialogContent className="w-fit max-w-[95vw]">
             <DialogHeader>
