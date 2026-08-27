@@ -568,6 +568,16 @@ export type Database = {
       create_project: { Args: never; Returns: Json }
       delete_project: { Args: { p_token: string }; Returns: boolean }
       delete_project_by_id: { Args: { p_project_id: string }; Returns: boolean }
+      project_progress_summary: {
+        Args: never
+        Returns: {
+          delivered_weight: number
+          first_truck_date: string
+          loaded_weight: number
+          project_id: string
+          total_weight: number
+        }[]
+      }
       validate_token: { Args: { p_token: string }; Returns: Json }
     }
     Enums: {
