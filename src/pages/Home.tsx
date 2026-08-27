@@ -79,6 +79,10 @@ export default function Home() {
   const [importBundle, setImportBundle] = useState<ProjectBundle | null>(null);
   const [importOtp, setImportOtp] = useState('');
   const [importing, setImporting] = useState(false);
+  const [backupRunning, setBackupRunning] = useState(false);
+  const [backupProgress, setBackupProgress] = useState({ done: 0, total: 0 });
+  const [globalBackup, setGlobalBackup] = useState<GlobalBackupFile | null>(null);
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0, current: '' });
 
 
 
