@@ -14,6 +14,9 @@ import {
 } from '@/utils/adv';
 import { formatCDTLabel } from '@/utils/supplyOnly';
 import { isHoliday } from '@/utils/frenchHolidays';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useDebounce } from '@/hooks/useDebounce';
+
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
@@ -112,6 +115,8 @@ export default function AdvDashboard() {
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
+
   const [filterCdt, setFilterCdt] = useState('all');
   const [filterPoseur, setFilterPoseur] = useState('all');
   const [filterCda, setFilterCda] = useState('all');
@@ -142,12 +147,13 @@ export default function AdvDashboard() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [p, a, c, r, t, fw, lk] = await Promise.all([
+      const [p, a, c, r, prog, fw, lk] = await Promise.all([
         supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, business_manager, archived, supply_only').eq('archived', false),
-        sb.from('adv_status').select('*'),
-        sb.from('adv_cautions_custom').select('*'),
-        sb.from('adv_relances').select('*'),
-        fetchAllPaginated<TruckLite>(() => supabase.from('trucks').select('project_id, date').order('project_id')),
+        sb.from('adv_status').select('id, project_id, compte_client, garantie_sfac, contrat_client, caution_rg, contrat_st, dast, commentaire'),
+        sb.from('adv_cautions_custom').select('id, project_id, nom, statut'),
+        sb.from('adv_relances').select('id, project_id, demarche, source_id, type, echeance, statut'),
+        // Date du premier camion agrégée côté base (évite de charger tous les camions)
+        (supabase as any).rpc('project_progress_summary'),
         fetchAllPaginated<ForecastWeekLite>(() => sb.from('forecast_weeks').select('project_id, year, week_number').order('project_id')),
         supabase.from('project_access_links').select('project_id, token'),
       ]);
@@ -155,12 +161,15 @@ export default function AdvDashboard() {
       setAdvs((a.data || []) as AdvStatus[]);
       setCautions((c.data || []) as AdvCautionCustom[]);
       setRelances((r.data || []) as AdvRelance[]);
-      setTrucks(t as TruckLite[]);
+      setTrucks((((prog as any)?.data || []) as any[])
+        .filter(row => row.first_truck_date)
+        .map(row => ({ project_id: row.project_id, date: row.first_truck_date })) as TruckLite[]);
       setForecastWeeks(fw as ForecastWeekLite[]);
       setLinks((lk.data || []) as AccessLink[]);
       setLoading(false);
     })();
   }, []);
+
 
   const advByProject = useMemo(() => {
     const m = new Map<string, AdvStatus>();
@@ -222,7 +231,7 @@ export default function AdvDashboard() {
 
   const filteredRows = useMemo(() => {
     return rows.filter(r => {
-      const s = search.toLowerCase();
+      const s = debouncedSearch.toLowerCase();
       if (s && !(r.project.site_name || '').toLowerCase().includes(s)
         && !(r.project.otp_number || '').toLowerCase().includes(s)
         && !(r.project.client_name || '').toLowerCase().includes(s)) return false;
@@ -247,7 +256,7 @@ export default function AdvDashboard() {
       const tb = b.startDate?.getTime() ?? Infinity;
       return ta - tb;
     });
-  }, [rows, search, filterCdt, filterPoseur, filterCda, filterBadge, filterDemarche, filterDemarcheStatut]);
+  }, [rows, debouncedSearch, filterCdt, filterPoseur, filterCda, filterBadge, filterDemarche, filterDemarcheStatut]);
 
   const cdtOptions = useMemo(() => Array.from(new Set(rows.map(r => r.cdt).filter(c => c && c !== '—'))).sort(), [rows]);
   const poseurOptions = useMemo(() => Array.from(new Set(rows.map(r => r.poseur))).sort(), [rows]);
@@ -353,7 +362,18 @@ export default function AdvDashboard() {
       </header>
 
       <main className="container py-4 space-y-4">
-        {loading ? <div className="text-muted-foreground p-8 text-center">Chargement…</div> : (
+        {loading ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+            </div>
+            <Skeleton className="h-10 w-full" />
+            <div className="space-y-2">
+              {Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}
+            </div>
+          </div>
+        ) : (
+
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <KpiCard label="Chantiers actifs" value={chantiersActifs} />

@@ -24,6 +24,9 @@ import {
 import { SUPPLY_ONLY_LABEL, SUPPLY_ONLY_COLOR, getDisplayCDT, getDisplayPoseur, getFilterCDT } from '@/utils/supplyOnly';
 import { exportLoadPlanningPdf } from '@/utils/loadPlanningPdfUtils';
 import { exportLoadPlanningExcel } from '@/utils/loadPlanningExcelUtils';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useDebounce } from '@/hooks/useDebounce';
+
 
 const UNASSIGNED_CDT = 'CDT à désigner';
 const UNASSIGNED_USINE = 'Usine non précisée';
@@ -227,6 +230,11 @@ export default function LoadPlanning() {
   const [filterStatus, setFilterStatus] = useState<Set<'planned' | 'forecast'>>(new Set());
   const [filterBdd, setFilterBdd] = useState<Set<'complete' | 'incomplete'>>(new Set());
   const [searchText, setSearchText] = useState('');
+  // Les recalculs lourds (Gantt, blocs de charge) sont différés de 300 ms
+  const debouncedSearchText = useDebounce(searchText, 300);
+  const debouncedPeriodStart = useDebounce(periodStart, 300);
+  const debouncedPeriodEnd = useDebounce(periodEnd, 300);
+
 
   useEffect(() => {
     const load = async () => {
@@ -279,10 +287,11 @@ export default function LoadPlanning() {
   }, [elements]);
 
   const weeks: ISOWeek[] = useMemo(() => {
-    const s = new Date(periodStart); const e = new Date(periodEnd);
+    const s = new Date(debouncedPeriodStart); const e = new Date(debouncedPeriodEnd);
     if (isNaN(s.getTime()) || isNaN(e.getTime())) return [];
     return getWeeksBetween(s, e);
-  }, [periodStart, periodEnd]);
+  }, [debouncedPeriodStart, debouncedPeriodEnd]);
+
 
   const monthGroups = useMemo(() => buildMonthGroups(weeks), [weeks]);
 
@@ -559,7 +568,7 @@ export default function LoadPlanning() {
   // Filtering — archived treated like active. Supports excluding a single filter
   // (used to compute available values in dropdowns for cumulative behaviour).
   const filterFn = useCallback((cp: ProjectComputed, exclude?: 'cdt' | 'poseur' | 'usine' | 'status' | 'bdd' | 'product') => {
-    const q = searchText.trim().toLowerCase();
+    const q = debouncedSearchText.trim().toLowerCase();
     // Period filter: include only projects with at least one real or forecast cell in the visible range.
     const hasAnyInPeriod = Object.values(cp.weeks).some(w => w.source !== 'none');
     if (!hasAnyInPeriod) return false;
@@ -600,7 +609,7 @@ export default function LoadPlanning() {
       if (!hay.includes(q)) return false;
     }
     return true;
-  }, [filterCdt, filterPoseur, filterUsine, filterStatus, filterBdd, filterProduct, baseProjectMeta, searchText]);
+  }, [filterCdt, filterPoseur, filterUsine, filterStatus, filterBdd, filterProduct, baseProjectMeta, debouncedSearchText]);
 
   const filteredProjects = useMemo(
     () => computedProjects.filter(cp => filterFn(cp)).map(cp => {
@@ -725,7 +734,7 @@ export default function LoadPlanning() {
   // still contribute their available types.
   const allProducts = useMemo(() => {
     const present = new Set<string>();
-    const q = searchText.trim().toLowerCase();
+    const q = debouncedSearchText.trim().toLowerCase();
     projects.forEach(p => {
       const meta = baseProjectMeta.get(p.id);
       if (!meta || !meta.hasAnyInPeriod) return;
@@ -754,7 +763,7 @@ export default function LoadPlanning() {
       meta.productTypes.forEach(pt => present.add(pt));
     });
     return FORECAST_PRODUCT_TYPES.filter(t => present.has(t));
-  }, [projects, baseProjectMeta, filterCdt, filterPoseur, filterUsine, filterBdd, filterStatus, searchText]);
+  }, [projects, baseProjectMeta, filterCdt, filterPoseur, filterUsine, filterBdd, filterStatus, debouncedSearchText]);
 
   // Auto-deselect product values that became unavailable after another filter changed.
   useEffect(() => {
@@ -943,7 +952,11 @@ export default function LoadPlanning() {
         </Card>
 
         {loading ? (
-          <div className="text-center py-16 text-muted-foreground">Chargement…</div>
+          <div className="space-y-2 py-4">
+            <Skeleton className="h-8 w-full" />
+            {Array.from({ length: 14 }).map((_, i) => <Skeleton key={i} className="h-7 w-full" />)}
+          </div>
+
         ) : (
           <>
             <PoseurLegend projects={filteredProjects} />

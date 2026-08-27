@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+
 import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Users, Calendar, LogOut, BarChart3, ClipboardCheck, Package, Upload, HardDriveDownload } from 'lucide-react';
 import { toast } from 'sonner';
 import { BackupsDialog } from '@/components/BackupsDialog';
@@ -42,22 +44,14 @@ interface ProjectLink {
   token: string;
 }
 
-interface TruckRow {
+interface ProgressRow {
   project_id: string;
-  date: string;
+  total_weight: number | string | null;
+  loaded_weight: number | string | null;
+  delivered_weight: number | string | null;
+  first_truck_date: string | null;
 }
 
-interface ElementRow {
-  id: string;
-  project_id: string;
-  weight: number;
-}
-
-interface TruckElementInfo {
-  project_id: string;
-  element_ids: string[];
-  date: string;
-}
 
 export default function Home() {
   const navigate = useNavigate();
@@ -65,8 +59,8 @@ export default function Home() {
   const [creating, setCreating] = useState(false);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [links, setLinks] = useState<ProjectLink[]>([]);
-  const [allTrucks, setAllTrucks] = useState<TruckElementInfo[]>([]);
-  const [allElements, setAllElements] = useState<ElementRow[]>([]);
+  const [progressRows, setProgressRows] = useState<ProgressRow[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [searchName, setSearchName] = useState('');
   const [filterConductor, setFilterConductor] = useState('all');
@@ -86,45 +80,25 @@ export default function Home() {
 
 
 
-  const fetchAllPaginated = async (table: string, columns: string) => {
-    const PAGE_SIZE = 1000;
-    let all: any[] = [];
-    let page = 0;
-    let hasMore = true;
-    while (hasMore) {
-      const { data } = await (supabase.from as any)(table)
-        .select(columns)
-        .order('id', { ascending: true })
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-      if (!data || data.length === 0) {
-        hasMore = false;
-      } else {
-        all = [...all, ...data];
-        page++;
-        if (data.length < PAGE_SIZE) hasMore = false;
-      }
-    }
-    return all;
-  };
-
   const fetchProjects = async () => {
     setLoading(true);
-    const [{ data: pData }, { data: lData }, tData, eData, advRes, cautionRes] = await Promise.all([
+    // Les agrégats d'avancement sont calculés côté base (fonction project_progress_summary)
+    // pour éviter de télécharger tous les camions et tous les produits.
+    const [{ data: pData }, { data: lData }, progressRes, advRes, cautionRes] = await Promise.all([
       supabase.from('projects').select('id, site_name, client_name, conductor, subcontractor, otp_number, created_at, archived, database_complete, supply_only').order('created_at', { ascending: false }),
       supabase.from('project_access_links').select('project_id, token'),
-      fetchAllPaginated('trucks', 'project_id, date, element_ids'),
-      fetchAllPaginated('beam_elements', 'id, project_id, weight'),
+      (supabase as any).rpc('project_progress_summary'),
       (supabase.from as any)('adv_status').select('*'),
-      (supabase.from as any)('adv_cautions_custom').select('*'),
+      (supabase.from as any)('adv_cautions_custom').select('project_id, statut'),
     ]);
     setProjects(pData as ProjectRow[] || []);
     setLinks(lData || []);
-    setAllTrucks((tData || []).map((t: any) => ({ project_id: t.project_id, element_ids: (t.element_ids as string[]) || [], date: t.date })));
-    setAllElements((eData || []).map((e: any) => ({ id: e.id, project_id: e.project_id, weight: Number(e.weight) || 0 })));
+    setProgressRows(((progressRes as any)?.data || []) as ProgressRow[]);
     setAdvStatuses(((advRes as any)?.data || []) as AdvStatus[]);
     setAdvCautions(((cautionRes as any)?.data || []) as AdvCautionCustom[]);
     setLoading(false);
   };
+
 
   useEffect(() => { fetchProjects(); }, []);
 
@@ -180,70 +154,31 @@ export default function Home() {
     return arr;
   }, [getProjectsExcludingFilter]);
 
-  // Compute first truck date per project
+  // Agrégats d'avancement renvoyés par la base (une seule requête)
   const firstTruckDateMap = useMemo(() => {
     const map = new Map<string, string>();
-    allTrucks.forEach(t => {
-      const current = map.get(t.project_id);
-      if (!current || t.date < current) map.set(t.project_id, t.date);
-    });
+    progressRows.forEach(r => { if (r.first_truck_date) map.set(r.project_id, r.first_truck_date); });
     return map;
-  }, [allTrucks]);
+  }, [progressRows]);
 
-  // Unique element id -> weight, derived from the single allElements fetch.
-  // Using one source guarantees Home and Chantier compute the same %.
-  const elementDetailsMap = useMemo(() => {
-    const map = new Map<string, number>();
-    allElements.forEach(e => map.set(e.id, e.weight));
-    return map;
-  }, [allElements]);
-
-  // Total weight per project, derived from the same map (dedup by element id).
   const totalWeightMap = useMemo(() => {
     const map = new Map<string, number>();
-    const seen = new Set<string>();
-    allElements.forEach(e => {
-      if (seen.has(e.id)) return;
-      seen.add(e.id);
-      map.set(e.project_id, (map.get(e.project_id) || 0) + e.weight);
-    });
+    progressRows.forEach(r => map.set(r.project_id, Number(r.total_weight) || 0));
     return map;
-  }, [allElements]);
+  }, [progressRows]);
 
-  // Loaded weight per project (elements assigned to any truck)
   const projectLoadedWeight = useMemo(() => {
     const map = new Map<string, number>();
-    const projectAssignedIds = new Map<string, Set<string>>();
-    allTrucks.forEach(t => {
-      if (!projectAssignedIds.has(t.project_id)) projectAssignedIds.set(t.project_id, new Set());
-      t.element_ids.forEach(id => projectAssignedIds.get(t.project_id)!.add(id));
-    });
-    projectAssignedIds.forEach((ids, projectId) => {
-      let w = 0;
-      ids.forEach(id => { w += elementDetailsMap.get(id) || 0; });
-      map.set(projectId, w);
-    });
+    progressRows.forEach(r => map.set(r.project_id, Number(r.loaded_weight) || 0));
     return map;
-  }, [allTrucks, elementDetailsMap]);
+  }, [progressRows]);
 
-  // Delivered weight (elements in trucks with date <= today)
   const projectDeliveredWeight = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
     const map = new Map<string, number>();
-    const projectDeliveredIds = new Map<string, Set<string>>();
-    allTrucks.forEach(t => {
-      if (t.date <= today) {
-        if (!projectDeliveredIds.has(t.project_id)) projectDeliveredIds.set(t.project_id, new Set());
-        t.element_ids.forEach(id => projectDeliveredIds.get(t.project_id)!.add(id));
-      }
-    });
-    projectDeliveredIds.forEach((ids, projectId) => {
-      let w = 0;
-      ids.forEach(id => { w += elementDetailsMap.get(id) || 0; });
-      map.set(projectId, w);
-    });
+    progressRows.forEach(r => map.set(r.project_id, Number(r.delivered_weight) || 0));
     return map;
-  }, [allTrucks, elementDetailsMap]);
+  }, [progressRows]);
+
 
   const filteredProjects = useMemo(() => {
     return projects
@@ -651,8 +586,24 @@ export default function Home() {
             </div>
 
             {loading ? (
-              <div className="text-center text-muted-foreground py-8">Chargement...</div>
+              <div className="space-y-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-5 w-48" />
+                      <Skeleton className="h-5 w-24" />
+                      <Skeleton className="h-5 w-16 ml-auto" />
+                    </div>
+                    <Skeleton className="h-2.5 w-full" />
+                    <div className="flex gap-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-4 w-40" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : filteredProjects.length === 0 ? (
+
               <div className="text-center text-muted-foreground py-8">
                 {projects.length === 0 ? 'Aucun chantier créé pour le moment.' : 'Aucun chantier ne correspond aux filtres.'}
               </div>

@@ -72,7 +72,8 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
   useEffect(() => {
     const loadData = async () => {
       try {
-        const { data: proj } = await supabase.from('projects').select('*').eq('id', projectId).single();
+        const PROJECT_COLS = 'id, otp_number, site_name, client_name, site_address, conductor, subcontractor, contact_name, contact_phone, business_manager, show_saturdays, show_sundays, database_complete, database_comment, supply_only, forecasted_transports, forecast_period_start, forecast_period_end';
+        const { data: proj } = await (supabase.from as any)('projects').select(PROJECT_COLS).eq('id', projectId).single();
         if (proj) {
           setProjectInfoState({
             otpNumber: proj.otp_number || '', siteName: proj.site_name || '',
@@ -91,17 +92,33 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           });
         }
 
-        // Paginated fetch to support up to 5000 elements
+        // Paginated fetch to support up to 5000 elements (colonnes utiles uniquement)
         const PAGE_SIZE = 1000;
-        let allElems: any[] = [];
-        let page = 0;
-        let hasMore = true;
-        while (hasMore) {
-          const { data: batch } = await supabase.from('beam_elements').select('*').eq('project_id', projectId).range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-          if (!batch || batch.length === 0) { hasMore = false; } else {
-            allElems = [...allElems, ...batch];
-            page++;
-            if (allElems.length >= 5000) hasMore = false;
+        const ELEMENT_COLS = 'id, repere, zone, product_type, section, length, weight, factory';
+        const fetchElementsPage = (page: number) =>
+          supabase.from('beam_elements').select(ELEMENT_COLS).eq('project_id', projectId).range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+        // Les autres tables sont chargées en parallèle du premier lot d'éléments.
+        const [firstElemsRes, trucksRes, plansRes, teamsRes, forecastRes] = await Promise.all([
+          fetchElementsPage(0),
+          supabase.from('trucks').select('id, number, date, time, element_ids, comment, team_id, transporter, handling_means, forced_category, forced_category_reason').eq('project_id', projectId),
+          // pdf_data_url est volumineux : il est chargé après coup (voir plus bas)
+          (supabase.from as any)('plans').select('id, name, zones, product_types, detected_reperes').eq('project_id', projectId),
+          supabase.from('teams').select('id, project_id, name, sort_order').eq('project_id', projectId).order('sort_order'),
+          (supabase.from as any)('forecast_weeks').select('id, project_id, year, week_number, team_index').eq('project_id', projectId),
+        ]);
+
+        let allElems: any[] = firstElemsRes.data || [];
+        if (allElems.length === PAGE_SIZE) {
+          let page = 1;
+          let hasMore = true;
+          while (hasMore) {
+            const { data: batch } = await fetchElementsPage(page);
+            if (!batch || batch.length === 0) { hasMore = false; } else {
+              allElems = [...allElems, ...batch];
+              page++;
+              if (allElems.length >= 5000 || batch.length < PAGE_SIZE) hasMore = false;
+            }
           }
         }
         if (allElems.length > 0) {
@@ -111,7 +128,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           })));
         }
 
-        const { data: trks } = await supabase.from('trucks').select('*').eq('project_id', projectId);
+        const trks = trucksRes.data;
         if (trks) {
           setTrucksState(trks.map(t => ({
             id: t.id, number: t.number || '', date: t.date || '', time: t.time || '',
@@ -124,17 +141,27 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           })));
         }
 
-        const { data: pls } = await supabase.from('plans').select('*').eq('project_id', projectId);
+        const pls = plansRes.data as any[] | null;
         if (pls) {
-          setPlansState(pls.map(p => ({
+          setPlansState(pls.map((p: any) => ({
             id: p.id, name: p.name || '', zones: (p.zones as string[]) || [],
             productTypes: (p.product_types as string[]) || [], detectedReperes: (p.detected_reperes as string[]) || [],
-            pdfDataUrl: p.pdf_data_url || '',
+            pdfDataUrl: '',
           })));
+          // Chargement différé des PDF (données lourdes) sans bloquer l'affichage
+          if (pls.length > 0) {
+            void (async () => {
+              const { data: pdfs } = await (supabase.from as any)('plans').select('id, pdf_data_url').eq('project_id', projectId);
+              if (pdfs) {
+                const byId = new Map<string, string>((pdfs as any[]).map((p: any) => [p.id, p.pdf_data_url || '']));
+                setPlansState(prev => prev.map(pl => byId.has(pl.id) ? { ...pl, pdfDataUrl: byId.get(pl.id) || '' } : pl));
+              }
+            })();
+          }
         }
 
         // Load teams
-        const { data: tms } = await supabase.from('teams').select('*').eq('project_id', projectId).order('sort_order');
+        const tms = teamsRes.data;
         let firstTeamId: string;
         if (tms && tms.length > 0) {
           setTeamsState(tms.map(t => ({
@@ -152,7 +179,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
         }
 
         // Load forecast weeks
-        const { data: fw } = await (supabase.from as any)('forecast_weeks').select('*').eq('project_id', projectId);
+        const fw = forecastRes.data;
         if (fw) {
           setForecastWeeksState((fw as any[]).map((s: any) => ({
             id: s.id, projectId: s.project_id, year: s.year, weekNumber: s.week_number,
@@ -160,16 +187,19 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
           })));
         }
 
-        // Auto-assign unassigned trucks to first team
+
+        // Auto-assign unassigned trucks to first team (une seule requête groupée)
         if (trks) {
           const unassigned = trks.filter(t => !t.team_id);
           if (unassigned.length > 0) {
-            for (const t of unassigned) {
-              await supabase.from('trucks').update({ team_id: firstTeamId }).eq('id', t.id);
+            const ids = unassigned.map(t => t.id);
+            for (let i = 0; i < ids.length; i += 500) {
+              await supabase.from('trucks').update({ team_id: firstTeamId }).in('id', ids.slice(i, i + 500));
             }
             setTrucksState(prev => prev.map(t => t.teamId ? t : { ...t, teamId: firstTeamId }));
           }
         }
+
       } catch (err: any) {
         toast.error('Erreur de chargement : ' + err.message);
       } finally {
