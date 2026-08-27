@@ -616,7 +616,9 @@ export async function exportAllWeeksPdf(
   filenameSuffix: string = '',
   teamLabel?: string,
   teams?: { id: string; name: string }[],
-) {
+  asBlob: boolean = false,
+): Promise<Blob | void> {
+
   const logoData = await loadLogoAsBase64();
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
@@ -702,6 +704,8 @@ export async function exportAllWeeksPdf(
 
   const nomChantier = getNomChantier(projectInfo);
   const lastYear = weeklyTabs[weeklyTabs.length - 1]?.year || new Date().getFullYear();
+  if (asBlob) return pdf.output('blob');
+
 
   const teamSuffix = teamLabel ? `_${normalizeTeamForFilename(teamLabel)}` : '';
   let filename: string;

@@ -315,10 +315,13 @@ export interface ExportWeeklyArgs {
   teamLabelForFilename?: string;
   // mode: single week or all weeks
   mode: 'single' | 'all';
+  // when true, return the workbook as a Blob instead of triggering a download
+  asBlob?: boolean;
 }
 
-export function exportWeeklyExcelStyled(args: ExportWeeklyArgs) {
+export function exportWeeklyExcelStyled(args: ExportWeeklyArgs): Blob | void {
   const { selectedWeeks, allowedTrucks, getTruckElements, projectInfo, teams, filenameSuffix = '', teamLabelForFilename, mode } = args;
+
 
   const hasMultipleTeams = teams.length > 1;
 
@@ -373,7 +376,13 @@ export function exportWeeklyExcelStyled(args: ExportWeeklyArgs) {
     }
   });
 
+  if (args.asBlob) {
+    const out = XLSXStyle.write(wb, { bookType: 'xlsx', type: 'array' });
+    return new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
   // Filename
+
   const nomChantier = projectInfo.siteName ? sanitizeName(projectInfo.siteName) : 'CHANTIER';
   const lastYear = sortedWeeks[sortedWeeks.length - 1]?.year || new Date().getFullYear();
   const teamSuffix = teamLabelForFilename ? '_' + sanitizeName(teamLabelForFilename) : '';

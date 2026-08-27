@@ -7,8 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Users, Calendar, LogOut, BarChart3, ClipboardCheck } from 'lucide-react';
+import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Users, Calendar, LogOut, BarChart3, ClipboardCheck, Package, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { exportProjectArchiveZip, readArchiveFile, importProjectBundle, summarizeBundle, ProjectBundle } from '@/utils/projectArchive';
+
 import { useProjectsPresence } from '@/hooks/useProjectsPresence';
 import {
   Tooltip,
@@ -72,6 +74,13 @@ export default function Home() {
   const [filterBdd, setFilterBdd] = useState<'all' | 'complete' | 'incomplete'>('all');
   const [advStatuses, setAdvStatuses] = useState<AdvStatus[]>([]);
   const [advCautions, setAdvCautions] = useState<AdvCautionCustom[]>([]);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importBundle, setImportBundle] = useState<ProjectBundle | null>(null);
+  const [importOtp, setImportOtp] = useState('');
+  const [importing, setImporting] = useState(false);
+
+
 
   const fetchAllPaginated = async (table: string, columns: string) => {
     const PAGE_SIZE = 1000;
@@ -303,6 +312,55 @@ export default function Home() {
     }
   };
 
+  const handleExternalArchive = async (projectId: string) => {
+    setArchivingId(projectId);
+    const t = toast.loading('Génération du dossier d\'archivage...');
+    try {
+      await exportProjectArchiveZip(projectId);
+      toast.success('Archive ZIP téléchargée', { id: t });
+    } catch (err: any) {
+      toast.error('Erreur d\'archivage : ' + err.message, { id: t });
+    } finally {
+      setArchivingId(null);
+    }
+  };
+
+  const handleImportFile = async (file: File) => {
+    try {
+      const bundle = await readArchiveFile(file);
+      setImportBundle(bundle);
+      setImportOtp(bundle.project.otp_number || '');
+    } catch (err: any) {
+      toast.error('Fichier illisible : ' + err.message);
+    }
+  };
+
+  const otpCollision = useMemo(() => {
+    if (!importOtp.trim()) return false;
+    return projects.some(p => (p.otp_number || '').trim().toLowerCase() === importOtp.trim().toLowerCase());
+  }, [projects, importOtp]);
+
+  const handleConfirmImport = async () => {
+    if (!importBundle) return;
+    setImporting(true);
+    const t = toast.loading('Import du chantier en cours...');
+    try {
+      const res = await importProjectBundle(importBundle, importOtp.trim());
+      toast.success('Chantier importé (archivé)', { id: t });
+      setImportOpen(false);
+      setImportBundle(null);
+      await fetchProjects();
+      setShowArchived(true);
+      navigate(`/p/${res.token}`);
+    } catch (err: any) {
+      toast.error('Erreur d\'import : ' + err.message, { id: t });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+
+
   const activeCount = projects.filter(p => !p.archived).length;
   const archivedCount = projects.filter(p => p.archived).length;
 
@@ -370,12 +428,73 @@ export default function Home() {
               Nouveau chantier
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <Button onClick={handleCreate} disabled={creating} className="w-full" size="lg">
+          <CardContent className="flex flex-col sm:flex-row gap-3">
+            <Button onClick={handleCreate} disabled={creating} className="flex-1" size="lg">
               {creating ? 'Création en cours...' : 'Créer un chantier'}
+            </Button>
+            <Button variant="outline" size="lg" onClick={() => { setImportBundle(null); setImportOtp(''); setImportOpen(true); }}>
+              <Upload className="h-4 w-4 mr-2" />
+              Importer un chantier
             </Button>
           </CardContent>
         </Card>
+
+        <Dialog open={importOpen} onOpenChange={o => { setImportOpen(o); if (!o) { setImportBundle(null); setImportOtp(''); } }}>
+          <DialogContent className="w-fit max-w-[95vw]">
+            <DialogHeader>
+              <DialogTitle>Importer un chantier</DialogTitle>
+              <DialogDescription>
+                Sélectionnez un fichier d'archivage externe (.zip) ou son fichier reimport.json.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Input
+                type="file"
+                accept=".zip,.json"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); }}
+              />
+              {importBundle && (() => {
+                const s = summarizeBundle(importBundle);
+                return (
+                  <div className="space-y-3 text-sm">
+                    <div className="rounded-md border p-3 space-y-1">
+                      <div className="font-semibold">{importBundle.project.site_name || 'Chantier sans nom'}</div>
+                      <div className="text-muted-foreground">Client : {importBundle.project.client_name || '—'}</div>
+                      <div className="text-muted-foreground">Conducteur : {importBundle.project.conductor || '—'} — Poseur : {importBundle.project.subcontractor || '—'}</div>
+                      <div className="text-muted-foreground">
+                        {s.elements} produits · {s.trucks} camions · {s.weeks} semaine(s) · {s.plans} plan(s)
+                      </div>
+                      <div className="text-muted-foreground">
+                        Exporté le {new Date(importBundle.exportedAt).toLocaleDateString('fr-FR')}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">Numéro OTP</label>
+                      <Input value={importOtp} onChange={e => setImportOtp(e.target.value)} placeholder="OTP" />
+                      {otpCollision && (
+                        <p className="text-xs text-destructive">
+                          Ce numéro OTP existe déjà. Modifiez-le pour éviter les doublons (l'import reste possible).
+                        </p>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Le chantier sera recréé en tant que chantier archivé.
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
+            <DialogFooter className="flex gap-2">
+              <DialogClose asChild>
+                <Button variant="outline">Annuler</Button>
+              </DialogClose>
+              <Button onClick={handleConfirmImport} disabled={!importBundle || importing}>
+                {importing ? 'Import...' : 'Importer'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
 
         <Card>
           <CardHeader>
@@ -579,10 +698,48 @@ export default function Home() {
                               </DialogContent>
                             </Dialog>
                           ) : (
-                            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleArchive(project.id, false); }} title="Désarchiver">
-                              <ArchiveRestore className="h-4 w-4" />
-                            </Button>
+                            <>
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" size="sm" onClick={(e) => e.stopPropagation()} title="Archivage externe" disabled={archivingId === project.id}>
+                                    <Package className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="w-fit max-w-[95vw]" onClick={e => e.stopPropagation()}>
+                                  <DialogHeader>
+                                    <DialogTitle>Archivage externe</DialogTitle>
+                                    <DialogDescription>
+                                      Générer un dossier ZIP complet du chantier {project.otp_number || '—'} — {project.site_name || 'Chantier sans nom'}.
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="text-sm space-y-1">
+                                    <p className="font-medium">Contenu de l'archive :</p>
+                                    <ul className="list-disc pl-5 text-muted-foreground space-y-0.5">
+                                      <li>Planning complet (PDF, toutes les semaines)</li>
+                                      <li>Planning complet (Excel, un onglet par semaine)</li>
+                                      <li>Base de données produits (Excel)</li>
+                                      <li>Fichier de réimportation (reimport.json)</li>
+                                    </ul>
+                                  </div>
+                                  <DialogFooter className="flex gap-2">
+                                    <DialogClose asChild>
+                                      <Button variant="outline">Annuler</Button>
+                                    </DialogClose>
+                                    <DialogClose asChild>
+                                      <Button onClick={() => handleExternalArchive(project.id)}>
+                                        <Package className="h-4 w-4 mr-2" />
+                                        Générer l'archive
+                                      </Button>
+                                    </DialogClose>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                              <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleArchive(project.id, false); }} title="Désarchiver">
+                                <ArchiveRestore className="h-4 w-4" />
+                              </Button>
+                            </>
                           )}
+
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="destructive" size="sm" onClick={(e) => e.stopPropagation()}>
