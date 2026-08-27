@@ -1,5 +1,5 @@
 // Sauvegarde globale hebdomadaire : génère un ZIP (1 JSON de réimport par chantier)
-// et l'envoie par email (pièce jointe, ou lien de téléchargement si trop volumineux).
+// et le stocke dans le bucket "sauvegardes-rco" (rétention : 10 dernières sauvegardes).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import JSZip from "https://esm.sh/jszip@3.10.1";
 
@@ -8,7 +8,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const BACKUP_RECIPIENT = Deno.env.get("BACKUP_RECIPIENT_EMAIL") ?? "julien.corbineau@rector.fr";
+const BUCKET = "sauvegardes-rco";
+const KEEP = 10;
 
 const CHILD_TABLES = [
   "teams",
@@ -120,57 +121,36 @@ async function buildGlobalBackup() {
   return { zipBuffer, index };
 }
 
-async function uploadBackup(fileName: string, zipBuffer: Uint8Array): Promise<string | null> {
-  const supabase = createAdminClient();
-  const path = `auto/${fileName}`;
-  const { error } = await supabase.storage.from("backups").upload(path, zipBuffer, {
-    contentType: "application/zip",
-    upsert: true,
-  });
+async function cleanOldBackups(supabase: any) {
+  const { data: files, error } = await supabase.storage
+    .from(BUCKET)
+    .list("", { limit: 100, sortBy: { column: "created_at", order: "desc" } });
   if (error) {
-    console.error("upload backup failed", error.message);
-    return null;
+    console.error("list backups failed", error.message);
+    return;
   }
-  const { data } = await supabase.storage.from("backups")
-    .createSignedUrl(path, 60 * 60 * 24 * 30);
-  return data?.signedUrl ?? null;
-}
-
-async function notifyBackup(zipBuffer: Uint8Array, index: any) {
-  const date = new Date().toLocaleDateString("fr-FR");
-  const fileName = `sauvegarde_RCO_${date.replace(/\//g, "-")}.zip`;
-  const link = await uploadBackup(fileName, zipBuffer);
-
-  // L'envoi de l'email nécessite un domaine expéditeur configuré (Emails Lovable).
-  // Tant qu'il n'est pas en place, la sauvegarde reste disponible dans le stockage.
-  const supabase = createAdminClient();
-  try {
-    await supabase.functions.invoke("send-transactional-email", {
-      body: {
-        templateName: "weekly-backup",
-        recipientEmail: BACKUP_RECIPIENT,
-        idempotencyKey: `weekly-backup-${fileName}`,
-        templateData: {
-          date,
-          totalProjects: index.total_projects,
-          activeProjects: index.active_projects,
-          archivedProjects: index.archived_projects,
-          fileName,
-          downloadUrl: link,
-        },
-      },
-    });
-  } catch (err) {
-    console.error("email notification skipped", err);
+  const toDelete = (files ?? []).slice(KEEP).map((f: any) => f.name);
+  if (toDelete.length > 0) {
+    const { error: delError } = await supabase.storage.from(BUCKET).remove(toDelete);
+    if (delError) console.error("cleanup failed", delError.message);
+    else console.log("old backups removed", toDelete);
   }
-  return { fileName, link };
 }
 
 async function runBackup() {
+  const supabase = createAdminClient();
   const { zipBuffer, index } = await buildGlobalBackup();
-  const sent = await notifyBackup(zipBuffer, index);
-  console.log("weekly-backup done", { projects: index.total_projects, bytes: zipBuffer.length, ...sent });
-  return { ...sent, index };
+
+  const fileName = `sauvegarde_RCO_${new Date().toISOString().split("T")[0]}.zip`;
+  const { error } = await supabase.storage.from(BUCKET).upload(fileName, zipBuffer, {
+    contentType: "application/zip",
+    upsert: true,
+  });
+  if (error) throw new Error(`Erreur upload sauvegarde : ${error.message}`);
+  console.log(`Sauvegarde ${fileName} stockée avec succès (${zipBuffer.length} octets)`);
+
+  await cleanOldBackups(supabase);
+  return { fileName, size: zipBuffer.length, index };
 }
 
 // Chaque lundi à 2h du matin (UTC)
@@ -195,7 +175,7 @@ Deno.serve(async (req) => {
         ok: true,
         total_projects: result.index.total_projects,
         file: result.fileName,
-        link: result.link,
+        size: result.size,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
