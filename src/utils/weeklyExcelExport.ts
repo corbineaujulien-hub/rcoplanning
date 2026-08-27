@@ -376,7 +376,13 @@ export function exportWeeklyExcelStyled(args: ExportWeeklyArgs): Blob | void {
     }
   });
 
+  if (args.asBlob) {
+    const out = XLSXStyle.write(wb, { bookType: 'xlsx', type: 'array' });
+    return new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
   // Filename
+
   const nomChantier = projectInfo.siteName ? sanitizeName(projectInfo.siteName) : 'CHANTIER';
   const lastYear = sortedWeeks[sortedWeeks.length - 1]?.year || new Date().getFullYear();
   const teamSuffix = teamLabelForFilename ? '_' + sanitizeName(teamLabelForFilename) : '';
