@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Users, Calendar, LogOut, BarChart3, ClipboardCheck, Package, Upload, Database } from 'lucide-react';
+import { Truck, Plus, Search, FolderOpen, Trash2, Archive, ArchiveRestore, User, Users, Calendar, LogOut, BarChart3, ClipboardCheck, Package, Upload, Database, HardDriveDownload } from 'lucide-react';
 import { toast } from 'sonner';
+import { BackupsDialog } from '@/components/BackupsDialog';
 import { exportProjectArchiveZip, readArchiveFile, importProjectBundle, summarizeBundle, ProjectBundle, exportGlobalBackupZip, readGlobalBackupFile, importGlobalBackup, GlobalBackupFile } from '@/utils/projectArchive';
 
 import { useProjectsPresence } from '@/hooks/useProjectsPresence';
@@ -75,6 +76,7 @@ export default function Home() {
   const [advStatuses, setAdvStatuses] = useState<AdvStatus[]>([]);
   const [advCautions, setAdvCautions] = useState<AdvCautionCustom[]>([]);
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [backupsOpen, setBackupsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importBundle, setImportBundle] = useState<ProjectBundle | null>(null);
   const [importOtp, setImportOtp] = useState('');
@@ -458,6 +460,15 @@ export default function Home() {
             Tableau de bord ADV
           </Button>
           <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setBackupsOpen(true)}
+          >
+            <HardDriveDownload className="h-4 w-4 mr-2" />
+            Sauvegardes
+          </Button>
+
+          <Button
             variant="ghost"
             size="sm"
             onClick={async () => { await signOut(); navigate('/login', { replace: true }); }}
@@ -502,6 +513,8 @@ export default function Home() {
             </CardContent>
           )}
         </Card>
+
+        <BackupsDialog open={backupsOpen} onOpenChange={setBackupsOpen} />
 
         <Dialog open={importOpen} onOpenChange={o => { if (importing) return; setImportOpen(o); if (!o) { setImportBundle(null); setGlobalBackup(null); setImportOtp(''); } }}>
           <DialogContent className="w-fit max-w-[95vw]">
