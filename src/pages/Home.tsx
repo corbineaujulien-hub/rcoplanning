@@ -74,6 +74,13 @@ export default function Home() {
   const [filterBdd, setFilterBdd] = useState<'all' | 'complete' | 'incomplete'>('all');
   const [advStatuses, setAdvStatuses] = useState<AdvStatus[]>([]);
   const [advCautions, setAdvCautions] = useState<AdvCautionCustom[]>([]);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importBundle, setImportBundle] = useState<ProjectBundle | null>(null);
+  const [importOtp, setImportOtp] = useState('');
+  const [importing, setImporting] = useState(false);
+
+
 
   const fetchAllPaginated = async (table: string, columns: string) => {
     const PAGE_SIZE = 1000;
