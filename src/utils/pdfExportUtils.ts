@@ -616,7 +616,9 @@ export async function exportAllWeeksPdf(
   filenameSuffix: string = '',
   teamLabel?: string,
   teams?: { id: string; name: string }[],
-) {
+  asBlob: boolean = false,
+): Promise<Blob | void> {
+
   const logoData = await loadLogoAsBase64();
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
