@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw, FileText, X, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
-import XLSXStyle from 'xlsx-js-style';
+import XLSX from 'xlsx-js-style';
 import { format, parse } from 'date-fns';
 
 function findColumn(row: Record<string, unknown>, aliases: string[]): unknown {
