@@ -908,7 +908,11 @@ export default function LoadPlanning() {
               <Button
                 size="sm"
                 variant={activePreset === 'month' ? 'default' : 'outline'}
-                className="h-8 px-2 text-xs"
+                className={
+                  activePreset === 'month'
+                    ? 'h-8 px-2 text-xs bg-white text-primary border border-white font-semibold hover:bg-white/90'
+                    : 'h-8 px-2 text-xs bg-transparent text-primary-foreground border border-primary-foreground/50 hover:bg-primary-foreground/15 hover:border-primary-foreground'
+                }
                 onClick={() => applyPreset('month')}
               >
                 Mois en cours
@@ -916,7 +920,11 @@ export default function LoadPlanning() {
               <Button
                 size="sm"
                 variant={activePreset === '3m' ? 'default' : 'outline'}
-                className="h-8 px-2 text-xs"
+                className={
+                  activePreset === '3m'
+                    ? 'h-8 px-2 text-xs bg-white text-primary border border-white font-semibold hover:bg-white/90'
+                    : 'h-8 px-2 text-xs bg-transparent text-primary-foreground border border-primary-foreground/50 hover:bg-primary-foreground/15 hover:border-primary-foreground'
+                }
                 onClick={() => applyPreset('3m')}
               >
                 3 mois
@@ -924,24 +932,28 @@ export default function LoadPlanning() {
               <Button
                 size="sm"
                 variant={activePreset === '12m' ? 'default' : 'outline'}
-                className="h-8 px-2 text-xs"
+                className={
+                  activePreset === '12m'
+                    ? 'h-8 px-2 text-xs bg-white text-primary border border-white font-semibold hover:bg-white/90'
+                    : 'h-8 px-2 text-xs bg-transparent text-primary-foreground border border-primary-foreground/50 hover:bg-primary-foreground/15 hover:border-primary-foreground'
+                }
                 onClick={() => applyPreset('12m')}
               >
                 12 mois
               </Button>
-              <span>Du</span>
+              <span className="text-primary-foreground">Du</span>
               <Input
                 type="date"
                 value={periodStart}
                 onChange={e => { setPeriodStart(e.target.value); setActivePreset(null); }}
-                className="h-8 w-[140px] text-foreground"
+                className="h-8 w-[140px] text-foreground bg-white border-primary-foreground/30"
               />
-              <span>au</span>
+              <span className="text-primary-foreground">au</span>
               <Input
                 type="date"
                 value={periodEnd}
                 onChange={e => { setPeriodEnd(e.target.value); setActivePreset(null); }}
-                className="h-8 w-[140px] text-foreground"
+                className="h-8 w-[140px] text-foreground bg-white border-primary-foreground/30"
               />
             </div>
             <Button variant="secondary" size="sm" onClick={handleExportPdf}>
