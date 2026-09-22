@@ -225,6 +225,33 @@ export default function LoadPlanning() {
 
   const [periodStart, setPeriodStart] = useState<string>(defaultStart.toISOString().slice(0, 10));
   const [periodEnd, setPeriodEnd] = useState<string>(defaultEnd.toISOString().slice(0, 10));
+  const [activePreset, setActivePreset] = useState<'12m' | 'month' | '3m' | null>('12m');
+
+  // Plages prédéfinies (calculées sans effet de bord)
+  const presetRanges = useMemo(() => {
+    const toISO = (d: Date) => d.toISOString().slice(0, 10);
+    // Mois en cours : du 1er au dernier jour du mois courant
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    // 3 mois : du 1er du mois courant au dernier jour du mois M+2
+    const threeMonthsStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const threeMonthsEnd = new Date(today.getFullYear(), today.getMonth() + 3, 0);
+    // 12 mois : M-1 → M+11 (période par défaut)
+    const twelveMonthsStart = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+    const twelveMonthsEnd = new Date(today.getFullYear(), today.getMonth() + 11, today.getDate());
+    return {
+      '12m': { start: toISO(twelveMonthsStart), end: toISO(twelveMonthsEnd) },
+      'month': { start: toISO(monthStart), end: toISO(monthEnd) },
+      '3m': { start: toISO(threeMonthsStart), end: toISO(threeMonthsEnd) },
+    };
+  }, [today]);
+
+  const applyPreset = useCallback((preset: '12m' | 'month' | '3m') => {
+    const r = presetRanges[preset];
+    setPeriodStart(r.start);
+    setPeriodEnd(r.end);
+    setActivePreset(preset);
+  }, [presetRanges]);
 
   const [filterCdt, setFilterCdt] = useState<Set<string>>(new Set());
   const [filterPoseur, setFilterPoseur] = useState<Set<string>>(new Set());
