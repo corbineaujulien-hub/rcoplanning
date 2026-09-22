@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Upload, Plus, Trash2, Database, Filter, FileDown, RefreshCw, FileText, X, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx-js-style';
 import { format, parse } from 'date-fns';
 
 function findColumn(row: Record<string, unknown>, aliases: string[]): unknown {
@@ -522,7 +522,39 @@ export default function DatabaseTab() {
   // Excel export
   const showTeamColumn = teams.length > 1;
   const handleExportExcel = () => {
-    const data = filteredElements.map(el => {
+    // Format date DD/MM/AAAA (reconnu comme date par Excel)
+    const formatDateFr = (dateStr: string) => {
+      if (!dateStr) return '';
+      try {
+        const d = parse(dateStr, 'yyyy-MM-dd', new Date());
+        return format(d, 'dd/MM/yyyy');
+      } catch {
+        return dateStr;
+      }
+    };
+
+    // Ordre des colonnes
+    const baseHeaders = [
+      'N° Repère', 'Zone', 'Type de produit', 'Section',
+      'Longueur (m)', 'Poids (t)', 'Usine', 'Numéro camion',
+      'Date camion', 'Catégorie de transport', 'Transporteur', 'Moyen de manutention',
+    ];
+    const headers = showTeamColumn ? [...baseHeaders, 'Équipe'] : baseHeaders;
+    const nCols = headers.length;
+
+    // Index de colonnes pour les formules SUBTOTAL (0-based)
+    const colRepere = headers.indexOf('N° Repère');
+    const colLongueur = headers.indexOf('Longueur (m)');
+    const colPoids = headers.indexOf('Poids (t)');
+    const toLetter = (idx: number) => {
+      let s = '';
+      let n = idx;
+      do { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) - 1; } while (n >= 0);
+      return s;
+    };
+
+    // Lignes de données (à partir de la 3e ligne Excel = index aoa 2)
+    const dataRows: (string | number)[][] = filteredElements.map(el => {
       const info = elementTruckMap.get(el.id);
       let categoryLabel = '';
       if (info) {
@@ -530,31 +562,76 @@ export default function DatabaseTab() {
         categoryLabel = TRANSPORT_CATEGORIES[getTransportCategory(truckEls)].label;
       }
       const teamName = info?.teamId ? (teams.find(t => t.id === info.teamId)?.name || '') : '';
-      const row: Record<string, string | number> = {
-        'N° Repère': el.repere,
-        'Zone': el.zone,
-        'Type de produit': el.productType,
-        'Section': el.section,
-        'Longueur (m)': el.length,
-        'Poids (t)': el.weight,
-        'Usine': el.factory,
-        'Numéro camion': info ? info.number : '',
-        'Date camion': info ? formatTruckDate(info.date) : '',
-        'Catégorie de transport': categoryLabel,
-        'Transporteur': info?.transporter?.trim() || '',
-        'Moyen de manutention': (() => {
+      const row: (string | number)[] = [
+        el.repere,
+        el.zone,
+        el.productType,
+        el.section,
+        el.length,
+        el.weight,
+        el.factory,
+        info ? info.number : '',
+        info ? formatDateFr(info.date) : '',
+        categoryLabel,
+        info?.transporter?.trim() || '',
+        (() => {
           if (!info) return '';
           const truck = trucks.find(t => t.id === info.truckId);
           if (!truck?.handlingMeans) return '';
           return truck.handlingMeans[el.factory] || '';
         })(),
-      };
-      if (showTeamColumn) {
-        row['Équipe'] = teamName;
-      }
+      ];
+      if (showTeamColumn) row.push(teamName);
       return row;
     });
-    const ws = XLSX.utils.json_to_sheet(data);
+
+    const dataStartExcel = 3; // 1re ligne de données
+    const dataEndExcel = dataStartExcel + Math.max(dataRows.length - 1, 0);
+    const repereLetter = toLetter(colRepere);
+    const longueurLetter = toLetter(colLongueur);
+    const poidsLetter = toLetter(colPoids);
+
+    // Ligne de sous-totaux (ligne 1 Excel = index aoa 0)
+    const subtotalRow: (string | number)[] = Array(nCols).fill('');
+    subtotalRow[0] = 'Sous-total :';
+    subtotalRow[colRepere] = { f: `SUBTOTAL(3,${repereLetter}${dataStartExcel}:${repereLetter}${dataEndExcel})` } as any;
+    subtotalRow[colLongueur] = { f: `SUBTOTAL(9,${longueurLetter}${dataStartExcel}:${longueurLetter}${dataEndExcel})` } as any;
+    subtotalRow[colPoids] = { f: `SUBTOTAL(9,${poidsLetter}${dataStartExcel}:${poidsLetter}${dataEndExcel})` } as any;
+
+    // Construction de la feuille (aoa : sous-totaux, en-têtes, données)
+    const aoa: any[][] = [subtotalRow as any[], headers, ...dataRows];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    // Style de la ligne de sous-totaux (fond #dbeafe, gras)
+    const subtotalStyle = {
+      fill: { patternType: 'solid', fgColor: { rgb: 'DBEAFE' } },
+      font: { bold: true, sz: 10 },
+    };
+    for (let c = 0; c < nCols; c++) {
+      const addr = XLSX.utils.encode_cell({ r: 0, c });
+      if (!ws[addr]) ws[addr] = { t: 's', v: '' };
+      ws[addr].s = subtotalStyle;
+    }
+
+    // Style de la ligne d'en-têtes (fond #1e3a5f, texte blanc gras)
+    const headerStyle = {
+      fill: { patternType: 'solid', fgColor: { rgb: '1E3A5F' } },
+      font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } },
+    };
+    for (let c = 0; c < nCols; c++) {
+      const addr = XLSX.utils.encode_cell({ r: 1, c });
+      if (!ws[addr]) ws[addr] = { t: 's', v: '' };
+      ws[addr].s = headerStyle;
+    }
+
+    // Filtres automatiques sur la ligne d'en-têtes (ligne 2 Excel)
+    ws['!autofilter'] = {
+      ref: XLSX.utils.encode_range({ s: { r: 1, c: 0 }, e: { r: 1, c: nCols - 1 } }),
+    };
+
+    // Largeurs de colonnes
+    ws['!cols'] = headers.map(h => ({ wch: Math.max(10, Math.min(28, h.length + 4)) }));
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Base de données');
     const siteName = (projectInfo.siteName || 'projet').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ_-]/g, '_');
