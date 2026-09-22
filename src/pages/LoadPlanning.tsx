@@ -225,6 +225,33 @@ export default function LoadPlanning() {
 
   const [periodStart, setPeriodStart] = useState<string>(defaultStart.toISOString().slice(0, 10));
   const [periodEnd, setPeriodEnd] = useState<string>(defaultEnd.toISOString().slice(0, 10));
+  const [activePreset, setActivePreset] = useState<'12m' | 'month' | '3m' | null>('12m');
+
+  // Plages prédéfinies (calculées sans effet de bord)
+  const presetRanges = useMemo(() => {
+    const toISO = (d: Date) => d.toISOString().slice(0, 10);
+    // Mois en cours : du 1er au dernier jour du mois courant
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    // 3 mois : du 1er du mois courant au dernier jour du mois M+2
+    const threeMonthsStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const threeMonthsEnd = new Date(today.getFullYear(), today.getMonth() + 3, 0);
+    // 12 mois : M-1 → M+11 (période par défaut)
+    const twelveMonthsStart = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+    const twelveMonthsEnd = new Date(today.getFullYear(), today.getMonth() + 11, today.getDate());
+    return {
+      '12m': { start: toISO(twelveMonthsStart), end: toISO(twelveMonthsEnd) },
+      'month': { start: toISO(monthStart), end: toISO(monthEnd) },
+      '3m': { start: toISO(threeMonthsStart), end: toISO(threeMonthsEnd) },
+    };
+  }, [today]);
+
+  const applyPreset = useCallback((preset: '12m' | 'month' | '3m') => {
+    const r = presetRanges[preset];
+    setPeriodStart(r.start);
+    setPeriodEnd(r.end);
+    setActivePreset(preset);
+  }, [presetRanges]);
 
   const [filterCdt, setFilterCdt] = useState<Set<string>>(new Set());
   const [filterPoseur, setFilterPoseur] = useState<Set<string>>(new Set());
@@ -878,10 +905,44 @@ export default function LoadPlanning() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1 text-xs">
+              <Button
+                size="sm"
+                variant={activePreset === 'month' ? 'default' : 'outline'}
+                className="h-8 px-2 text-xs"
+                onClick={() => applyPreset('month')}
+              >
+                Mois en cours
+              </Button>
+              <Button
+                size="sm"
+                variant={activePreset === '3m' ? 'default' : 'outline'}
+                className="h-8 px-2 text-xs"
+                onClick={() => applyPreset('3m')}
+              >
+                3 mois
+              </Button>
+              <Button
+                size="sm"
+                variant={activePreset === '12m' ? 'default' : 'outline'}
+                className="h-8 px-2 text-xs"
+                onClick={() => applyPreset('12m')}
+              >
+                12 mois
+              </Button>
               <span>Du</span>
-              <Input type="date" value={periodStart} onChange={e => setPeriodStart(e.target.value)} className="h-8 w-[140px] text-foreground" />
+              <Input
+                type="date"
+                value={periodStart}
+                onChange={e => { setPeriodStart(e.target.value); setActivePreset(null); }}
+                className="h-8 w-[140px] text-foreground"
+              />
               <span>au</span>
-              <Input type="date" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)} className="h-8 w-[140px] text-foreground" />
+              <Input
+                type="date"
+                value={periodEnd}
+                onChange={e => { setPeriodEnd(e.target.value); setActivePreset(null); }}
+                className="h-8 w-[140px] text-foreground"
+              />
             </div>
             <Button variant="secondary" size="sm" onClick={handleExportPdf}>
               <FileDown className="h-4 w-4 mr-1" /> PDF
