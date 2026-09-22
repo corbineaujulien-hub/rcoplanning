@@ -836,7 +836,7 @@ export default function LoadPlanning() {
   }, []);
 
   const resetFilters = () => {
-    setFilterCdt(new Set()); setFilterPoseur(new Set()); setFilterUsine(new Set()); setFilterProduct(new Set());
+    setFilterCdt(new Set()); setFilterPoseur(new Set()); setFilterCda(new Set()); setFilterUsine(new Set()); setFilterProduct(new Set());
     setFilterStatus(new Set()); setFilterBdd(new Set()); setSearchText('');
   };
 
