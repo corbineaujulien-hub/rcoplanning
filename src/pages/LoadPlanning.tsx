@@ -905,10 +905,44 @@ export default function LoadPlanning() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1 text-xs">
+              <Button
+                size="sm"
+                variant={activePreset === 'month' ? 'default' : 'outline'}
+                className="h-8 px-2 text-xs"
+                onClick={() => applyPreset('month')}
+              >
+                Mois en cours
+              </Button>
+              <Button
+                size="sm"
+                variant={activePreset === '3m' ? 'default' : 'outline'}
+                className="h-8 px-2 text-xs"
+                onClick={() => applyPreset('3m')}
+              >
+                3 mois
+              </Button>
+              <Button
+                size="sm"
+                variant={activePreset === '12m' ? 'default' : 'outline'}
+                className="h-8 px-2 text-xs"
+                onClick={() => applyPreset('12m')}
+              >
+                12 mois
+              </Button>
               <span>Du</span>
-              <Input type="date" value={periodStart} onChange={e => setPeriodStart(e.target.value)} className="h-8 w-[140px] text-foreground" />
+              <Input
+                type="date"
+                value={periodStart}
+                onChange={e => { setPeriodStart(e.target.value); setActivePreset(null); }}
+                className="h-8 w-[140px] text-foreground"
+              />
               <span>au</span>
-              <Input type="date" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)} className="h-8 w-[140px] text-foreground" />
+              <Input
+                type="date"
+                value={periodEnd}
+                onChange={e => { setPeriodEnd(e.target.value); setActivePreset(null); }}
+                className="h-8 w-[140px] text-foreground"
+              />
             </div>
             <Button variant="secondary" size="sm" onClick={handleExportPdf}>
               <FileDown className="h-4 w-4 mr-1" /> PDF
