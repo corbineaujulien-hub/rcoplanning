@@ -522,14 +522,18 @@ export default function DatabaseTab() {
   // Excel export
   const showTeamColumn = teams.length > 1;
   const handleExportExcel = () => {
-    // Format date DD/MM/AAAA (reconnu comme date par Excel)
-    const formatDateFr = (dateStr: string) => {
-      if (!dateStr) return '';
+    // Convertit une date YYYY-MM-DD en numéro de série Excel (jours depuis le 30/12/1899)
+    const dateToExcelSerial = (dateStr: string): number | null => {
+      if (!dateStr) return null;
       try {
-        const d = parse(dateStr, 'yyyy-MM-dd', new Date());
-        return format(d, 'dd/MM/yyyy');
+        const [year, month, day] = dateStr.split('-').map(Number);
+        if (!year || !month || !day) return null;
+        const date = new Date(year, month - 1, day);
+        const excelEpoch = new Date(1899, 11, 30);
+        const diff = date.getTime() - excelEpoch.getTime();
+        return Math.floor(diff / (1000 * 60 * 60 * 24));
       } catch {
-        return dateStr;
+        return null;
       }
     };
 
@@ -546,6 +550,7 @@ export default function DatabaseTab() {
     const colRepere = headers.indexOf('N° Repère');
     const colLongueur = headers.indexOf('Longueur (m)');
     const colPoids = headers.indexOf('Poids (t)');
+    const colDate = headers.indexOf('Date camion');
     const toLetter = (idx: number) => {
       let s = '';
       let n = idx;
@@ -571,7 +576,7 @@ export default function DatabaseTab() {
         el.weight,
         el.factory,
         info ? info.number : '',
-        info ? formatDateFr(info.date) : '',
+        info ? (dateToExcelSerial(info.date) ?? '') : '',
         categoryLabel,
         info?.transporter?.trim() || '',
         (() => {
