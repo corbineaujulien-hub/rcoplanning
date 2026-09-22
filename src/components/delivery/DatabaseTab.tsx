@@ -634,6 +634,18 @@ export default function DatabaseTab() {
       ref: XLSX.utils.encode_range({ s: { r: 1, c: 0 }, e: { r: 1, c: nCols - 1 } }),
     };
 
+    // Forcer les cellules "Date camion" comme dates natives (numéro de série + format)
+    const dateCellStyle = { numFmt: 'DD/MM/YYYY' };
+    for (let r = 0; r < dataRows.length; r++) {
+      const addr = XLSX.utils.encode_cell({ r: r + 2, c: colDate });
+      const cell = ws[addr];
+      if (cell && typeof cell.v === 'number') {
+        cell.t = 'n';
+        cell.z = 'DD/MM/YYYY';
+        cell.s = { ...(cell.s || {}), ...dateCellStyle };
+      }
+    }
+
     // Largeurs de colonnes
     ws['!cols'] = headers.map(h => ({ wch: Math.max(10, Math.min(28, h.length + 4)) }));
 
