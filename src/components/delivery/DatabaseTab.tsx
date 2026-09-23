@@ -528,10 +528,13 @@ export default function DatabaseTab() {
       try {
         const [year, month, day] = dateStr.split('-').map(Number);
         if (!year || !month || !day) return null;
+        // Constructeur local (pas UTC) + midi pour éviter tout décalage DST
         const date = new Date(year, month - 1, day);
+        date.setHours(12, 0, 0, 0);
         const excelEpoch = new Date(1899, 11, 30);
+        excelEpoch.setHours(12, 0, 0, 0);
         const diff = date.getTime() - excelEpoch.getTime();
-        return Math.floor(diff / (1000 * 60 * 60 * 24));
+        return Math.round(diff / (1000 * 60 * 60 * 24));
       } catch {
         return null;
       }
