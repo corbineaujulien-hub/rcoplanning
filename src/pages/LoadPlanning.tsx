@@ -388,10 +388,9 @@ export default function LoadPlanning() {
     return map;
   }, [projects, trucks, forecastWeeks, elements, elementsById, weeks]);
 
-  // Largeur dynamique des colonnes de semaines, calée sur la place disponible
-  // dans les blocs de charge (qui ont moins de colonnes fixes que le Gantt).
-  // Blocs de charge : colonne nom 180px + colonne Total 60px = 240px.
-  const FIXED_CHARGE_WIDTH = 240;
+  // Largeur dynamique des semaines calée sur le Gantt, la vue la plus large :
+  // Chantier 240px + CDT 110px + Poseur 110px + Total 50px = 510px.
+  const FIXED_GANTT_WIDTH = 510;
   const MIN_WEEK_WIDTH = 18;
   const MAX_WEEK_WIDTH = 55;
   const [weekColumnWidth, setWeekColumnWidth] = useState<number>(28);
@@ -400,7 +399,7 @@ export default function LoadPlanning() {
       const n = weeks.length;
       if (!n) return;
       const total = window.innerWidth - 16;
-      const available = Math.max(0, total - FIXED_CHARGE_WIDTH);
+      const available = Math.max(0, total - FIXED_GANTT_WIDTH);
       const w = Math.min(MAX_WEEK_WIDTH, Math.max(MIN_WEEK_WIDTH, Math.floor(available / n)));
       setWeekColumnWidth(w);
     };
@@ -1484,9 +1483,9 @@ function GanttView({
         <div ref={tableScrollRef} className="overflow-x-auto">
         <table ref={tableRef} className="text-xs border-collapse" style={{ tableLayout: 'fixed', width: 'max-content' }}>
           <colgroup>
-            <col style={{ width: 180 }} />
-            <col style={{ width: 120 }} />
-            <col style={{ width: 120 }} />
+            <col style={{ width: 240, minWidth: 240, maxWidth: 240 }} />
+            <col style={{ width: 110, minWidth: 110, maxWidth: 110 }} />
+            <col style={{ width: 110, minWidth: 110, maxWidth: 110 }} />
             {weeks.map(w => <col key={w.key} style={{ width: weekColumnWidth }} />)}
             <col style={{ width: 50 }} />
           </colgroup>
@@ -1494,8 +1493,8 @@ function GanttView({
             <MonthsHeader monthGroups={monthGroups} leftColSpan={3} />
             <tr>
               <th className="sticky left-0 bg-background z-10 text-left p-1 border-b">{projects.length} chantier{projects.length > 1 ? 's' : ''}</th>
-              <th className="sticky left-[180px] bg-background z-10 text-left p-1 border-b">CDT</th>
-              <th className="sticky left-[300px] bg-background z-10 text-left p-1 border-b">Poseur</th>
+              <th className="sticky left-[240px] bg-background z-10 text-left p-1 border-b">CDT</th>
+              <th className="sticky left-[350px] bg-background z-10 text-left p-1 border-b">Poseur</th>
               <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} weekColumnWidth={weekColumnWidth} />
               <th className="sticky right-0 bg-background z-10 text-center p-1 border-b border-l font-semibold">Total</th>
             </tr>
@@ -1509,6 +1508,17 @@ function GanttView({
               const projWeeksAll = forecastWeeks.filter(w => w.projectId === cp.project.id);
               const isPopOpen = popoverProjectId === cp.project.id;
               const projectTotal = weeks.reduce((s, w) => s + (cp.weeks[w.key]?.count || 0), 0);
+              const postcodeMatch = (cp.project.site_address || '').match(/\b(\d{5})\b/);
+              const postcode = postcodeMatch?.[1] || '';
+              const department = postcode
+                ? `dépt. ${postcode.startsWith('97') ? postcode.substring(0, 3) : postcode.substring(0, 2)}`
+                : '';
+              const subLine = [
+                cp.project.client_name || '',
+                department,
+                cp.project.database_complete ? 'BDD ✅' : '',
+                `${cp.planningPct}%`,
+              ].filter(Boolean).join(' - ');
               return (
                 <tr key={cp.project.id} className="hover:bg-muted/30">
                   <td
@@ -1523,19 +1533,12 @@ function GanttView({
                     <Popover open={isPopOpen} onOpenChange={(o) => !o && setPopoverProjectId(null)}>
                       <PopoverAnchor asChild>
                         <div>
-                          <div className="font-medium truncate max-w-[170px]">{cp.project.site_name || 'Sans nom'}</div>
-                          <div className="text-[10px] text-[#6b7280]">
-                            {[
-                              cp.project.client_name || '',
-                              (() => {
-                                const m = (cp.project.site_address || '').match(/\b(\d{5})\b/);
-                                if (!m) return '';
-                                const pc = m[1];
-                                return `dépt. ${pc.startsWith('97') ? pc.substring(0, 3) : pc.substring(0, 2)}`;
-                              })(),
-                              cp.project.database_complete ? 'BDD ✅' : '',
-                              `${cp.planningPct}%`,
-                            ].filter(Boolean).join(' - ')}
+                          <div className="font-medium truncate max-w-[230px]">{cp.project.site_name || 'Sans nom'}</div>
+                          <div
+                            className="max-w-full overflow-hidden whitespace-nowrap text-ellipsis text-[10px] text-[#6b7280]"
+                            title={subLine}
+                          >
+                            {subLine}
                           </div>
                         </div>
                       </PopoverAnchor>
@@ -1585,7 +1588,7 @@ function GanttView({
                     </Popover>
                   </td>
                   <td
-                    className={`sticky left-[180px] bg-background z-10 p-1 border-b overflow-hidden ${cp.isSupplyOnly ? 'opacity-70' : ''}`}
+                    className={`sticky left-[240px] bg-background z-10 p-1 border-b overflow-hidden ${cp.isSupplyOnly ? 'opacity-70' : ''}`}
                     onDoubleClick={() => { if (!cp.isSupplyOnly) setEditing({ id: cp.project.id, field: 'conductor' }); }}
                   >
                     {!cp.isSupplyOnly && editing?.id === cp.project.id && editing.field === 'conductor' ? (
@@ -1606,7 +1609,7 @@ function GanttView({
                     )}
                   </td>
                   <td
-                    className={`sticky left-[300px] bg-background z-10 p-1 border-b overflow-hidden ${cp.isSupplyOnly ? 'opacity-70' : ''}`}
+                    className={`sticky left-[350px] bg-background z-10 p-1 border-b overflow-hidden ${cp.isSupplyOnly ? 'opacity-70' : ''}`}
                     onDoubleClick={() => { if (!cp.isSupplyOnly) setEditing({ id: cp.project.id, field: 'subcontractor' }); }}
                   >
                     {!cp.isSupplyOnly && editing?.id === cp.project.id && editing.field === 'subcontractor' ? (
