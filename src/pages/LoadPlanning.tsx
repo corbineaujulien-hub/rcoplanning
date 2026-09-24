@@ -1525,9 +1525,17 @@ function GanttView({
                         <div>
                           <div className="font-medium truncate max-w-[170px]">{cp.project.site_name || 'Sans nom'}</div>
                           <div className="text-[10px] text-[#6b7280]">
-                            {cp.project.otp_number || '—'}
-                            {cp.project.database_complete && <span className="ml-1">· BDD ✅</span>}
-                            <span className="ml-1">· {cp.planningPct}%</span>
+                            {[
+                              cp.project.client_name || '',
+                              (() => {
+                                const m = (cp.project.site_address || '').match(/\b(\d{5})\b/);
+                                if (!m) return '';
+                                const pc = m[1];
+                                return `dépt. ${pc.startsWith('97') ? pc.substring(0, 3) : pc.substring(0, 2)}`;
+                              })(),
+                              cp.project.database_complete ? 'BDD ✅' : '',
+                              `${cp.planningPct}%`,
+                            ].filter(Boolean).join(' - ')}
                           </div>
                         </div>
                       </PopoverAnchor>
