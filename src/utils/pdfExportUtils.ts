@@ -570,8 +570,20 @@ function getDistinctTeamsForWeek(
   return ordered;
 }
 
+/** Compare two week tabs in chronological ascending order (year, then ISO week number). */
+function compareWeekTabs(a: { weekNumber: number; year: number }, b: { weekNumber: number; year: number }): number {
+  if (a.year !== b.year) return a.year - b.year;
+  return a.weekNumber - b.weekNumber;
+}
+
 export async function exportWeekPdf(data: WeekExportData) {
   const { weekNumber, year, trucks: weekTrucks, getTruckElements, projectInfo, totalSiteWeight, cumulativeWeight } = data;
+
+  // Days must render in chronological ascending order.
+  const orderedTrucks = [...weekTrucks].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)
+  );
+
 
   const logoData = await loadLogoAsBase64();
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
