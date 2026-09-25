@@ -651,7 +651,7 @@ export async function exportAllWeeksPdf(
   };
 
   let blockIdx = 0;
-  weeklyTabs.forEach((w) => {
+  sortedWeeks.forEach((w) => {
     const weekTrucks = allTrucks
       .filter(t => {
         const d = parseISO(t.date);
