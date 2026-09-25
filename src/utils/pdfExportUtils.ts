@@ -570,8 +570,20 @@ function getDistinctTeamsForWeek(
   return ordered;
 }
 
+/** Compare two week tabs in chronological ascending order (year, then ISO week number). */
+function compareWeekTabs(a: { weekNumber: number; year: number }, b: { weekNumber: number; year: number }): number {
+  if (a.year !== b.year) return a.year - b.year;
+  return a.weekNumber - b.weekNumber;
+}
+
 export async function exportWeekPdf(data: WeekExportData) {
   const { weekNumber, year, trucks: weekTrucks, getTruckElements, projectInfo, totalSiteWeight, cumulativeWeight } = data;
+
+  // Days must render in chronological ascending order.
+  const orderedTrucks = [...weekTrucks].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)
+  );
+
 
   const logoData = await loadLogoAsBase64();
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -588,8 +600,9 @@ export async function exportWeekPdf(data: WeekExportData) {
 
   renderWeekBlock(
     ctx,
-    weekTrucks,
+    orderedTrucks,
     weekNumber,
+
     projectInfo,
     totalSiteWeight,
     cumulativeWeight,
@@ -619,7 +632,12 @@ export async function exportAllWeeksPdf(
   asBlob: boolean = false,
 ): Promise<Blob | void> {
 
+  // Weeks must always render in chronological ascending order
+  // (S41 before S42, S52 2026 before S1 2027), whatever order was passed in.
+  const sortedWeeks = [...weeklyTabs].sort(compareWeekTabs);
+
   const logoData = await loadLogoAsBase64();
+
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
   const ctx: PdfContext = {
@@ -633,7 +651,7 @@ export async function exportAllWeeksPdf(
   };
 
   let blockIdx = 0;
-  weeklyTabs.forEach((w) => {
+  sortedWeeks.forEach((w) => {
     const weekTrucks = allTrucks
       .filter(t => {
         const d = parseISO(t.date);
@@ -703,18 +721,18 @@ export async function exportAllWeeksPdf(
   });
 
   const nomChantier = getNomChantier(projectInfo);
-  const lastYear = weeklyTabs[weeklyTabs.length - 1]?.year || new Date().getFullYear();
+  const lastYear = sortedWeeks[sortedWeeks.length - 1]?.year || new Date().getFullYear();
   if (asBlob) return pdf.output('blob');
 
 
   const teamSuffix = teamLabel ? `_${normalizeTeamForFilename(teamLabel)}` : '';
   let filename: string;
-  if (weeklyTabs.length === 1) {
-    filename = `planning_${nomChantier}_S${String(weeklyTabs[0].weekNumber).padStart(2, '0')}_${lastYear}${filenameSuffix}${teamSuffix}.pdf`;
+  if (sortedWeeks.length === 1) {
+    filename = `planning_${nomChantier}_S${String(sortedWeeks[0].weekNumber).padStart(2, '0')}_${lastYear}${filenameSuffix}${teamSuffix}.pdf`;
   } else {
     // Check if this is all available weeks (heuristic: compare count)
-    const firstW = weeklyTabs[0].weekNumber;
-    const lastW = weeklyTabs[weeklyTabs.length - 1].weekNumber;
+    const firstW = sortedWeeks[0].weekNumber;
+    const lastW = sortedWeeks[sortedWeeks.length - 1].weekNumber;
     if (firstW === lastW) {
       filename = `planning_${nomChantier}_S${String(firstW).padStart(2, '0')}_${lastYear}${filenameSuffix}${teamSuffix}.pdf`;
     } else {
@@ -723,3 +741,4 @@ export async function exportAllWeeksPdf(
   }
   pdf.save(filename);
 }
+
