@@ -600,8 +600,9 @@ export async function exportWeekPdf(data: WeekExportData) {
 
   renderWeekBlock(
     ctx,
-    weekTrucks,
+    orderedTrucks,
     weekNumber,
+
     projectInfo,
     totalSiteWeight,
     cumulativeWeight,
