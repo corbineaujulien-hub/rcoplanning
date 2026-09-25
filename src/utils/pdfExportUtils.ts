@@ -632,7 +632,12 @@ export async function exportAllWeeksPdf(
   asBlob: boolean = false,
 ): Promise<Blob | void> {
 
+  // Weeks must always render in chronological ascending order
+  // (S41 before S42, S52 2026 before S1 2027), whatever order was passed in.
+  const sortedWeeks = [...weeklyTabs].sort(compareWeekTabs);
+
   const logoData = await loadLogoAsBase64();
+
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
   const ctx: PdfContext = {
