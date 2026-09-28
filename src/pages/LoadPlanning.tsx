@@ -171,6 +171,11 @@ function stripPhone(s: string): string {
   return (s || '').split(' – ')[0].split(' - ')[0].trim();
 }
 
+// Date → "YYYY-MM-DD" en heure locale (toISOString est en UTC et décale d'un jour selon l'heure)
+function toLocalISODate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function simpleISOWeekStart(year: number, week: number): Date {
   // Returns Monday of given ISO week (approximation good enough for sorting)
   const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
@@ -223,13 +228,13 @@ export default function LoadPlanning() {
   const defaultStart = useMemo(() => { const d = new Date(today); d.setMonth(d.getMonth() - 1); return d; }, [today]);
   const defaultEnd = useMemo(() => { const d = new Date(today); d.setMonth(d.getMonth() + 11); return d; }, [today]);
 
-  const [periodStart, setPeriodStart] = useState<string>(defaultStart.toISOString().slice(0, 10));
-  const [periodEnd, setPeriodEnd] = useState<string>(defaultEnd.toISOString().slice(0, 10));
+  const [periodStart, setPeriodStart] = useState<string>(toLocalISODate(defaultStart));
+  const [periodEnd, setPeriodEnd] = useState<string>(toLocalISODate(defaultEnd));
   const [activePreset, setActivePreset] = useState<'12m' | 'month' | '3m' | null>('12m');
 
   // Plages prédéfinies (calculées sans effet de bord)
   const presetRanges = useMemo(() => {
-    const toISO = (d: Date) => d.toISOString().slice(0, 10);
+    const toISO = toLocalISODate;
     // Mois en cours : du 1er au dernier jour du mois courant
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -693,7 +698,7 @@ export default function LoadPlanning() {
     });
     const fc = new Map<string, string>();
     forecastWeeks.forEach(fw => {
-      const simple = simpleISOWeekStart(fw.year, fw.weekNumber).toISOString().slice(0, 10);
+      const simple = toLocalISODate(simpleISOWeekStart(fw.year, fw.weekNumber));
       const cur = fc.get(fw.projectId);
       if (!cur || simple < cur) fc.set(fw.projectId, simple);
     });
@@ -887,7 +892,11 @@ export default function LoadPlanning() {
     return '_MultiProduits';
   };
 
-  const todayWeekKey = getWeekKeyForDate(today.toISOString().slice(0, 10));
+  const todayWeekKey = useMemo(() => {
+    // Date locale (pas toISOString qui est en UTC et décale d'un jour selon l'heure)
+    const local = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return getWeekKeyForDate(local);
+  }, [today]);
 
   return (
     <TooltipProvider delayDuration={150}>
