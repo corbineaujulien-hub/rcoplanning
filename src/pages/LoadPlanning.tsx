@@ -223,13 +223,13 @@ export default function LoadPlanning() {
   const defaultStart = useMemo(() => { const d = new Date(today); d.setMonth(d.getMonth() - 1); return d; }, [today]);
   const defaultEnd = useMemo(() => { const d = new Date(today); d.setMonth(d.getMonth() + 11); return d; }, [today]);
 
-  const [periodStart, setPeriodStart] = useState<string>(defaultStart.toISOString().slice(0, 10));
-  const [periodEnd, setPeriodEnd] = useState<string>(defaultEnd.toISOString().slice(0, 10));
+  const [periodStart, setPeriodStart] = useState<string>(toLocalISODate(defaultStart));
+  const [periodEnd, setPeriodEnd] = useState<string>(toLocalISODate(defaultEnd));
   const [activePreset, setActivePreset] = useState<'12m' | 'month' | '3m' | null>('12m');
 
   // Plages prédéfinies (calculées sans effet de bord)
   const presetRanges = useMemo(() => {
-    const toISO = (d: Date) => d.toISOString().slice(0, 10);
+    const toISO = toLocalISODate;
     // Mois en cours : du 1er au dernier jour du mois courant
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -693,7 +693,7 @@ export default function LoadPlanning() {
     });
     const fc = new Map<string, string>();
     forecastWeeks.forEach(fw => {
-      const simple = simpleISOWeekStart(fw.year, fw.weekNumber).toISOString().slice(0, 10);
+      const simple = toLocalISODate(simpleISOWeekStart(fw.year, fw.weekNumber));
       const cur = fc.get(fw.projectId);
       if (!cur || simple < cur) fc.set(fw.projectId, simple);
     });
