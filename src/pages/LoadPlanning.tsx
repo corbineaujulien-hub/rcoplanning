@@ -887,7 +887,11 @@ export default function LoadPlanning() {
     return '_MultiProduits';
   };
 
-  const todayWeekKey = getWeekKeyForDate(today.toISOString().slice(0, 10));
+  const todayWeekKey = useMemo(() => {
+    // Date locale (pas toISOString qui est en UTC et décale d'un jour selon l'heure)
+    const local = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return getWeekKeyForDate(local);
+  }, [today]);
 
   return (
     <TooltipProvider delayDuration={150}>
