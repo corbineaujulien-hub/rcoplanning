@@ -171,6 +171,11 @@ function stripPhone(s: string): string {
   return (s || '').split(' – ')[0].split(' - ')[0].trim();
 }
 
+// Date → "YYYY-MM-DD" en heure locale (toISOString est en UTC et décale d'un jour selon l'heure)
+function toLocalISODate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function simpleISOWeekStart(year: number, week: number): Date {
   // Returns Monday of given ISO week (approximation good enough for sorting)
   const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
