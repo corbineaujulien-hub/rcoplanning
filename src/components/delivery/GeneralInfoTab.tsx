@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
 import { CONDUCTORS, SUBCONTRACTORS, BUSINESS_MANAGERS, Team, ForecastedTransport, FORECAST_TRANSPORT_CATEGORIES, ForecastTransportCategory, FORECAST_PRODUCT_TYPES } from '@/types/delivery';
+import { DebouncedInput } from '@/components/ui/debounced-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -69,19 +70,19 @@ export default function GeneralInfoTab() {
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="otp"><FileText className="inline h-4 w-4 mr-1" />N° OTP</Label>
-            <Input id="otp" value={projectInfo.otpNumber} onChange={e => update('otpNumber', e.target.value)} placeholder="Ex: OTP-2025-001" />
+            <DebouncedInput id="otp" value={projectInfo.otpNumber} onCommit={v => update('otpNumber', v)} placeholder="Ex: OTP-2025-001" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="site">Nom du chantier</Label>
-            <Input id="site" value={projectInfo.siteName} onChange={e => update('siteName', e.target.value)} placeholder="Ex: Résidence Les Jardins" />
+            <DebouncedInput id="site" value={projectInfo.siteName} onCommit={v => update('siteName', v)} placeholder="Ex: Résidence Les Jardins" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="client">Nom du client</Label>
-            <Input id="client" value={projectInfo.clientName} onChange={e => update('clientName', e.target.value)} placeholder="Ex: Bouygues Immobilier" />
+            <DebouncedInput id="client" value={projectInfo.clientName} onCommit={v => update('clientName', v)} placeholder="Ex: Bouygues Immobilier" />
           </div>
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="address"><MapPin className="inline h-4 w-4 mr-1" />Adresse du chantier</Label>
-            <Input id="address" value={projectInfo.siteAddress} onChange={e => update('siteAddress', e.target.value)} placeholder="Ex: 12 rue de la Paix, 75001 Paris" />
+            <DebouncedInput id="address" value={projectInfo.siteAddress} onCommit={v => update('siteAddress', v)} placeholder="Ex: 12 rue de la Paix, 75001 Paris" />
           </div>
         </CardContent>
       </Card>
@@ -167,11 +168,11 @@ export default function GeneralInfoTab() {
           )}
           <div className="space-y-2">
             <Label><User className="inline h-4 w-4 mr-1" />Nom du contact poseur</Label>
-            <Input value={projectInfo.contactName} onChange={e => update('contactName', e.target.value)} placeholder="Ex: Jean Dupont" />
+            <DebouncedInput value={projectInfo.contactName} onCommit={v => update('contactName', v)} placeholder="Ex: Jean Dupont" />
           </div>
           <div className="space-y-2">
             <Label><Phone className="inline h-4 w-4 mr-1" />Téléphone du contact</Label>
-            <Input value={projectInfo.contactPhone} onChange={e => update('contactPhone', e.target.value)} placeholder="Ex: 06 12 34 56 78" />
+            <DebouncedInput value={projectInfo.contactPhone} onCommit={v => update('contactPhone', v)} placeholder="Ex: 06 12 34 56 78" />
           </div>
         </CardContent>
       </Card>

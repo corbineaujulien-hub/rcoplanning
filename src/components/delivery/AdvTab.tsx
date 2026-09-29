@@ -10,6 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { DebouncedInput } from '@/components/ui/debounced-input';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -148,9 +149,9 @@ export default function AdvTab() {
           )}
           {cautions.map(c => (
             <div key={c.id} className="grid grid-cols-[1fr_auto_220px_auto] items-center gap-3 py-1.5">
-              <Input
+              <DebouncedInput
                 value={c.nom}
-                onChange={(e) => updateCaution(c.id, { nom: e.target.value })}
+                onCommit={(v) => updateCaution(c.id, { nom: v })}
                 placeholder="Nom de la caution"
                 className="h-8 text-sm"
               />

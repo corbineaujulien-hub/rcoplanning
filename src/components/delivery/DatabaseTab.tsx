@@ -3,6 +3,7 @@ import { useDelivery } from '@/context/DeliveryContext';
 import { BeamElement, Plan, PRODUCT_TYPES, TRANSPORT_CATEGORIES } from '@/types/delivery';
 import { getTransportCategory } from '@/utils/transportUtils';
 import { Button } from '@/components/ui/button';
+import { DebouncedInput } from '@/components/ui/debounced-input';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -868,10 +869,10 @@ export default function DatabaseTab() {
                     return (
                     <TableRow key={el.id} className="hover:bg-muted/50">
                       <TableCell>
-                        <Input value={el.repere} onChange={e => updateElement(el.id, { repere: e.target.value })} className="h-8 text-sm" />
+                        <DebouncedInput value={el.repere} onCommit={v => updateElement(el.id, { repere: v })} className="h-8 text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input value={el.zone} onChange={e => updateElement(el.id, { zone: e.target.value })} className="h-8 text-sm" />
+                        <DebouncedInput value={el.zone} onCommit={v => updateElement(el.id, { zone: v })} className="h-8 text-sm" />
                       </TableCell>
                       <TableCell>
                         <Select value={el.productType} onValueChange={v => updateElement(el.id, { productType: v })}>
@@ -884,7 +885,7 @@ export default function DatabaseTab() {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <Input value={el.section} onChange={e => updateElement(el.id, { section: e.target.value })} className="h-8 text-sm" />
+                        <DebouncedInput value={el.section} onCommit={v => updateElement(el.id, { section: v })} className="h-8 text-sm" />
                       </TableCell>
                       <TableCell>
                         <Input type="number" step="0.01" value={el.length || ''} onChange={e => updateElement(el.id, { length: parseFloat(e.target.value) || 0 })} className="h-8 text-sm" />
@@ -893,7 +894,7 @@ export default function DatabaseTab() {
                         <Input type="number" step="0.001" value={el.weight || ''} onChange={e => updateElement(el.id, { weight: parseFloat(e.target.value) || 0 })} className="h-8 text-sm" />
                       </TableCell>
                       <TableCell>
-                        <Input value={el.factory} onChange={e => updateElement(el.id, { factory: e.target.value })} className="h-8 text-sm" />
+                        <DebouncedInput value={el.factory} onCommit={v => updateElement(el.id, { factory: v })} className="h-8 text-sm" />
                       </TableCell>
                       <TableCell className="bg-muted/20">
                         <span className="text-sm text-muted-foreground">{truckInfo?.number ?? ''}</span>
