@@ -61,11 +61,8 @@ interface BuildSheetArgs {
 }
 
 function buildSheet({ trucks, weekNumber, projectInfo, teamLabel, getTruckElements }: BuildSheetArgs) {
-  // Determine if transporter column needed
-  const showTransporter = trucks.some(t => !!t.transporter?.trim());
-  const cols = showTransporter
-    ? ['Date', 'Heure', 'Usine', 'Transporteur', 'Catégorie', 'Zone + Repères des produits', 'Poids (To)', 'Longueur max (ml)', 'Commentaires']
-    : ['Date', 'Heure', 'Usine', 'Catégorie', 'Zone + Repères des produits', 'Poids (To)', 'Longueur max (ml)', 'Commentaires'];
+  // Colonne Transporteur toujours présente (cellule vide si non renseignée)
+  const cols = ['Date', 'Heure', 'Usine', 'Transporteur', 'Catégorie', 'Zone + Repères des produits', 'Poids (To)', 'Longueur max (ml)', 'Commentaires'];
   const nCols = cols.length;
   const lastColLetter = String.fromCharCode(64 + nCols); // up to H
 
@@ -200,9 +197,7 @@ function buildSheet({ trucks, weekNumber, projectInfo, teamLabel, getTruckElemen
       const transporter = t.transporter?.trim() || '';
       const comment = t.comment?.trim() || '';
 
-      const truckRow: any[] = showTransporter
-        ? ['', t.time, usine, transporter, TRANSPORT_CATEGORIES[cat].label, reperes, Number(weight.toFixed(2)), Number(maxLen.toFixed(2)), comment]
-        : ['', t.time, usine, TRANSPORT_CATEGORIES[cat].label, reperes, Number(weight.toFixed(2)), Number(maxLen.toFixed(2)), comment];
+      const truckRow: any[] = ['', t.time, usine, transporter, TRANSPORT_CATEGORIES[cat].label, reperes, Number(weight.toFixed(2)), Number(maxLen.toFixed(2)), comment];
       aoa.push(truckRow);
 
       const rowFill = altFlag ? ALT_FILL : 'FFFFFF';
