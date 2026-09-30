@@ -31,7 +31,13 @@ describe('exportWeeklyExcelStyled transporter column', () => {
       asBlob: true,
     }) as Blob;
 
-    const buf = new Uint8Array(await blob.arrayBuffer());
+    const bytes = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result as ArrayBuffer);
+      fr.onerror = () => reject(fr.error);
+      fr.readAsArrayBuffer(blob);
+    });
+    const buf = new Uint8Array(bytes);
     const wb = XLSXStyle.read(buf, { type: 'array' });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const aoa = XLSXStyle.utils.sheet_to_json<any[]>(ws, { header: 1, blankrows: false });
