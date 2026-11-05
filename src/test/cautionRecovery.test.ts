@@ -56,10 +56,13 @@ describe('Caution history recovery', () => {
   await history('Caution "RG avenant" : Demandée → Obtenue','2026-11-05T12:00:00Z');
   await history('Caution "Doublon" : Demandée → Obtenue','2026-11-05T12:00:00Z');
   await db.query(recovery);
-  const rows = (await db.query('SELECT caution_key,date_obtention::text FROM adv_caution_tracking ORDER BY caution_key')).rows;
+  const rows = (await db.query<{caution_key: string; date_obtention: string | null}>('SELECT caution_key,date_obtention::text FROM adv_caution_tracking ORDER BY caution_key')).rows;
   expect(rows).toContainEqual({caution_key:'garantie_paiement_st',date_obtention:'2026-11-05'});
   expect(rows).toContainEqual({caution_key:'custom:00000000-0000-0000-0000-000000000002',date_obtention:'2026-11-05'});
-  expect(rows.filter(r => String(r.caution_key).endsWith('000003') || String(r.caution_key).endsWith('000004')).every(r => r.date_obtention === null)).toBe(true);
+  expect(rows.filter(r => r.caution_key.endsWith('000003') || r.caution_key.endsWith('000004'))).toEqual([
+   {caution_key:'custom:00000000-0000-0000-0000-000000000003',date_obtention:null},
+   {caution_key:'custom:00000000-0000-0000-0000-000000000004',date_obtention:null},
+  ]);
  });
  it('automatically fills actual UPDATE transitions for all three caution types without overwriting dates', async () => {
   await db.exec(`UPDATE adv_status SET caution_rg='Demandée',garantie_paiement_st='Demandée';
