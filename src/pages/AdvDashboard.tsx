@@ -150,24 +150,24 @@ export default function AdvDashboard() {
     (async () => {
       setLoading(true);
       const [p, a, c, r, prog, fw, lk] = await Promise.all([
-        supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, business_manager, archived, supply_only').eq('archived', false),
-        sb.from('adv_status').select('id, project_id, compte_client, garantie_sfac, contrat_client, caution_rg, contrat_st, garantie_paiement_st, dast, commentaire'),
-        sb.from('adv_cautions_custom').select('id, project_id, nom, statut'),
-        sb.from('adv_relances').select('id, project_id, demarche, source_id, type, echeance, statut'),
+        fetchAllPaginated<ProjectRow>(() => supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, business_manager, archived, supply_only').eq('archived', false).order('id')),
+        fetchAllPaginated<AdvStatus>(() => sb.from('adv_status').select('id, project_id, compte_client, garantie_sfac, contrat_client, caution_rg, contrat_st, garantie_paiement_st, dast, commentaire').order('id')),
+        fetchAllPaginated<AdvCautionCustom>(() => sb.from('adv_cautions_custom').select('id, project_id, nom, statut').order('id')),
+        fetchAllPaginated<AdvRelance>(() => sb.from('adv_relances').select('id, project_id, demarche, source_id, type, echeance, statut').order('id')),
         // Date du premier camion agrégée côté base (évite de charger tous les camions)
         (supabase as any).rpc('project_progress_summary'),
         fetchAllPaginated<ForecastWeekLite>(() => sb.from('forecast_weeks').select('project_id, year, week_number').order('project_id')),
-        supabase.from('project_access_links').select('project_id, token'),
+        fetchAllPaginated<AccessLink>(() => supabase.from('project_access_links').select('project_id, token').order('id')),
       ]);
-      setProjects((p.data || []) as ProjectRow[]);
-      setAdvs((a.data || []) as AdvStatus[]);
-      setCautions((c.data || []) as AdvCautionCustom[]);
-      setRelances(((r.data || []) as AdvRelance[]).filter(x => (p.data || []).some((project: any) => project.id === x.project_id)));
+      setProjects(p);
+      setAdvs(a);
+      setCautions(c);
+      setRelances(r.filter(x => p.some(project => project.id === x.project_id)));
       setTrucks((((prog as any)?.data || []) as any[])
         .filter(row => row.first_truck_date)
         .map(row => ({ project_id: row.project_id, date: row.first_truck_date })) as TruckLite[]);
       setForecastWeeks(fw as ForecastWeekLite[]);
-      setLinks((lk.data || []) as AccessLink[]);
+      setLinks(lk);
       setLoading(false);
     })();
   }, []);
