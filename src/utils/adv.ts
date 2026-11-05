@@ -6,6 +6,7 @@ export type AdvDemarcheKey =
   | 'contrat_client'
   | 'caution_rg'
   | 'contrat_st'
+  | 'garantie_paiement_st'
   | 'dast';
 
 export interface AdvStatus {
@@ -16,6 +17,7 @@ export interface AdvStatus {
   contrat_client: string;
   caution_rg: string;
   contrat_st: string;
+  garantie_paiement_st: string;
   dast: string;
   commentaire: string;
 }
@@ -51,6 +53,7 @@ export const DEMARCHE_LABELS: Record<AdvDemarcheKey, string> = {
   contrat_client: 'Contrat client',
   caution_rg: 'Caution RG',
   contrat_st: 'Contrat sous-traitant',
+  garantie_paiement_st: 'Garantie de paiement sous-traitant',
   dast: 'DAST',
 };
 
@@ -58,7 +61,8 @@ export const DEMARCHE_OPTIONS: Record<AdvDemarcheKey, string[]> = {
   compte_client: ['À ouvrir', 'Demande effectuée', 'Ouvert'],
   garantie_sfac: ['À demander', 'Demandée', 'Accord obtenu', 'Refusée'],
   contrat_client: ['Non reçu', 'Envoyé', 'Signé'],
-  caution_rg: ['Non nécessaire', 'À demander', 'Demandée', 'Obtenue'],
+  caution_rg: ['Non nécessaire', 'À demander', 'Demandée', 'Obtenue', 'Levée'],
+  garantie_paiement_st: ['Non nécessaire', 'À demander', 'Demandée', 'Obtenue', 'Levée'],
   contrat_st: ['Non nécessaire', 'En attente devis poseur', 'Contrat envoyé', 'Contrat signé'],
   dast: ['Non nécessaire', 'À préparer', 'Envoyée', 'Acceptée', 'Refusée'],
 };
@@ -66,7 +70,7 @@ export const DEMARCHE_OPTIONS: Record<AdvDemarcheKey, string[]> = {
 export const CAUTION_STATUSES = DEMARCHE_OPTIONS.caution_rg;
 
 export const FINAL_STATUSES = new Set([
-  'Ouvert', 'Accord obtenu', 'Signé', 'Obtenue', 'Contrat signé', 'Acceptée',
+  'Ouvert', 'Accord obtenu', 'Signé', 'Obtenue', 'Contrat signé', 'Acceptée', 'Levée',
 ]);
 export const INTERMEDIATE_STATUSES = new Set([
   'Demande effectuée', 'Demandée', 'Envoyé', 'Contrat envoyé', 'À préparer', 'Envoyée',
@@ -99,6 +103,7 @@ export function getDefaultAdv(supplyOnly: boolean): Omit<AdvStatus, 'id' | 'proj
     contrat_client: 'Non reçu',
     caution_rg: 'À demander',
     contrat_st: supplyOnly ? 'Non nécessaire' : 'En attente devis poseur',
+    garantie_paiement_st: supplyOnly ? 'Non nécessaire' : 'À demander',
     dast: supplyOnly ? 'Non nécessaire' : 'À préparer',
     commentaire: '',
   };
@@ -111,7 +116,7 @@ export function calculateAdvScore(
   if (!adv) return 0;
   const all = [
     adv.compte_client, adv.garantie_sfac, adv.contrat_client,
-    adv.caution_rg, adv.contrat_st, adv.dast,
+    adv.caution_rg, adv.contrat_st, adv.garantie_paiement_st, adv.dast,
     ...customCautions.map(c => c.statut),
   ];
   const applicable = all.filter(d => d && d !== 'Non nécessaire');
@@ -140,6 +145,7 @@ export interface RelanceRule {
 }
 
 export const RELANCE_RULES: RelanceRule[] = [
+  { demarche: 'garantie_paiement_st', status: 'Demandée', label: 'Garantie de paiement ST', computeEcheance: change => addDays(change, 7) },
   {
     demarche: 'contrat_client', status: 'Non reçu',
     label: "Relance chargé d'affaires",

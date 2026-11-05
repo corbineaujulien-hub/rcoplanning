@@ -1,4 +1,6 @@
 import JSZip from 'jszip';
+import { getDefaultAdv } from '@/utils/adv';
+import { remapTrackingRows } from '@/utils/cautionTracking';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import { format, parseISO } from 'date-fns';
@@ -27,6 +29,7 @@ export interface ProjectBundle {
   adv_cautions_custom: any[];
   adv_relances: any[];
   adv_historique: any[];
+  adv_caution_tracking?: any[];
 }
 
 async function fetchAll(table: string, projectId: string, orderCol = 'id'): Promise<any[]> {
@@ -50,7 +53,7 @@ export async function fetchProjectBundle(projectId: string): Promise<ProjectBund
   const { data: project, error } = await sb.from('projects').select('*').eq('id', projectId).single();
   if (error) throw error;
   const [teams, beam_elements, trucks, plans, forecast_weeks, forecast_slots, forecast_history,
-    adv_status, adv_cautions_custom, adv_relances, adv_historique] = await Promise.all([
+    adv_status, adv_cautions_custom, adv_relances, adv_historique, adv_caution_tracking] = await Promise.all([
     fetchAll('teams', projectId),
     fetchAll('beam_elements', projectId),
     fetchAll('trucks', projectId),
@@ -62,12 +65,13 @@ export async function fetchProjectBundle(projectId: string): Promise<ProjectBund
     fetchAll('adv_cautions_custom', projectId),
     fetchAll('adv_relances', projectId),
     fetchAll('adv_historique', projectId),
+    fetchAll('adv_caution_tracking', projectId),
   ]);
   return {
     formatVersion: ARCHIVE_FORMAT_VERSION,
     exportedAt: new Date().toISOString(),
     project, teams, beam_elements, trucks, plans, forecast_weeks, forecast_slots,
-    forecast_history, adv_status, adv_cautions_custom, adv_relances, adv_historique,
+    forecast_history, adv_status, adv_cautions_custom, adv_relances, adv_historique, adv_caution_tracking,
   };
 }
 
@@ -409,7 +413,7 @@ export async function importProjectBundle(bundle: ProjectBundle, otpNumber?: str
   await insertBatched('forecast_weeks', simple(bundle.forecast_weeks));
   await insertBatched('forecast_slots', simple(bundle.forecast_slots));
   await insertBatched('forecast_history', simple(bundle.forecast_history));
-  await insertBatched('adv_status', simple(bundle.adv_status));
+  await insertBatched('adv_status', simple(bundle.adv_status?.length ? bundle.adv_status.map(a => ({ ...getDefaultAdv(!!projRest.supply_only), ...a })) : [getDefaultAdv(!!projRest.supply_only)]));
 
   const cautionIdMap = new Map<string, string>();
   const cautionRows = bundle.adv_cautions_custom.map(c => {
@@ -419,6 +423,7 @@ export async function importProjectBundle(bundle: ProjectBundle, otpNumber?: str
     return { ...rest, id: nid, project_id: newProjectId };
   });
   await insertBatched('adv_cautions_custom', cautionRows);
+  await insertBatched('adv_caution_tracking', remapTrackingRows(bundle.adv_caution_tracking || [], newProjectId, cautionIdMap));
 
   const relanceRows = bundle.adv_relances.map(r => {
     const { id: _i, created_at: _c2, updated_at: _u2, project_id: _p, source_id, ...rest } = r;

@@ -131,6 +131,7 @@ export default function AdvDashboard() {
     contrat_client: 'Contrat client',
     caution_rg: 'Caution Retenue de garantie',
     contrat_st: 'Contrat sous-traitant',
+    garantie_paiement_st: 'Garantie de paiement sous-traitant',
     dast: 'DAST',
     caution_supplementaire: 'Caution supplémentaire',
   };
@@ -138,10 +139,11 @@ export default function AdvDashboard() {
     compte_client: ['À ouvrir', 'Demande effectuée', 'Ouvert'],
     garantie_sfac: ['À demander', 'Demandée', 'Accord obtenu', 'Refusée'],
     contrat_client: ['Non reçu', 'Envoyé', 'Signé'],
-    caution_rg: ['Non nécessaire', 'À demander', 'Demandée', 'Obtenue'],
+    caution_rg: ['Non nécessaire', 'À demander', 'Demandée', 'Obtenue', 'Levée'],
     contrat_st: ['Non nécessaire', 'En attente devis poseur', 'Contrat envoyé', 'Contrat signé'],
+    garantie_paiement_st: ['Non nécessaire', 'À demander', 'Demandée', 'Obtenue', 'Levée'],
     dast: ['Non nécessaire', 'À préparer', 'Envoyée', 'Acceptée', 'Refusée'],
-    caution_supplementaire: ['Non nécessaire', 'À demander', 'Demandée', 'Obtenue'],
+    caution_supplementaire: ['Non nécessaire', 'À demander', 'Demandée', 'Obtenue', 'Levée'],
   };
 
   useEffect(() => {
@@ -149,7 +151,7 @@ export default function AdvDashboard() {
       setLoading(true);
       const [p, a, c, r, prog, fw, lk] = await Promise.all([
         supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, business_manager, archived, supply_only').eq('archived', false),
-        sb.from('adv_status').select('id, project_id, compte_client, garantie_sfac, contrat_client, caution_rg, contrat_st, dast, commentaire'),
+        sb.from('adv_status').select('id, project_id, compte_client, garantie_sfac, contrat_client, caution_rg, contrat_st, garantie_paiement_st, dast, commentaire'),
         sb.from('adv_cautions_custom').select('id, project_id, nom, statut'),
         sb.from('adv_relances').select('id, project_id, demarche, source_id, type, echeance, statut'),
         // Date du premier camion agrégée côté base (évite de charger tous les camions)
@@ -160,7 +162,7 @@ export default function AdvDashboard() {
       setProjects((p.data || []) as ProjectRow[]);
       setAdvs((a.data || []) as AdvStatus[]);
       setCautions((c.data || []) as AdvCautionCustom[]);
-      setRelances((r.data || []) as AdvRelance[]);
+      setRelances(((r.data || []) as AdvRelance[]).filter(x => (p.data || []).some((project: any) => project.id === x.project_id)));
       setTrucks((((prog as any)?.data || []) as any[])
         .filter(row => row.first_truck_date)
         .map(row => ({ project_id: row.project_id, date: row.first_truck_date })) as TruckLite[]);
@@ -323,6 +325,7 @@ export default function AdvDashboard() {
         'Contrat client': adv?.contrat_client || '',
         'Caution RG': adv?.caution_rg || '',
         'Contrat ST': adv?.contrat_st || '',
+        'Garantie de paiement ST': adv?.garantie_paiement_st || '',
         DAST: adv?.dast || '',
       };
       for (let i = 0; i < maxCustom; i++) {
@@ -347,6 +350,7 @@ export default function AdvDashboard() {
           <img src="/logo.png" alt="Logo" className="h-8 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           <ClipboardCheck className="h-7 w-7" />
           <h1 className="text-lg font-bold tracking-tight flex-1">RECTOR – Tableau de bord ADV</h1>
+          <Button variant="secondary" size="sm" onClick={() => navigate('/adv/cautions')}><ClipboardCheck className="h-4 w-4 mr-2" />Suivi des cautions</Button>
           <Button
             variant="secondary"
             size="sm"

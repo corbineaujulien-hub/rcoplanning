@@ -23,6 +23,7 @@ const CHILD_TABLES = [
   "adv_cautions_custom",
   "adv_relances",
   "adv_historique",
+  "adv_caution_tracking",
 ] as const;
 
 function sanitizeName(name: string): string {
