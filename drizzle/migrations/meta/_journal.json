@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1793888735447,
+      "tag": "0000_adv_caution_tracking_and_guarantee",
+      "breakpoints": true
+    }
+  ]
+}
