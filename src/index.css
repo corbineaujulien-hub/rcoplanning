@@ -74,6 +74,10 @@
 }
 
 @layer components {
+  .adv-dot-green { background-color: hsl(var(--transport-standard)); }
+  .adv-dot-orange { background-color: hsl(var(--transport-cat2)); }
+  .adv-dot-red { background-color: hsl(var(--destructive)); }
+  .adv-dot-gray { background-color: hsl(var(--muted-foreground)); }
   .truck-badge {
     @apply rounded-md px-2 py-1 text-xs font-medium shadow-sm cursor-pointer transition-all hover:shadow-md;
   }
