@@ -90,10 +90,7 @@ export function getStatusColor(status: string): StatusColor {
 
 export function getStatusDotClass(status: string): string {
   const c = getStatusColor(status);
-  if (c === 'green') return 'bg-green-500';
-  if (c === 'orange') return 'bg-orange-500';
-  if (c === 'red') return 'bg-red-500';
-  return 'bg-gray-400';
+  return `adv-dot-${c}`;
 }
 
 export function getDefaultAdv(supplyOnly: boolean): Omit<AdvStatus, 'id' | 'project_id'> {

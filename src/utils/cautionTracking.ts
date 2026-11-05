@@ -1,5 +1,5 @@
 import { addYears, format, parseISO } from 'date-fns';
-import * as XLSX from 'xlsx-js-style';
+import XLSX from 'xlsx-js-style';
 
 export interface CautionTracking {
   id?: string;

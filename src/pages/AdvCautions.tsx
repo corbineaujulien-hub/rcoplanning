@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import * as XLSX from 'xlsx-js-style';
+import XLSX from 'xlsx-js-style';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,7 +54,7 @@ export default function AdvCautions() {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load();
-    const channel = supabase.channel('caution-focus').on('postgres_changes' as any, { event: '*', schema: 'public', table: 'adv_status' }, load)
+    const channel = supabase.channel(`caution-focus-${crypto.randomUUID()}`).on('postgres_changes' as any, { event: '*', schema: 'public', table: 'adv_status' }, load)
       .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'adv_cautions_custom' }, load)
       .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'adv_caution_tracking' }, load).subscribe();
     const refresh = () => { load(); }; window.addEventListener('focus', refresh);
@@ -133,7 +133,7 @@ export default function AdvCautions() {
         {['Du', 'au'].map((label, i) => <label key={label} className="flex items-center gap-1">{label}<Input type="date" aria-label={`${dateLabels[field]} ${label}`} value={periods[field][i]} className={`h-8 w-36 ${periods[field].some(Boolean) ? 'border-primary bg-secondary' : ''}`} onChange={e => setPeriods(prev => ({ ...prev, [field]: prev[field].map((v, index) => index === i ? e.target.value : v) }))} /></label>)}
       </div></fieldset>)}<label className={`flex items-center gap-2 text-sm ${overdue ? 'text-destructive font-semibold' : ''}`}><Checkbox checked={overdue} onCheckedChange={v => setOverdue(v === true)} />Échéance dépassée</label></div>
       <div className="flex items-center justify-between"><span className="font-semibold">{filtered.length} caution{filtered.length > 1 ? 's' : ''}</span><Button size="sm" variant="outline" disabled={loading || failed} onClick={() => XLSX.writeFile(buildCautionsWorkbook(filtered), `suivi_cautions_${format(new Date(), 'dd-MM-yyyy')}.xlsx`)}><FileSpreadsheet className="h-4 w-4 mr-2" />Exporter Excel</Button></div>
-      {loading ? <Skeleton className="h-64 w-full" /> : failed ? <Button variant="outline" onClick={load}>Réessayer</Button> : <div className="overflow-x-auto"><table className="w-full text-sm">
+      {loading ? <Skeleton className="h-64 w-full" /> : failed ? <Button variant="outline" onClick={load}>Réessayer</Button> : <div className="overflow-auto max-h-[75vh]"><table className="w-full text-sm">
         <thead className="sticky top-0 z-10 bg-secondary text-secondary-foreground"><tr>{heading('chantier', 'Chantier')}{heading('caution', 'Caution')}{heading('statut', 'Statut')}{(Object.keys(dateLabels) as DateField[]).map(f => heading(f, dateLabels[f]))}{heading('commentaire', 'Commentaire')}</tr></thead>
         <tbody>{filtered.map(r => <tr key={r.key} className="border-b hover:bg-muted/50">
           <td className="p-2 min-w-48"><Button variant="link" className="p-0 h-auto text-left whitespace-normal justify-start" onClick={() => r.token ? navigate(`/p/${r.token}?tab=adv`) : toast.error('Lien chantier introuvable')}>{r.chantier}</Button>{r.archived && <span className="ml-2 text-xs text-muted-foreground border rounded px-1">Archivé</span>}</td>
