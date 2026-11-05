@@ -42,7 +42,7 @@ export default function AdvTab() {
   const score = calculateAdvScore(adv, cautions);
   const scoreColor = getScoreHexColor(score);
 
-  const demarcheKeys: AdvDemarcheKey[] = ['compte_client', 'garantie_sfac', 'contrat_client', 'caution_rg', 'contrat_st', 'dast'];
+  const demarcheKeys: AdvDemarcheKey[] = ['compte_client', 'garantie_sfac', 'contrat_client', 'caution_rg', 'contrat_st', 'garantie_paiement_st', 'dast'];
 
   return (
     <div className="space-y-4">

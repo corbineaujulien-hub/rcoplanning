@@ -10,10 +10,54 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
+      adv_caution_tracking: {
+        Row: {
+          caution_key: string
+          commentaire: string
+          date_demande: string | null
+          date_echeance: string | null
+          date_obtention: string | null
+          echeance_manuelle: boolean
+          id: string
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          caution_key: string
+          commentaire?: string
+          date_demande?: string | null
+          date_echeance?: string | null
+          date_obtention?: string | null
+          echeance_manuelle?: boolean
+          id?: string
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          caution_key?: string
+          commentaire?: string
+          date_demande?: string | null
+          date_echeance?: string | null
+          date_obtention?: string | null
+          echeance_manuelle?: boolean
+          id?: string
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "adv_caution_tracking_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       adv_cautions_custom: {
         Row: {
           created_at: string
@@ -134,6 +178,7 @@ export type Database = {
           contrat_st: string
           created_at: string
           dast: string
+          garantie_paiement_st: string
           garantie_sfac: string
           id: string
           project_id: string
@@ -147,6 +192,7 @@ export type Database = {
           contrat_st?: string
           created_at?: string
           dast?: string
+          garantie_paiement_st?: string
           garantie_sfac?: string
           id?: string
           project_id: string
@@ -160,6 +206,7 @@ export type Database = {
           contrat_st?: string
           created_at?: string
           dast?: string
+          garantie_paiement_st?: string
           garantie_sfac?: string
           id?: string
           project_id?: string

@@ -6,6 +6,8 @@ import {
   AdvDemarcheKey, getDefaultAdv, findRelanceRules, DEMARCHE_LABELS,
 } from '@/utils/adv';
 import { format } from 'date-fns';
+import { fetchPaginated } from '@/utils/cautionTracking';
+import { toast } from 'sonner';
 
 const sb = supabase as any;
 
@@ -28,10 +30,10 @@ export function useAdv(projectId: string, supplyOnly: boolean, startDate: Date |
         const { data: inserted } = await sb.from('adv_status').insert({ project_id: projectId, ...defaults }).select('*').single();
         row = inserted;
       }
-      const [{ data: c }, { data: r }, { data: h }] = await Promise.all([
-        sb.from('adv_cautions_custom').select('*').eq('project_id', projectId).order('created_at'),
-        sb.from('adv_relances').select('*').eq('project_id', projectId).order('echeance'),
-        sb.from('adv_historique').select('*').eq('project_id', projectId).order('date', { ascending: false }),
+      const [c, r, h] = await Promise.all([
+        fetchPaginated(() => sb.from('adv_cautions_custom').select('id, project_id, nom, statut').eq('project_id', projectId).order('created_at').order('id')),
+        fetchPaginated(() => sb.from('adv_relances').select('id, project_id, demarche, source_id, type, echeance, statut').eq('project_id', projectId).order('echeance').order('id')),
+        fetchPaginated(() => sb.from('adv_historique').select('id, project_id, date, description, user_email').eq('project_id', projectId).order('date', { ascending: false }).order('id')),
       ]);
       if (cancelled) return;
       setAdv(row as AdvStatus);
@@ -111,7 +113,8 @@ export function useAdv(projectId: string, supplyOnly: boolean, startDate: Date |
     const old = adv[key];
     if (old === value) return;
     setAdv({ ...adv, [key]: value });
-    await sb.from('adv_status').update({ [key]: value }).eq('project_id', projectId);
+    const { error } = await sb.from('adv_status').update({ [key]: value }).eq('project_id', projectId);
+    if (error) { setAdv(adv); toast.error('Le statut n’a pas été enregistré'); return; }
     await logHistory(`${DEMARCHE_LABELS[key]} : ${old} → ${value}`);
     await processRelances(key, value, null, DEMARCHE_LABELS[key]);
   }, [adv, projectId, logHistory, processRelances]);
@@ -137,7 +140,8 @@ export function useAdv(projectId: string, supplyOnly: boolean, startDate: Date |
     const c = cautions.find(x => x.id === id);
     if (!c) return;
     setCautions(prev => prev.map(x => x.id === id ? { ...x, ...updates } : x));
-    await sb.from('adv_cautions_custom').update(updates).eq('id', id);
+    const { error } = await sb.from('adv_cautions_custom').update(updates).eq('id', id);
+    if (error) { setCautions(prev => prev.map(x => x.id === id ? c : x)); toast.error('La caution n’a pas été enregistrée'); return; }
     if (updates.statut && updates.statut !== c.statut) {
       await logHistory(`Caution "${c.nom}" : ${c.statut} → ${updates.statut}`);
       await processRelances('caution_custom', updates.statut, id, `Caution "${c.nom}"`);
@@ -149,6 +153,7 @@ export function useAdv(projectId: string, supplyOnly: boolean, startDate: Date |
     setCautions(prev => prev.filter(x => x.id !== id));
     await sb.from('adv_cautions_custom').delete().eq('id', id);
     await sb.from('adv_relances').delete().eq('source_id', id);
+    await sb.from('adv_caution_tracking').delete().eq('project_id', projectId).eq('caution_key', `custom:${id}`);
     if (c) await logHistory(`Caution supprimée : ${c.nom}`);
   }, [cautions, logHistory]);
 
