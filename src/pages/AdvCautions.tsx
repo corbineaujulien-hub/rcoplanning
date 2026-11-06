@@ -3,15 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import XLSX from 'xlsx-js-style';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DebouncedTextarea } from '@/components/ui/debounced-input';
 import { Skeleton } from '@/components/ui/skeleton';
 import CautionMultiFilter from '@/components/delivery/CautionMultiFilter';
-import { ArrowLeft, ArrowUpDown, BarChart3, FileSpreadsheet, RotateCcw, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ArrowUpDown, BarChart3, FileSpreadsheet, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
-import { AdvStatus, AdvCautionCustom, getDefaultAdv, getStatusColor } from '@/utils/adv';
+import { AdvStatus, AdvCautionCustom, CAUTION_STATUSES, DEMARCHE_LABELS, getDefaultAdv, getStatusColor } from '@/utils/adv';
+import { updateCautionStatus } from '@/utils/cautionStatus';
 import { automaticExpiry, buildCautionsWorkbook, CautionExportRow, CautionTracking, emptyTracking, fetchPaginated, isOverdue, TRACKING_COLUMNS, VISIBLE_CAUTION_STATUSES } from '@/utils/cautionTracking';
 
 const sb = supabase as any;
@@ -20,10 +22,10 @@ interface Row extends CautionExportRow { key: string; token?: string }
 type DateField = 'date_demande' | 'date_obtention' | 'date_echeance';
 type SortField = 'chantier' | 'caution' | 'statut' | DateField | 'commentaire';
 const dateLabels: Record<DateField, string> = { date_demande: 'Date de demande', date_obtention: "Date d’obtention", date_echeance: "Date d’échéance" };
-const blankPeriods = () => ({ date_demande: ['', ''], date_obtention: ['', ''], date_echeance: ['', ''] });
 
 export default function AdvCautions() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [advs, setAdvs] = useState<AdvStatus[]>([]);
   const [custom, setCustom] = useState<AdvCautionCustom[]>([]);
@@ -36,7 +38,7 @@ export default function AdvCautions() {
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [selectedCautions, setSelectedCautions] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [periods, setPeriods] = useState(blankPeriods);
+  const [editingStatus, setEditingStatus] = useState<string | null>(null);
   const [overdue, setOverdue] = useState(false);
   const [sort, setSort] = useState<{ field: SortField; desc: boolean }>({ field: 'date_echeance', desc: false });
 
@@ -87,10 +89,7 @@ export default function AdvCautions() {
     if (omit !== 'caution' && selectedCautions.length && !selectedCautions.includes(r.caution)) return false;
     if (omit !== 'status' && selectedStatuses.length && !selectedStatuses.includes(r.statut)) return false;
     if (overdue && !isOverdue(r.date_echeance)) return false;
-    return (Object.keys(dateLabels) as DateField[]).every(field => {
-      const [from, to] = periods[field]; const value = r[field];
-      return (!from && !to) || (!!value && (!from || value >= from) && (!to || value <= to));
-    });
+    return true;
   };
   const filtered = rows.filter(r => matches(r)).sort((a, b) => {
     const av = a[sort.field] || ''; const bv = b[sort.field] || '';
