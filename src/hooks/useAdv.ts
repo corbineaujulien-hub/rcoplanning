@@ -7,6 +7,7 @@ import {
 } from '@/utils/adv';
 import { format } from 'date-fns';
 import { fetchPaginated } from '@/utils/cautionTracking';
+import { updateCautionStatus } from '@/utils/cautionStatus';
 import { toast } from 'sonner';
 
 const sb = supabase as any;
@@ -113,11 +114,19 @@ export function useAdv(projectId: string, supplyOnly: boolean, startDate: Date |
     const old = adv[key];
     if (old === value) return;
     setAdv({ ...adv, [key]: value });
+    if (key === 'caution_rg' || key === 'garantie_paiement_st') {
+      const { error } = await updateCautionStatus({
+        projectId, cautionKey: key, label: DEMARCHE_LABELS[key], oldStatus: old, newStatus: value,
+        userEmail: user?.email || '', startDate,
+      });
+      if (error) { setAdv(adv); toast.error('Le statut n’a pas été enregistré'); }
+      return;
+    }
     const { error } = await sb.from('adv_status').update({ [key]: value }).eq('project_id', projectId);
     if (error) { setAdv(adv); toast.error('Le statut n’a pas été enregistré'); return; }
     await logHistory(`${DEMARCHE_LABELS[key]} : ${old} → ${value}`);
     await processRelances(key, value, null, DEMARCHE_LABELS[key]);
-  }, [adv, projectId, logHistory, processRelances]);
+  }, [adv, projectId, logHistory, processRelances, user?.email, startDate]);
 
   const updateCommentaire = useCallback(async (value: string) => {
     if (!adv) return;
@@ -140,13 +149,19 @@ export function useAdv(projectId: string, supplyOnly: boolean, startDate: Date |
     const c = cautions.find(x => x.id === id);
     if (!c) return;
     setCautions(prev => prev.map(x => x.id === id ? { ...x, ...updates } : x));
-    const { error } = await sb.from('adv_cautions_custom').update(updates).eq('id', id);
-    if (error) { setCautions(prev => prev.map(x => x.id === id ? c : x)); toast.error('La caution n’a pas été enregistrée'); return; }
     if (updates.statut && updates.statut !== c.statut) {
-      await logHistory(`Caution "${c.nom}" : ${c.statut} → ${updates.statut}`);
-      await processRelances('caution_custom', updates.statut, id, `Caution "${c.nom}"`);
+      const { error } = await updateCautionStatus({
+        projectId, cautionKey: `custom:${id}`, label: `Caution "${c.nom}"`,
+        oldStatus: c.statut, newStatus: updates.statut, userEmail: user?.email || '', startDate,
+      });
+      if (error) { setCautions(prev => prev.map(x => x.id === id ? c : x)); toast.error('La caution n’a pas été enregistrée'); return; }
+      const rest = { ...updates }; delete rest.statut;
+      if (Object.keys(rest).length) await sb.from('adv_cautions_custom').update(rest).eq('id', id);
+      return;
     }
-  }, [cautions, logHistory, processRelances]);
+    const { error } = await sb.from('adv_cautions_custom').update(updates).eq('id', id);
+    if (error) { setCautions(prev => prev.map(x => x.id === id ? c : x)); toast.error('La caution n’a pas été enregistrée'); }
+  }, [cautions, projectId, user?.email, startDate]);
 
   const deleteCaution = useCallback(async (id: string) => {
     const c = cautions.find(x => x.id === id);
