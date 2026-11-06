@@ -24,7 +24,9 @@ const project = '00000000-0000-0000-0000-000000000001';
 async function history(description: string, date: string) {
  await db.query('INSERT INTO adv_historique VALUES ($1,$2,$3)', [project,date,description]);
 }
-async function tracked() { return (await db.query('SELECT date_demande::text,date_obtention::text,date_echeance::text,echeance_manuelle FROM adv_caution_tracking')).rows; }
+async function tracked(): Promise<{date_demande:string|null;date_obtention:string|null;date_echeance:string|null;echeance_manuelle:boolean}[]> {
+ return (await db.query('SELECT date_demande::text,date_obtention::text,date_echeance::text,echeance_manuelle FROM adv_caution_tracking')).rows as any;
+}
 describe('Caution history recovery', () => {
  it('uses the last matching transition in Paris and is idempotent', async () => {
   await history('Caution RG : À demander → Demandée','2026-09-01T10:00:00Z');
