@@ -1513,7 +1513,7 @@ function GanttView({
             <MonthsHeader monthGroups={monthGroups} leftColSpan={3} />
             <tr>
               <th className="sticky left-0 bg-background z-10 text-left p-1 border-b">{projects.length} chantier{projects.length > 1 ? 's' : ''}</th>
-              <th className="sticky left-[240px] bg-background z-10 text-left p-1 border-b">CDT</th>
+              <th className="sticky left-[240px] bg-background z-10 text-left p-1 border-b whitespace-nowrap">CDT/CDE</th>
               <th className="sticky left-[350px] bg-background z-10 text-left p-1 border-b">Poseur</th>
               <WeekHeaderCells weeks={weeks} monthGroups={monthGroups} todayKey={todayKey} weekColumnWidth={weekColumnWidth} />
               <th className="sticky right-0 bg-background z-10 text-center p-1 border-b border-l font-semibold">Total</th>

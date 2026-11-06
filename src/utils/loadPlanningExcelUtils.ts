@@ -47,7 +47,7 @@ export async function exportLoadPlanningExcel(args: ExportArgs) {
   const wb = XLSX.utils.book_new();
 
   // Gantt
-  const ganttHeader = ['Chantier', 'Département', 'OTP', 'CDT', 'Poseur', ...weeks.map(w => w.label), 'Total'];
+  const ganttHeader = ['Chantier', 'Département', 'OTP', 'CDT/CDE', 'Poseur', ...weeks.map(w => w.label), 'Total'];
   const ganttRows = projects.map(cp => {
     const total = weeks.reduce((s, w) => s + (cp.weeks[w.key]?.count || 0), 0);
     return [

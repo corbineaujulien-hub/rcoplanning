@@ -13,3 +13,4 @@
 - [x] Vérifier les transitions Demandée / Obtenue depuis un chantier de test et leur affichage dans le focus.
 - [x] Corriger Samuel LALLOUE et Mickael CHAMORET dans la liste des chargés d’études et renommer les chantiers déjà affectés.
 - [x] Aligner le filtre CDE sur CDA : aucune case par défaut, réinitialisation vide, options indisponibles décochées et vérification connectée.
+- [x] Renommer la colonne CDT en CDT/CDE dans le Gantt du planning de charge, son export Excel, le tableau ADV et son export Excel ; filtres et bloc Charge inchangés.

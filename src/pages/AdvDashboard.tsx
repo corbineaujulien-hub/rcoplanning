@@ -329,7 +329,7 @@ export default function AdvDashboard() {
         OTP: p.otp_number || '',
         'Nom chantier': p.site_name || '',
         Client: p.client_name || '',
-        CDT: r.cdt,
+        'CDT/CDE': r.cdt,
         CDA: r.cda,
         Poseur: r.poseur,
         'Date démarrage': r.startDate ? format(r.startDate, 'dd/MM/yyyy') : '',
@@ -599,7 +599,7 @@ export default function AdvDashboard() {
                       <tr className="border-b text-left">
                         <th className="py-2 pr-2">Chantier</th>
                         <th className="py-2 pr-2">CDA</th>
-                        <th className="py-2 pr-2">CDT</th>
+                        <th className="py-2 pr-2 whitespace-nowrap">CDT/CDE</th>
                         <th className="py-2 pr-2">Poseur</th>
                         <th className="py-2 pr-2">Démarrage</th>
                         <th className="py-2 pr-2">Score</th>
