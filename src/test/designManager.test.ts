@@ -6,7 +6,7 @@ import { exportWeeklyExcelStyled } from '@/utils/weeklyExcelExport';
 
 describe('Chargé d’études', () => {
   it('propose les cinq personnes demandées et une affectation initiale nulle', () => {
-    expect(DESIGN_MANAGERS).toEqual(['Bruno BARDET', 'Samuel BOUTIN', 'Michael CHAMORET', 'Gael CHEVALIER', 'Taoufik ELKHATTABI']);
+    expect(DESIGN_MANAGERS).toEqual(['Bruno BARDET', 'Mickael CHAMORET', 'Gael CHEVALIER', 'Taoufik ELKHATTABI', 'Samuel LALLOUE']);
     expect(DEFAULT_PROJECT_INFO.designManager).toBeNull();
   });
   it('affiche le chargé d’études uniquement en fourniture seule', () => {
@@ -25,7 +25,7 @@ describe('Chargé d’études', () => {
     const p = { design_manager: 'Bruno BARDET' };
     expect(matchesDesignManagerFilter(p, new Set())).toBe(true);
     expect(matchesDesignManagerFilter(p, new Set(['Bruno BARDET']))).toBe(true);
-    expect(matchesDesignManagerFilter(p, new Set(['Samuel BOUTIN']))).toBe(false);
+    expect(matchesDesignManagerFilter(p, new Set(['Samuel LALLOUE']))).toBe(false);
     expect(matchesDesignManagerFilter({ design_manager: null }, new Set([UNASSIGNED_CDE]))).toBe(true);
     expect(matchesDesignManagerFilter(p, new Set(['__no_cde__']))).toBe(false);
   });

@@ -108,10 +108,10 @@ export const BUSINESS_MANAGERS = [
 
 export const DESIGN_MANAGERS = [
   'Bruno BARDET',
-  'Samuel BOUTIN',
-  'Michael CHAMORET',
+  'Mickael CHAMORET',
   'Gael CHEVALIER',
   'Taoufik ELKHATTABI',
+  'Samuel LALLOUE',
 ] as const;
 
 export interface ForecastedTruck {
