@@ -21,7 +21,7 @@ import {
   getWeeksBetween, getWeekKeyForDate, getPoseurColor, UNASSIGNED_POSEUR,
   ISOWeek,
 } from '@/utils/loadPlanningUtils';
-import { SUPPLY_ONLY_LABEL, SUPPLY_ONLY_COLOR, getDisplayCDT, getDisplayPoseur, getFilterCDT, UNASSIGNED_CDE, getDesignManagerFilterKey, matchesDesignManagerFilter } from '@/utils/supplyOnly';
+import { SUPPLY_ONLY_LABEL, SUPPLY_ONLY_COLOR, getDisplayCDT, getDisplayPoseur, getFilterCDT, UNASSIGNED_CDE, getDesignManagerFilterKey, matchesDesignManagerFilter, retainAvailableDesignManagers } from '@/utils/supplyOnly';
 import { exportLoadPlanningPdf } from '@/utils/loadPlanningPdfUtils';
 import { exportLoadPlanningExcel } from '@/utils/loadPlanningExcelUtils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -777,6 +777,10 @@ export default function LoadPlanning() {
     const list = computedProjects.filter(cp => filterFn(cp, 'cde')).map(cp => getDesignManagerFilterKey(cp.project));
     return Array.from(new Set(list)).sort((a, b) => a === b ? 0 : a === UNASSIGNED_CDE ? -1 : b === UNASSIGNED_CDE ? 1 : a.localeCompare(b, 'fr'));
   }, [computedProjects, filterFn]);
+  useEffect(() => {
+    if (loading) return;
+    setFilterCde(selected => retainAvailableDesignManagers(selected, allCdes));
+  }, [allCdes, loading]);
   const allUsines = useMemo(() => {
     const s = new Set<string>();
     computedProjects.filter(cp => filterFn(cp, 'usine')).forEach(p => p.usines.forEach(u => s.add(u)));
@@ -1026,7 +1030,6 @@ export default function LoadPlanning() {
               options={allCdes}
               selected={filterCde}
               onChange={setFilterCde}
-              allByDefault
             />
             <MultiSelectFilter
               label="Usine"
@@ -1761,21 +1764,19 @@ function PoseurLegend({ projects }: { projects: ProjectComputed[] }) {
 type MSOption = string | { value: string; label: string };
 
 function MultiSelectFilter({
-  label, options, selected, onChange, allByDefault = false,
+  label, options, selected, onChange,
 }: {
   label: string;
   options: MSOption[];
   selected: Set<string>;
   onChange: (s: Set<string>) => void;
-  allByDefault?: boolean;
 }) {
   const isActive = selected.size > 0;
   const norm = options.map(o => typeof o === 'string' ? { value: o, label: o } : o);
   const toggle = (v: string) => {
-    const next = new Set(allByDefault && selected.size === 0 ? norm.map(o => o.value) : selected);
-    next.delete('__no_cde__');
+    const next = new Set(selected);
     if (next.has(v)) next.delete(v); else next.add(v);
-    onChange(allByDefault ? (next.size === norm.length ? new Set() : next.size === 0 ? new Set(['__no_cde__']) : next) : next);
+    onChange(next);
   };
   return (
     <Popover>
@@ -1792,7 +1793,7 @@ function MultiSelectFilter({
           <div className="space-y-1">
             {norm.map(o => (
               <label key={o.value} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
-                <Checkbox checked={(allByDefault && selected.size === 0) || selected.has(o.value)} onCheckedChange={() => toggle(o.value)} />
+                <Checkbox checked={selected.has(o.value)} onCheckedChange={() => toggle(o.value)} />
                 <span className="text-xs">{o.label}</span>
               </label>
             ))}

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DESIGN_MANAGERS, DEFAULT_PROJECT_INFO } from '@/types/delivery';
-import { getDisplayCDT, getDisplayPoseur, getFilterCDT, getProjectInfoDisplayCDT, matchesDesignManagerFilter, UNASSIGNED_CDE } from '@/utils/supplyOnly';
+import { getDisplayCDT, getDisplayPoseur, getFilterCDT, getProjectInfoDisplayCDT, matchesDesignManagerFilter, retainAvailableDesignManagers, UNASSIGNED_CDE } from '@/utils/supplyOnly';
 import XLSX from 'xlsx-js-style';
 import { exportWeeklyExcelStyled } from '@/utils/weeklyExcelExport';
 
@@ -27,7 +27,34 @@ describe('Chargé d’études', () => {
     expect(matchesDesignManagerFilter(p, new Set(['Bruno BARDET']))).toBe(true);
     expect(matchesDesignManagerFilter(p, new Set(['Samuel LALLOUE']))).toBe(false);
     expect(matchesDesignManagerFilter({ design_manager: null }, new Set([UNASSIGNED_CDE]))).toBe(true);
-    expect(matchesDesignManagerFilter(p, new Set(['__no_cde__']))).toBe(false);
+  });
+  const filterProjects = [
+    { id: 'bruno', design_manager: 'Bruno BARDET', business_manager: 'Romain BERTEL' },
+    { id: 'samuel', design_manager: 'Samuel LALLOUE', business_manager: 'Yoan BONNAIRE' },
+    { id: 'sans-cde', design_manager: null, business_manager: 'Romain BERTEL' },
+  ];
+  it('inclut tous les chantiers sans sélection initiale et après désélection complète', () => {
+    const selected = new Set(['Bruno BARDET']);
+    selected.delete('Bruno BARDET');
+    expect(selected.size).toBe(0);
+    expect(filterProjects.filter(p => matchesDesignManagerFilter(p, selected)).map(p => p.id)).toEqual(['bruno', 'samuel', 'sans-cde']);
+  });
+  it('combine les noms sélectionnés en OR', () => {
+    expect(filterProjects.filter(p => matchesDesignManagerFilter(p, new Set(['Bruno BARDET', 'Samuel LALLOUE']))).map(p => p.id)).toEqual(['bruno', 'samuel']);
+  });
+  it('sélectionne uniquement les chantiers sans affectation via CDE à désigner', () => {
+    expect(filterProjects.filter(p => matchesDesignManagerFilter(p, new Set(['CDE à désigner']))).map(p => p.id)).toEqual(['sans-cde']);
+  });
+  it('reste cumulatif avec le chargé d’affaires', () => {
+    expect(filterProjects.filter(p => p.business_manager === 'Romain BERTEL' && matchesDesignManagerFilter(p, new Set(['Samuel LALLOUE', 'CDE à désigner']))).map(p => p.id)).toEqual(['sans-cde']);
+  });
+  it('décoche les sélections indisponibles et conserve les autres', () => {
+    expect([...retainAvailableDesignManagers(new Set(['Bruno BARDET', 'Samuel LALLOUE']), ['Bruno BARDET'])]).toEqual(['Bruno BARDET']);
+  });
+  it('réactive tous les chantiers quand la dernière sélection devient indisponible', () => {
+    const selected = retainAvailableDesignManagers(new Set(['Samuel LALLOUE']), ['Bruno BARDET', 'CDE à désigner']);
+    expect(selected.size).toBe(0);
+    expect(filterProjects.filter(p => matchesDesignManagerFilter(p, selected))).toHaveLength(3);
   });
   it('transmet le CDE et Fourniture seule aux onglets Excel multi-semaines et multi-équipes', () => {
     const write = vi.spyOn(XLSX, 'write').mockReturnValue(new ArrayBuffer(0));
