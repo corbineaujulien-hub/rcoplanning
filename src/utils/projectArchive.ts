@@ -81,6 +81,7 @@ function toProjectInfo(p: any): ProjectInfo {
     siteAddress: p.site_address || '', conductor: p.conductor || '', subcontractor: p.subcontractor || '',
     contactName: p.contact_name || '', contactPhone: p.contact_phone || '',
     businessManager: p.business_manager || '',
+    designManager: p.design_manager ?? null,
     showSaturdays: !!p.show_saturdays, showSundays: !!p.show_sundays,
     databaseComplete: !!p.database_complete, databaseComment: p.database_comment || '',
     supplyOnly: !!p.supply_only,
@@ -369,6 +370,7 @@ export async function importProjectBundle(bundle: ProjectBundle, otpNumber?: str
   const { id: _id, created_at: _c, updated_at: _u, ...projRest } = bundle.project;
   const { error: pErr } = await sb.from('projects').insert({
     ...projRest,
+    design_manager: projRest.design_manager ?? null,
     id: newProjectId,
     otp_number: otpNumber ?? projRest.otp_number,
     archived: true,

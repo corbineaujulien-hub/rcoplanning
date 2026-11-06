@@ -72,7 +72,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
   useEffect(() => {
     const loadData = async () => {
       try {
-        const PROJECT_COLS = 'id, otp_number, site_name, client_name, site_address, conductor, subcontractor, contact_name, contact_phone, business_manager, show_saturdays, show_sundays, database_complete, database_comment, supply_only, forecasted_transports, forecast_period_start, forecast_period_end';
+        const PROJECT_COLS = 'id, otp_number, site_name, client_name, site_address, conductor, subcontractor, contact_name, contact_phone, business_manager, design_manager, show_saturdays, show_sundays, database_complete, database_comment, supply_only, forecasted_transports, forecast_period_start, forecast_period_end';
         const { data: proj } = await (supabase.from as any)('projects').select(PROJECT_COLS).eq('id', projectId).single();
         if (proj) {
           setProjectInfoState({
@@ -81,6 +81,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
             conductor: proj.conductor || '', subcontractor: proj.subcontractor || '',
             contactName: proj.contact_name || '', contactPhone: proj.contact_phone || '',
             businessManager: (proj as any).business_manager || '',
+            designManager: proj.design_manager ?? null,
             showSaturdays: proj.show_saturdays || false,
             showSundays: (proj as any).show_sundays || false,
             databaseComplete: (proj as any).database_complete || false,
@@ -222,6 +223,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
             conductor: p.conductor || '', subcontractor: p.subcontractor || '',
             contactName: p.contact_name || '', contactPhone: p.contact_phone || '',
             businessManager: (p as any).business_manager || '',
+            designManager: p.design_manager ?? null,
             showSaturdays: p.show_saturdays || false,
             showSundays: (p as any).show_sundays || false,
             databaseComplete: (p as any).database_complete || false,
@@ -323,6 +325,7 @@ export function DeliveryProvider({ children, projectId, token }: DeliveryProvide
       conductor: info.conductor, subcontractor: info.subcontractor,
       contact_name: info.contactName, contact_phone: info.contactPhone,
       business_manager: info.businessManager || null,
+      design_manager: info.designManager || null,
       show_saturdays: info.showSaturdays,
       show_sundays: info.showSundays || false,
       database_complete: info.databaseComplete,

@@ -1,4 +1,5 @@
 # Architecture rules
+- Supply-only CDT displays use the shared supplyOnly helpers for database rows and ProjectInfo, so screens and exports share the same fallback without changing CDT filter semantics.
 - Caution date tracking is synchronized by database update triggers, not insert triggers, so imported and historical statuses never invent dates; the transition trigger also clears dates on « À demander »/« Non nécessaire » and resets obtention on return to « Demandée » (strict status values only).
 - All app-level caution status changes go through updateCautionStatus (src/utils/cautionStatus.ts), which updates the status, history and relances; dates stay owned by the database trigger.
 - ADV caution tracking uses a unique project/caution key; imports remap custom caution keys after recreating caution IDs.
