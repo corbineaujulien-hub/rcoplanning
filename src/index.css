@@ -74,6 +74,32 @@
 }
 
 @layer components {
+  .charge-filters-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+  .charge-filters-bar .search-input {
+    flex: 1.6 1 0;
+    min-width: 160px;
+  }
+  .charge-filters-bar .filter-dropdown {
+    flex: 1 1 0;
+    min-width: 96px;
+    max-width: 190px;
+  }
+  .charge-filters-bar .reset-button {
+    flex: 0 0 auto;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+  @media (min-width: 1280px) {
+    .charge-filters-bar {
+      flex-wrap: nowrap;
+    }
+  }
   .adv-dot-green { background-color: hsl(var(--transport-standard)); }
   .adv-dot-orange { background-color: hsl(var(--transport-cat2)); }
   .adv-dot-red { background-color: hsl(var(--destructive)); }

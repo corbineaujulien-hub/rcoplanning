@@ -984,13 +984,13 @@ export default function LoadPlanning() {
 
       <main className="flex-1 p-4 space-y-4 overflow-auto">
         <Card>
-          <CardContent className="pt-4 flex items-center gap-2 flex-wrap">
-            <div className="relative">
+          <CardContent className="charge-filters-bar pt-4">
+            <div className="search-input relative">
               <Input
                 value={searchText}
                 onChange={e => setSearchText(e.target.value)}
                 placeholder="Rechercher par N° OTP, nom de chantier ou client..."
-                className="h-9 w-[340px] pr-8"
+                className="h-9 w-full min-w-0 pr-8"
               />
               {searchText && (
                 <button
@@ -1008,28 +1008,24 @@ export default function LoadPlanning() {
               options={allCdts}
               selected={filterCdt}
               onChange={setFilterCdt}
-              width="w-[220px]"
             />
             <MultiSelectFilter
               label="Poseur"
               options={allPoseurs}
               selected={filterPoseur}
               onChange={setFilterPoseur}
-              width="w-[200px]"
             />
             <MultiSelectFilter
               label="Chargé d'affaires"
               options={allCdas}
               selected={filterCda}
               onChange={setFilterCda}
-              width="w-[230px]"
             />
             <MultiSelectFilter
               label="Chargé d'études"
               options={allCdes}
               selected={filterCde}
               onChange={setFilterCde}
-              width="w-[230px]"
               allByDefault
             />
             <MultiSelectFilter
@@ -1037,14 +1033,12 @@ export default function LoadPlanning() {
               options={allUsines}
               selected={filterUsine}
               onChange={setFilterUsine}
-              width="w-[200px]"
             />
             <MultiSelectFilter
               label="Produit"
               options={allProducts as unknown as string[]}
               selected={filterProduct}
               onChange={setFilterProduct}
-              width="w-[200px]"
             />
             <MultiSelectFilter
               label="Statut"
@@ -1054,7 +1048,6 @@ export default function LoadPlanning() {
               ]}
               selected={filterStatus as Set<string>}
               onChange={(s) => setFilterStatus(s as Set<'planned' | 'forecast'>)}
-              width="w-[180px]"
             />
             <MultiSelectFilter
               label="BDD"
@@ -1064,10 +1057,9 @@ export default function LoadPlanning() {
               ]}
               selected={filterBdd as Set<string>}
               onChange={(s) => setFilterBdd(s as Set<'complete' | 'incomplete'>)}
-              width="w-[160px]"
             />
-            <Button variant={hasActiveFilters ? 'default' : 'outline'} size="sm" onClick={resetFilters}>
-              <RotateCcw className="h-4 w-4 mr-1" /> Réinitialiser
+            <Button variant={hasActiveFilters ? 'default' : 'outline'} size="sm" className="reset-button h-9 px-3" onClick={resetFilters}>
+              <RotateCcw className="h-4 w-4 mr-1 shrink-0" /> Réinitialiser
             </Button>
           </CardContent>
         </Card>
@@ -1769,13 +1761,12 @@ function PoseurLegend({ projects }: { projects: ProjectComputed[] }) {
 type MSOption = string | { value: string; label: string };
 
 function MultiSelectFilter({
-  label, options, selected, onChange, width, allByDefault = false,
+  label, options, selected, onChange, allByDefault = false,
 }: {
   label: string;
   options: MSOption[];
   selected: Set<string>;
   onChange: (s: Set<string>) => void;
-  width: string;
   allByDefault?: boolean;
 }) {
   const isActive = selected.size > 0;
@@ -1789,8 +1780,8 @@ function MultiSelectFilter({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant={isActive ? 'default' : 'outline'} size="sm" className={`${width} h-9 justify-between`}>
-          <span className="truncate">{isActive ? `${label} (${selected.size})` : label}</span>
+        <Button variant={isActive ? 'default' : 'outline'} size="sm" className="filter-dropdown h-9 justify-between gap-1 px-3" title={isActive ? `${label} (${selected.size})` : label}>
+          <span className="min-w-0 truncate">{isActive ? `${label} (${selected.size})` : label}</span>
           <ChevronDown className="h-4 w-4 opacity-60 shrink-0" />
         </Button>
       </PopoverTrigger>

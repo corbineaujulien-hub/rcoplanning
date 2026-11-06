@@ -1,4 +1,5 @@
 # Évolutions ADV
+- [x] Recalibrer la barre de filtres du planning de charge et vérifier les écrans larges et étroits.
 - [x] Ajouter l’affectation Chargé d’études et les affichages fourniture seule.
 - [x] Ajouter le filtre CDE cumulatif du planning et préserver sauvegardes/imports.
 - [x] Tester les règles et le parcours connecté du chargé d’études.
