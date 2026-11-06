@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import { getProjectInfoDisplayCDT } from '@/utils/supplyOnly';
 import { BeamElement, TransportCategory, TRANSPORT_CATEGORIES, ProjectInfo } from '@/types/delivery';
 import { getTransportCategory, getTruckWeight, getTruckMaxLength, getTruckFactories, getTruckZones, getFactoryColor, getEffectiveCategory } from '@/utils/transportUtils';
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
@@ -125,7 +126,7 @@ function drawHeader(ctx: PdfContext, projectInfo: ProjectInfo, weekNumber: numbe
 
   const rightParts: string[] = [];
   if (projectInfo.supplyOnly) {
-    rightParts.push(`Conducteur: ${projectInfo.clientName || 'Client non renseigné'}`);
+    rightParts.push(`Conducteur: ${getProjectInfoDisplayCDT(projectInfo)}`);
     rightParts.push('Poseur: Fourniture seule');
   } else {
     if (projectInfo.conductor) rightParts.push(`Conducteur: ${projectInfo.conductor}`);

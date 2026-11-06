@@ -31,6 +31,7 @@ interface ProjectRow {
   site_name: string | null;
   client_name: string | null;
   conductor: string | null;
+  design_manager: string | null;
   subcontractor: string | null;
   otp_number: string | null;
   created_at: string | null;
@@ -85,7 +86,7 @@ export default function Home() {
     // Les agrégats d'avancement sont calculés côté base (fonction project_progress_summary)
     // pour éviter de télécharger tous les camions et tous les produits.
     const [{ data: pData }, { data: lData }, progressRes, advRes, cautionRes] = await Promise.all([
-      supabase.from('projects').select('id, site_name, client_name, conductor, subcontractor, otp_number, created_at, archived, database_complete, supply_only').order('created_at', { ascending: false }),
+      supabase.from('projects').select('id, site_name, client_name, conductor, design_manager, subcontractor, otp_number, created_at, archived, database_complete, supply_only').order('created_at', { ascending: false }),
       supabase.from('project_access_links').select('project_id, token'),
       (supabase as any).rpc('project_progress_summary'),
       (supabase.from as any)('adv_status').select('*'),
@@ -463,7 +464,7 @@ export default function Home() {
                     <div className="rounded-md border p-3 space-y-1">
                       <div className="font-semibold">{importBundle.project.site_name || 'Chantier sans nom'}</div>
                       <div className="text-muted-foreground">Client : {importBundle.project.client_name || '—'}</div>
-                      <div className="text-muted-foreground">Conducteur : {importBundle.project.conductor || '—'} — Poseur : {importBundle.project.subcontractor || '—'}</div>
+                      <div className="text-muted-foreground">Conducteur : {getDisplayCDT(importBundle.project)} — Poseur : {getDisplayPoseur(importBundle.project)}</div>
                       <div className="text-muted-foreground">
                         {s.elements} produits · {s.trucks} camions · {s.weeks} semaine(s) · {s.plans} plan(s)
                       </div>

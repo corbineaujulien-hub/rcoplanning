@@ -17,6 +17,7 @@ import { exportAllWeeksPdf } from '@/utils/pdfExportUtils';
 import ExportWeeksModal from '@/components/delivery/ExportWeeksModal';
 import { calculatePlanningProgress } from '@/utils/progressUtils';
 import { exportWeeklyExcelStyled } from '@/utils/weeklyExcelExport';
+import { getProjectInfoDisplayCDT } from '@/utils/supplyOnly';
 
 export default function DeliveryApp() {
   const { trucks, projectInfo, elements, getTruckElements, teams, projectId } = useDelivery();
@@ -113,6 +114,7 @@ export default function DeliveryApp() {
                   </div>
                </div>
              )}
+             {projectInfo.supplyOnly && <p className="text-xs text-primary-foreground/70">Conducteur : {getProjectInfoDisplayCDT(projectInfo)} · Poseur : Fourniture seule</p>}
            </div>
           <ActiveUsersNotification projectId={projectId} />
           <Button variant="ghost" size="sm" className="text-primary-foreground/70 hover:text-primary-foreground" onClick={() => navigate('/')}>

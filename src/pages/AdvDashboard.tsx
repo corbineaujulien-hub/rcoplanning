@@ -12,7 +12,7 @@ import {
   calculateAdvScore, getScoreHexColor, getScoreColorClass,
   effectiveRelanceStatus, isDemarcheFinal, getApplicableDemarches, formatDateFR,
 } from '@/utils/adv';
-import { formatCDTLabel } from '@/utils/supplyOnly';
+import { getDisplayCDT } from '@/utils/supplyOnly';
 import { isHoliday } from '@/utils/frenchHolidays';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -46,6 +46,7 @@ interface ProjectRow {
   conductor: string | null;
   subcontractor: string | null;
   business_manager: string | null;
+  design_manager: string | null;
   archived: boolean;
   supply_only: boolean;
 }
@@ -161,7 +162,7 @@ export default function AdvDashboard() {
     let cancelled = false;
     (async () => {
       const [p, a, c, r, prog, fw, lk] = await Promise.all([
-        fetchAllPaginated<ProjectRow>(() => supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, business_manager, archived, supply_only').eq('archived', false).order('id')),
+        fetchAllPaginated<ProjectRow>(() => supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, business_manager, design_manager, archived, supply_only').eq('archived', false).order('id')),
         fetchAllPaginated<AdvStatus>(() => sb.from('adv_status').select('id, project_id, compte_client, garantie_sfac, contrat_client, caution_rg, contrat_st, garantie_paiement_st, dast, commentaire').order('id')),
         fetchAllPaginated<AdvCautionCustom>(() => sb.from('adv_cautions_custom').select('id, project_id, nom, statut').order('id')),
         fetchAllPaginated<AdvRelance>(() => sb.from('adv_relances').select('id, project_id, demarche, source_id, type, echeance, statut').order('id')),
@@ -237,7 +238,7 @@ export default function AdvDashboard() {
       const score = calculateAdvScore(adv as any, cs);
       const startDate = startDateByProject.get(p.id) || null;
       const badge = badgeOf(score, startDate);
-      const cdt = formatCDTLabel(p.conductor) || '—';
+      const cdt = getDisplayCDT(p);
       const poseur = p.supply_only ? 'Fourniture seule' : (p.subcontractor || 'Poseur à désigner');
       const cda = (p.business_manager || '').trim();
       return { project: p, adv, cautions: cs, score, startDate, badge, cdt, poseur, cda };
@@ -250,7 +251,7 @@ export default function AdvDashboard() {
       if (s && !(r.project.site_name || '').toLowerCase().includes(s)
         && !(r.project.otp_number || '').toLowerCase().includes(s)
         && !(r.project.client_name || '').toLowerCase().includes(s)) return false;
-      if (filterCdt !== 'all' && r.cdt !== filterCdt) return false;
+      if (filterCdt !== 'all' && (r.project.supply_only || r.cdt !== filterCdt)) return false;
       if (filterPoseur !== 'all' && r.poseur !== filterPoseur) return false;
       if (filterCda !== 'all') {
         if (filterCda === '__unassigned__') { if (r.cda) return false; }
@@ -273,7 +274,7 @@ export default function AdvDashboard() {
     });
   }, [rows, debouncedSearch, filterCdt, filterPoseur, filterCda, filterBadge, filterDemarche, filterDemarcheStatut]);
 
-  const cdtOptions = useMemo(() => Array.from(new Set(rows.map(r => r.cdt).filter(c => c && c !== '—'))).sort(), [rows]);
+  const cdtOptions = useMemo(() => Array.from(new Set(rows.filter(r => !r.project.supply_only).map(r => r.cdt).filter(c => c && c !== '—'))).sort(), [rows]);
   const poseurOptions = useMemo(() => Array.from(new Set(rows.map(r => r.poseur))).sort(), [rows]);
   const cdaOptions = useMemo(() => Array.from(new Set(rows.map(r => r.cda).filter(Boolean))).sort(), [rows]);
   const hasUnassignedCda = useMemo(() => rows.some(r => !r.cda), [rows]);
