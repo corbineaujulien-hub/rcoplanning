@@ -1,9 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import { calculateAdvScore, CAUTION_STATUSES, DEMARCHE_OPTIONS, findRelanceRules, getApplicableDemarches, getDefaultAdv, getStatusColor } from '@/utils/adv';
-import { automaticExpiry, buildCautionsWorkbook, emptyTracking, excelDateSerial, isOverdue, remapTrackingRows, VISIBLE_CAUTION_STATUSES } from '@/utils/cautionTracking';
+import { automaticExpiry, buildCautionsWorkbook, emptyTracking, excelDateSerial, isOverdue, previewCautionTransition, remapTrackingRows, VISIBLE_CAUTION_STATUSES } from '@/utils/cautionTracking';
 import { format } from 'date-fns';
 
 describe('Cautions ADV', () => {
+  it.each(['caution_rg', 'garantie_paiement_st', 'custom:123'])('previews request and obtaining dates for %s', key => {
+    const requested = previewCautionTransition(emptyTracking('p', key), 'Demandée', '2026-11-06');
+    expect(requested.date_demande).toBe('2026-11-06');
+    const obtained = previewCautionTransition(requested, 'Obtenue', '2026-11-07');
+    expect(obtained).toMatchObject({ date_demande: '2026-11-06', date_obtention: '2026-11-07', date_echeance: '2027-11-07' });
+  });
+  it.each(['À demander', 'Non nécessaire'])('clears dates and manual expiry on %s', status => {
+    expect(previewCautionTransition({ ...emptyTracking('p', 'caution_rg'), date_demande: '2026-10-01', date_obtention: '2026-10-02', date_echeance: '2028-01-01', echeance_manuelle: true }, status))
+      .toMatchObject({ date_demande: null, date_obtention: null, date_echeance: null, echeance_manuelle: false });
+  });
+  it('preserves Levée dates and resets obtaining on a new request', () => {
+    const row = { ...emptyTracking('p', 'caution_rg'), date_demande: '2026-10-01', date_obtention: '2026-10-02', date_echeance: '2028-01-01', echeance_manuelle: true };
+    expect(previewCautionTransition(row, 'Levée')).toEqual(row);
+    expect(previewCautionTransition(row, 'Demandée', '2026-11-06')).toMatchObject({ date_demande: '2026-10-01', date_obtention: null, date_echeance: null, echeance_manuelle: false });
+    expect(previewCautionTransition(row, 'Obtenue')).toEqual(row);
+  });
   it('initializes standard guarantee as À demander', () => expect(getDefaultAdv(false).garantie_paiement_st).toBe('À demander'));
   it('excludes supply-only guarantee by default', () => expect(getDefaultAdv(true).garantie_paiement_st).toBe('Non nécessaire'));
   it('limits Levée to the three caution types', () => {
