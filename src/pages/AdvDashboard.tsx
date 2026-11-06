@@ -16,6 +16,7 @@ import { formatCDTLabel } from '@/utils/supplyOnly';
 import { isHoliday } from '@/utils/frenchHolidays';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDebounce } from '@/hooks/useDebounce';
+import { subscribeAdvChanged } from '@/utils/advSync';
 
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -113,6 +114,16 @@ export default function AdvDashboard() {
   const [forecastWeeks, setForecastWeeks] = useState<ForecastWeekLite[]>([]);
   const [links, setLinks] = useState<AccessLink[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  useEffect(() => {
+    const refresh = () => setRefreshVersion(v => v + 1);
+    const unsubscribe = subscribeAdvChanged(refresh);
+    const channel = supabase.channel(`adv-dashboard-${crypto.randomUUID()}`)
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'adv_status' }, refresh)
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'adv_cautions_custom' }, refresh)
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'adv_relances' }, refresh).subscribe();
+    return () => { unsubscribe(); supabase.removeChannel(channel); };
+  }, []);
 
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
@@ -147,8 +158,8 @@ export default function AdvDashboard() {
   };
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      setLoading(true);
       const [p, a, c, r, prog, fw, lk] = await Promise.all([
         fetchAllPaginated<ProjectRow>(() => supabase.from('projects').select('id, site_name, client_name, otp_number, conductor, subcontractor, business_manager, archived, supply_only').eq('archived', false).order('id')),
         fetchAllPaginated<AdvStatus>(() => sb.from('adv_status').select('id, project_id, compte_client, garantie_sfac, contrat_client, caution_rg, contrat_st, garantie_paiement_st, dast, commentaire').order('id')),
@@ -159,6 +170,7 @@ export default function AdvDashboard() {
         fetchAllPaginated<ForecastWeekLite>(() => sb.from('forecast_weeks').select('project_id, year, week_number').order('project_id')),
         fetchAllPaginated<AccessLink>(() => supabase.from('project_access_links').select('project_id, token').order('id')),
       ]);
+      if (cancelled) return;
       setProjects(p);
       setAdvs(a);
       setCautions(c);
@@ -170,7 +182,8 @@ export default function AdvDashboard() {
       setLinks(lk);
       setLoading(false);
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [refreshVersion]);
 
 
   const advByProject = useMemo(() => {

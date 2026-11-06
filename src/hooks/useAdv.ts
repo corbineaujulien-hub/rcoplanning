@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { fetchPaginated } from '@/utils/cautionTracking';
 import { updateCautionStatus } from '@/utils/cautionStatus';
 import { toast } from 'sonner';
+import { subscribeAdvChanged } from '@/utils/advSync';
 
 const sb = supabase as any;
 
@@ -19,6 +20,8 @@ export function useAdv(projectId: string, supplyOnly: boolean, startDate: Date |
   const [relances, setRelances] = useState<AdvRelance[]>([]);
   const [historique, setHistorique] = useState<AdvHistorique[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  useEffect(() => subscribeAdvChanged(() => setRefreshVersion(v => v + 1), projectId), [projectId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,7 +47,7 @@ export function useAdv(projectId: string, supplyOnly: boolean, startDate: Date |
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [projectId, supplyOnly]);
+  }, [projectId, supplyOnly, refreshVersion]);
 
   // Realtime
   useEffect(() => {
