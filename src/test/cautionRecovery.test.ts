@@ -4,6 +4,7 @@ import { beforeEach, afterEach, describe, expect, it } from 'vitest';
 
 const recovery = readFileSync('scripts/backfillCautionDates.sql', 'utf8');
 const migration = readFileSync('drizzle/migrations/0002_preserve_existing_caution_expiry_during_recovery.sql', 'utf8');
+const statusRules = readFileSync('drizzle/migrations/0003_caution_status_date_rules.sql', 'utf8');
 const original = readFileSync('drizzle/migrations/0000_adv_caution_tracking_and_guarantee.sql', 'utf8');
 let db: PGlite;
 beforeEach(async () => {
@@ -13,8 +14,9 @@ beforeEach(async () => {
  CREATE TABLE adv_historique(project_id uuid,date timestamptz,description text);
  CREATE TABLE adv_caution_tracking(id uuid DEFAULT gen_random_uuid(),project_id uuid,caution_key text,date_demande date,date_obtention date,date_echeance date,echeance_manuelle boolean DEFAULT false,commentaire text DEFAULT '',updated_at timestamptz,UNIQUE(project_id,caution_key));`);
  await db.exec(migration);
- await db.exec(`CREATE TRIGGER adv_tracking_dates BEFORE INSERT OR UPDATE ON adv_caution_tracking FOR EACH ROW EXECUTE FUNCTION adv_tracking_dates();`);
- await db.exec(original.slice(original.indexOf('CREATE FUNCTION public.adv_sync_caution_transition()')));
+  await db.exec(`CREATE TRIGGER adv_tracking_dates BEFORE INSERT OR UPDATE ON adv_caution_tracking FOR EACH ROW EXECUTE FUNCTION adv_tracking_dates();`);
+  await db.exec(original.slice(original.indexOf('CREATE FUNCTION public.adv_sync_caution_transition()')));
+  await db.exec(statusRules);
  await db.exec(`INSERT INTO adv_status VALUES ('00000000-0000-0000-0000-000000000001','Obtenue','À demander');`);
 });
 afterEach(async () => { await db.close(); });
@@ -72,7 +74,25 @@ describe('Caution history recovery', () => {
   UPDATE adv_cautions_custom SET statut='Obtenue';`);
   const result = await db.query(`SELECT count(*)::int AS total,count(*) FILTER (WHERE date_demande=(now() AT TIME ZONE 'Europe/Paris')::date AND date_obtention=(now() AT TIME ZONE 'Europe/Paris')::date AND date_echeance=(date_obtention+interval '1 year')::date)::int AS correct FROM adv_caution_tracking`);
   expect(result.rows[0]).toEqual({total:3,correct:3});
-  await db.exec(`UPDATE adv_caution_tracking SET date_demande='2020-01-01',date_obtention='2020-02-01'; UPDATE adv_status SET caution_rg='Demandée'; UPDATE adv_status SET caution_rg='Obtenue';`);
-  expect((await db.query(`SELECT date_demande::text,date_obtention::text FROM adv_caution_tracking WHERE caution_key='caution_rg'`)).rows[0]).toEqual({date_demande:'2020-01-01',date_obtention:'2020-02-01'});
- });
+   await db.exec(`UPDATE adv_caution_tracking SET date_demande='2020-01-01',date_obtention='2020-02-01'; UPDATE adv_status SET caution_rg='Demandée'; UPDATE adv_status SET caution_rg='Obtenue';`);
+   expect((await db.query(`SELECT date_demande::text,date_obtention::text FROM adv_caution_tracking WHERE caution_key='caution_rg'`)).rows[0])
+    .toEqual({date_demande:'2020-01-01',date_obtention:(new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Paris'}))});
+  });
+  it('clears all dates when a caution goes back to À demander or Non nécessaire', async () => {
+   await db.exec(`UPDATE adv_status SET caution_rg='Demandée'; UPDATE adv_status SET caution_rg='Obtenue';`);
+   expect((await tracked())[0].date_demande).not.toBeNull();
+   await db.exec(`UPDATE adv_status SET caution_rg='Non nécessaire';`);
+   expect(await tracked()).toEqual([{date_demande:null,date_obtention:null,date_echeance:null,echeance_manuelle:false}]);
+   await db.exec(`UPDATE adv_status SET caution_rg='Demandée'; UPDATE adv_status SET caution_rg='À demander';`);
+   expect(await tracked()).toEqual([{date_demande:null,date_obtention:null,date_echeance:null,echeance_manuelle:false}]);
+  });
+  it('resets obtention and expiry when going back to Demandée, and keeps dates on Levée', async () => {
+   await db.exec(`UPDATE adv_status SET caution_rg='Demandée'; UPDATE adv_status SET caution_rg='Obtenue';`);
+   const today = new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Paris'});
+   expect(await tracked()).toEqual([{date_demande:today,date_obtention:today,date_echeance:null,echeance_manuelle:false}].map(r => ({...r,date_echeance:r.date_echeance})));
+   await db.exec(`UPDATE adv_status SET caution_rg='Demandée';`);
+   expect(await tracked()).toEqual([{date_demande:today,date_obtention:null,date_echeance:null,echeance_manuelle:false}]);
+   await db.exec(`UPDATE adv_status SET caution_rg='Obtenue'; UPDATE adv_status SET caution_rg='Levée';`);
+   expect((await tracked())[0]).toMatchObject({date_demande:today,date_obtention:today,echeance_manuelle:false});
+  });
 });
