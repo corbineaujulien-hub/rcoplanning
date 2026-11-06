@@ -22,6 +22,20 @@ export function isOverdue(date: string | null, today = format(new Date(), 'yyyy-
 export function emptyTracking(project_id: string, caution_key: string): CautionTracking {
   return { project_id, caution_key, date_demande: null, date_obtention: null, date_echeance: null, echeance_manuelle: false, commentaire: '' };
 }
+/** Preview only: persisted dates remain owned by the database triggers. */
+export function previewCautionTransition(row: CautionTracking, status: string, today = format(new Date(), 'yyyy-MM-dd')): CautionTracking {
+  if (status === 'À demander' || status === 'Non nécessaire') {
+    return { ...row, date_demande: null, date_obtention: null, date_echeance: null, echeance_manuelle: false };
+  }
+  if (status === 'Demandée') {
+    return { ...row, date_demande: row.date_demande || today, date_obtention: null, date_echeance: null, echeance_manuelle: false };
+  }
+  if (status === 'Obtenue') {
+    const date_obtention = row.date_obtention || today;
+    return { ...row, date_obtention, date_echeance: row.echeance_manuelle ? row.date_echeance : automaticExpiry(date_obtention) };
+  }
+  return { ...row };
+}
 export function remapTrackingRows(rows: CautionTracking[], projectId: string, ids: Map<string, string>) {
   return rows.flatMap(row => {
     const custom = row.caution_key.startsWith('custom:');

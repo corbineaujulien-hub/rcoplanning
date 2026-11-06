@@ -1,0 +1,1 @@
+ALTER PUBLICATION supabase_realtime ADD TABLE public.adv_status, public.adv_cautions_custom, public.adv_relances, public.adv_historique;

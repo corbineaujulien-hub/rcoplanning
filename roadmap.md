@@ -1,4 +1,6 @@
 # Évolutions ADV
+- [x] Affichage optimiste des statuts/dates, confirmation et annulation sans rechargement.
+- [x] Synchronisation ADV et temps réel sans écraser les saisies ; tests du parcours.
 - [x] Garantie de paiement ST, statut Levée, scores, relances et historique.
 - [x] Focus cautions : dates, filtres, tri, export et navigation vers les archives.
 - [x] Sauvegardes et réimportations rétrocompatibles.
