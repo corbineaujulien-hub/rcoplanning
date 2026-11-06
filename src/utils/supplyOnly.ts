@@ -42,6 +42,12 @@ export function matchesDesignManagerFilter(p: SupplyOnlyProject, selected: Set<s
   return selected.size === 0 || selected.has(getDesignManagerFilterKey(p));
 }
 
+export function retainAvailableDesignManagers(selected: Set<string>, available: readonly string[]): Set<string> {
+  const options = new Set(available);
+  const next = new Set([...selected].filter(value => options.has(value)));
+  return next.size === selected.size ? selected : next;
+}
+
 export function getProjectInfoDisplayCDT(p: { supplyOnly?: boolean; designManager?: string | null; clientName: string; conductor: string }): string {
   return getDisplayCDT({ supply_only: p.supplyOnly, design_manager: p.designManager, client_name: p.clientName, conductor: p.conductor });
 }
