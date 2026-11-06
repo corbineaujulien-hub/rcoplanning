@@ -11,3 +11,4 @@
 - [x] Tests et vérification du parcours connecté.
 - [x] Reconstituer les dates manquantes depuis l’historique ADV sans écraser les valeurs existantes, avec rapport et contrôle d’idempotence.
 - [x] Vérifier les transitions Demandée / Obtenue depuis un chantier de test et leur affichage dans le focus.
+- [x] Corriger Samuel LALLOUE et Mickael CHAMORET dans la liste des chargés d’études et renommer les chantiers déjà affectés.
