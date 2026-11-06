@@ -99,14 +99,14 @@ export default function DeliveryApp() {
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-primary text-primary-foreground shadow-lg">
-        <div className="container py-3 flex items-center gap-3">
+        <div className="container py-3 flex items-center gap-3 flex-wrap">
           <img src="/logo.png" alt="Logo" className="h-8 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           <TruckIcon className="h-7 w-7" />
-           <div className="flex-1 min-w-0">
+           <div className="flex-1 min-w-[200px]">
              <h1 className="text-lg font-bold tracking-tight">RECTOR – Planification des livraisons</h1>
              {projectInfo.siteName && (
-               <div className="flex items-center gap-3">
-                 <p className="text-xs text-primary-foreground/70 shrink-0">{projectInfo.siteName} {projectInfo.otpNumber && `(${projectInfo.otpNumber})`}</p>
+               <div className="flex items-center gap-3 flex-wrap">
+                 <p className="text-xs text-primary-foreground/70 break-words">{projectInfo.siteName} {projectInfo.otpNumber && `(${projectInfo.otpNumber})`}</p>
                   <div className="flex items-center gap-2 flex-1 max-w-xs bg-primary-foreground/15 rounded-full px-3 py-1">
                     <span className="text-xs text-primary-foreground shrink-0">Planification</span>
                     <Progress value={planningPct} className="h-2.5 flex-1 bg-primary-foreground/30 [&>div]:bg-accent" />
