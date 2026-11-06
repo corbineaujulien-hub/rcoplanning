@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import XLSX from 'xlsx-js-style';
@@ -7,14 +7,15 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { DebouncedTextarea } from '@/components/ui/debounced-input';
+import { DebouncedInput, DebouncedTextarea } from '@/components/ui/debounced-input';
 import { Skeleton } from '@/components/ui/skeleton';
 import CautionMultiFilter from '@/components/delivery/CautionMultiFilter';
 import { ArrowLeft, ArrowUpDown, BarChart3, FileSpreadsheet, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { AdvStatus, AdvCautionCustom, CAUTION_STATUSES, DEMARCHE_LABELS, getDefaultAdv, getStatusColor } from '@/utils/adv';
 import { updateCautionStatus } from '@/utils/cautionStatus';
-import { automaticExpiry, buildCautionsWorkbook, CautionExportRow, CautionTracking, emptyTracking, fetchPaginated, isOverdue, TRACKING_COLUMNS, VISIBLE_CAUTION_STATUSES } from '@/utils/cautionTracking';
+import { buildCautionsWorkbook, CautionExportRow, CautionTracking, emptyTracking, fetchPaginated, isOverdue, previewCautionTransition, TRACKING_COLUMNS, VISIBLE_CAUTION_STATUSES } from '@/utils/cautionTracking';
+import { notifyAdvChanged, subscribeAdvChanged } from '@/utils/advSync';
 
 const sb = supabase as any;
 interface ProjectRow { id: string; otp_number: string; site_name: string; archived: boolean; supply_only: boolean }
@@ -41,8 +42,12 @@ export default function AdvCautions() {
   const [editingStatus, setEditingStatus] = useState<string | null>(null);
   const [overdue, setOverdue] = useState(false);
   const [sort, setSort] = useState<{ field: SortField; desc: boolean }>({ field: 'date_echeance', desc: false });
+  const [pending, setPending] = useState<Record<string, { status: string; tracking: CautionTracking }>>({});
+  const inFlight = useRef(new Set<string>());
+  const loadVersion = useRef(0);
 
   const load = useCallback(async () => {
+    const version = ++loadVersion.current;
     try {
       const [p, a, c, t, l] = await Promise.all([
         fetchPaginated<ProjectRow>(() => sb.from('projects').select('id, otp_number, site_name, archived, supply_only').order('id')),
@@ -51,6 +56,7 @@ export default function AdvCautions() {
         fetchPaginated<CautionTracking>(() => sb.from('adv_caution_tracking').select(TRACKING_COLUMNS).order('id')),
         fetchPaginated<{ project_id: string; token: string }>(() => sb.from('project_access_links').select('project_id, token').order('id')),
       ]);
+      if (version !== loadVersion.current) return;
       setProjects(p); setAdvs(a); setCustom(c); setTracking(t); setLinks(l); setFailed(false);
     } catch { setFailed(true); toast.error('Impossible de charger le suivi des cautions'); }
     finally { setLoading(false); }
@@ -60,7 +66,8 @@ export default function AdvCautions() {
       .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'adv_cautions_custom' }, load)
       .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'adv_caution_tracking' }, load).subscribe();
     const refresh = () => { load(); }; window.addEventListener('focus', refresh);
-    return () => { supabase.removeChannel(channel); window.removeEventListener('focus', refresh); };
+    const unsubscribe = subscribeAdvChanged(refresh);
+    return () => { supabase.removeChannel(channel); window.removeEventListener('focus', refresh); unsubscribe(); };
   }, [load]);
 
   const rows = useMemo<Row[]>(() => {
@@ -74,13 +81,14 @@ export default function AdvCautions() {
       const cautions = [{ key: 'caution_rg', label: 'Caution RG', statut: a.caution_rg },
         { key: 'garantie_paiement_st', label: 'Garantie de paiement ST', statut: a.garantie_paiement_st },
         ...(customMap.get(p.id) || []).map(c => ({ key: `custom:${c.id}`, label: c.nom || 'Caution supplémentaire', statut: c.statut }))];
-      return cautions.filter(c => VISIBLE_CAUTION_STATUSES.includes(c.statut)).map(c => ({
-        ...(trackingMap.get(`${p.id}:${c.key}`) || emptyTracking(p.id, c.key)), key: `${p.id}:${c.key}`,
+      return cautions.map(c => ({ ...c, statut: pending[`${p.id}:${c.key}`]?.status || c.statut }))
+      .filter(c => VISIBLE_CAUTION_STATUSES.includes(c.statut)).map(c => ({
+        ...(pending[`${p.id}:${c.key}`]?.tracking || trackingMap.get(`${p.id}:${c.key}`) || emptyTracking(p.id, c.key)), key: `${p.id}:${c.key}`,
         chantier: [p.otp_number, p.site_name].filter(Boolean).join(' - ') || 'Sans nom', caution: c.label,
         statut: c.statut, archived: p.archived, token: linkMap.get(p.id),
       }));
     });
-  }, [projects, advs, custom, tracking, links]);
+  }, [projects, advs, custom, tracking, links, pending]);
 
   const matches = (r: Row, omit = '') => {
     if (search && !r.chantier.toLocaleLowerCase().includes(search.toLocaleLowerCase())) return false;
@@ -103,28 +111,54 @@ export default function AdvCautions() {
   };
   const active = !!(search || commentSearch || selectedProjects.length || selectedCautions.length || selectedStatuses.length || overdue);
   const save = async (row: Row, changes: Partial<CautionTracking>) => {
-    const payload = { ...emptyTracking(row.project_id, row.caution_key), date_demande: row.date_demande,
-      date_obtention: row.date_obtention, date_echeance: row.date_echeance, echeance_manuelle: row.echeance_manuelle, commentaire: row.commentaire, ...changes };
-    if (!payload.echeance_manuelle) payload.date_echeance = automaticExpiry(payload.date_obtention);
-    const { data, error } = await sb.from('adv_caution_tracking').upsert(payload, { onConflict: 'project_id,caution_key' }).select(TRACKING_COLUMNS).single();
+    if (inFlight.current.has(row.key)) return;
+    const { data, error } = await sb.from('adv_caution_tracking').upsert({ project_id: row.project_id, caution_key: row.caution_key, ...changes }, { onConflict: 'project_id,caution_key' }).select(TRACKING_COLUMNS).single();
     if (error) { toast.error('La modification n’a pas été enregistrée'); return; }
+    ++loadVersion.current;
     setTracking(prev => [...prev.filter(t => t.project_id !== row.project_id || t.caution_key !== row.caution_key), data]);
+    notifyAdvChanged(row.project_id);
   };
   const historyLabel = (r: Row) => r.caution_key === 'caution_rg' ? DEMARCHE_LABELS.caution_rg
     : r.caution_key === 'garantie_paiement_st' ? DEMARCHE_LABELS.garantie_paiement_st : `Caution "${r.caution}"`;
-  const changeStatus = async (r: Row, newStatus: string) => {
+  const changeStatus = async (r: Row, newStatus: string, restoreTracking?: CautionTracking) => {
     setEditingStatus(null);
-    if (newStatus === r.statut) return;
-    const apply = (from: string, to: string) => updateCautionStatus({
-      projectId: r.project_id, cautionKey: r.caution_key, label: historyLabel(r),
-      oldStatus: from, newStatus: to, userEmail: user?.email || '',
-    });
-    const { error } = await apply(r.statut, newStatus);
-    if (error) { toast.error('Le statut n’a pas été enregistré'); return; }
+    if (newStatus === r.statut || inFlight.current.has(r.key)) return;
+    const snapshot: CautionTracking = { ...emptyTracking(r.project_id, r.caution_key), date_demande: r.date_demande,
+      date_obtention: r.date_obtention, date_echeance: r.date_echeance, echeance_manuelle: r.echeance_manuelle, commentaire: r.commentaire };
+    const nextTracking = restoreTracking || previewCautionTransition(snapshot, newStatus);
+    inFlight.current.add(r.key);
+    ++loadVersion.current;
+    setPending(prev => ({ ...prev, [r.key]: { status: newStatus, tracking: nextTracking } }));
+    let succeeded = false;
+    try {
+      const result = await updateCautionStatus({
+        projectId: r.project_id, cautionKey: r.caution_key, label: historyLabel(r),
+        oldStatus: r.statut, newStatus, userEmail: user?.email || '', restoreTracking,
+      });
+      if (result.error) {
+        if (result.committed) { await load(); toast.error('Le statut est enregistré, mais la confirmation du suivi a échoué'); }
+        else toast.error('Le statut n’a pas été enregistré');
+      } else if (result.data) {
+        ++loadVersion.current;
+        const confirmed = result.data;
+        if (r.caution_key.startsWith('custom:')) setCustom(prev => prev.map(c => c.id === r.caution_key.slice(7) ? { ...c, statut: confirmed.status } : c));
+        else setAdvs(prev => {
+          const existing = prev.find(a => a.project_id === r.project_id);
+          return existing ? prev.map(a => a.project_id === r.project_id ? { ...a, [r.caution_key]: confirmed.status } : a) : prev;
+        });
+        setTracking(prev => [...prev.filter(t => t.project_id !== r.project_id || t.caution_key !== r.caution_key), confirmed.tracking]);
+        succeeded = true;
+      }
+    } catch { toast.error('Le statut n’a pas été enregistré'); }
+    finally {
+      inFlight.current.delete(r.key);
+      setPending(prev => { const next = { ...prev }; delete next[r.key]; return next; });
+    }
+    if (!succeeded) return;
     if (!VISIBLE_CAUTION_STATUSES.includes(newStatus)) {
       toast(`Caution ${r.caution} retirée du suivi`, {
         duration: 8000,
-        action: { label: 'Annuler', onClick: () => { apply(newStatus, r.statut); } },
+        action: { label: 'Annuler', onClick: () => { changeStatus({ ...r, ...nextTracking, statut: newStatus }, r.statut, snapshot); } },
       });
     }
   };
@@ -152,15 +186,15 @@ export default function AdvCautions() {
         <thead className="sticky top-0 z-10 bg-secondary text-secondary-foreground"><tr>{heading('chantier', 'Chantier')}{heading('caution', 'Caution')}{heading('statut', 'Statut')}{(Object.keys(dateLabels) as DateField[]).map(f => heading(f, dateLabels[f]))}{heading('commentaire', 'Commentaire')}</tr></thead>
         <tbody>{filtered.map(r => <tr key={r.key} className="border-b hover:bg-muted/50">
           <td className="p-2 min-w-48"><Button variant="link" className="p-0 h-auto text-left whitespace-normal justify-start" onClick={() => r.token ? navigate(`/p/${r.token}?tab=adv`) : toast.error('Lien chantier introuvable')}>{r.chantier}</Button>{r.archived && <span className="ml-2 text-xs text-muted-foreground border rounded px-1">Archivé</span>}</td>
-          <td className="p-2">{r.caution}</td><td className="p-2 whitespace-nowrap" onDoubleClick={() => setEditingStatus(r.key)}>
+          <td className="p-2">{r.caution}</td><td className="p-2 whitespace-nowrap" onDoubleClick={() => { if (!inFlight.current.has(r.key)) setEditingStatus(r.key); }}>
             {editingStatus === r.key
               ? <select autoFocus aria-label={`Statut — ${r.chantier} — ${r.caution}`} className="h-8 rounded-md border bg-background px-2 text-sm" value={r.statut} onChange={e => changeStatus(r, e.target.value)} onBlur={() => setEditingStatus(null)}>
                   {CAUTION_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               : <><span className={`inline-block h-2.5 w-2.5 rounded-full mr-2 adv-dot-${getStatusColor(r.statut)}`} />{r.statut}</>}
           </td>
-          {(Object.keys(dateLabels) as DateField[]).map(field => <td key={field} className="p-2"><Input type="date" aria-label={`${dateLabels[field]} — ${r.chantier} — ${r.caution}`} value={r[field] || ''} onChange={e => save(r, { [field]: e.target.value || null, ...(field === 'date_echeance' ? { echeance_manuelle: !!e.target.value } : {}) })} className={`h-8 w-36 ${field === 'date_echeance' && isOverdue(r.date_echeance) ? 'text-destructive font-bold' : ''}`} /></td>)}
-          <td className="p-2 min-w-52"><DebouncedTextarea aria-label={`Commentaire — ${r.chantier} — ${r.caution}`} rows={2} value={r.commentaire} onCommit={value => save(r, { commentaire: value })} className="min-h-12 text-sm" /></td>
+          {(Object.keys(dateLabels) as DateField[]).map(field => <td key={field} className="p-2"><DebouncedInput type="date" disabled={!!pending[r.key]} aria-label={`${dateLabels[field]} — ${r.chantier} — ${r.caution}`} value={r[field] || ''} onCommit={value => save(r, { [field]: value || null, ...(field === 'date_echeance' ? { echeance_manuelle: !!value } : {}) })} className={`h-8 w-36 ${field === 'date_echeance' && isOverdue(r.date_echeance) ? 'text-destructive font-bold' : ''}`} /></td>)}
+          <td className="p-2 min-w-52"><DebouncedTextarea disabled={!!pending[r.key]} aria-label={`Commentaire — ${r.chantier} — ${r.caution}`} rows={2} value={r.commentaire} onCommit={value => save(r, { commentaire: value })} className="min-h-12 text-sm" /></td>
         </tr>)}{!filtered.length && <tr><td colSpan={7} className="py-12 text-center text-muted-foreground">Aucune caution.</td></tr>}</tbody>
       </table></div>}
     </main>
