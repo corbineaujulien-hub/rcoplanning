@@ -1,0 +1,1 @@
+ALTER TABLE public.projects ADD COLUMN design_manager text DEFAULT NULL;

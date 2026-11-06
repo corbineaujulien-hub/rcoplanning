@@ -448,6 +448,7 @@ export type Database = {
           created_at: string | null
           database_comment: string | null
           database_complete: boolean
+          design_manager: string | null
           forecast_period_end: string | null
           forecast_period_start: string | null
           forecast_team_count: number
@@ -472,6 +473,7 @@ export type Database = {
           created_at?: string | null
           database_comment?: string | null
           database_complete?: boolean
+          design_manager?: string | null
           forecast_period_end?: string | null
           forecast_period_start?: string | null
           forecast_team_count?: number
@@ -496,6 +498,7 @@ export type Database = {
           created_at?: string | null
           database_comment?: string | null
           database_complete?: boolean
+          design_manager?: string | null
           forecast_period_end?: string | null
           forecast_period_start?: string | null
           forecast_team_count?: number

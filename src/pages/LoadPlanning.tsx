@@ -21,7 +21,7 @@ import {
   getWeeksBetween, getWeekKeyForDate, getPoseurColor, UNASSIGNED_POSEUR,
   ISOWeek,
 } from '@/utils/loadPlanningUtils';
-import { SUPPLY_ONLY_LABEL, SUPPLY_ONLY_COLOR, getDisplayCDT, getDisplayPoseur, getFilterCDT } from '@/utils/supplyOnly';
+import { SUPPLY_ONLY_LABEL, SUPPLY_ONLY_COLOR, getDisplayCDT, getDisplayPoseur, getFilterCDT, UNASSIGNED_CDE, getDesignManagerFilterKey, matchesDesignManagerFilter } from '@/utils/supplyOnly';
 import { exportLoadPlanningPdf } from '@/utils/loadPlanningPdfUtils';
 import { exportLoadPlanningExcel } from '@/utils/loadPlanningExcelUtils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -41,6 +41,7 @@ interface ProjectRow {
   conductor: string | null;
   subcontractor: string | null;
   business_manager?: string | null;
+  design_manager?: string | null;
   archived: boolean;
   database_complete: boolean;
   supply_only: boolean;
@@ -261,6 +262,7 @@ export default function LoadPlanning() {
   const [filterCdt, setFilterCdt] = useState<Set<string>>(new Set());
   const [filterPoseur, setFilterPoseur] = useState<Set<string>>(new Set());
   const [filterCda, setFilterCda] = useState<Set<string>>(new Set());
+  const [filterCde, setFilterCde] = useState<Set<string>>(new Set());
   const [filterUsine, setFilterUsine] = useState<Set<string>>(new Set());
   const [filterProduct, setFilterProduct] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState<Set<'planned' | 'forecast'>>(new Set());
@@ -277,7 +279,7 @@ export default function LoadPlanning() {
       setLoading(true);
       try {
         const [pData, tData, eData, fData, lData] = await Promise.all([
-          supabase.from('projects').select('id, site_name, client_name, otp_number, site_address, conductor, subcontractor, business_manager, archived, database_complete, supply_only, forecasted_transports'),
+          supabase.from('projects').select('id, site_name, client_name, otp_number, site_address, conductor, subcontractor, business_manager, design_manager, archived, database_complete, supply_only, forecasted_transports'),
           fetchAllPaginated<TruckRow>('trucks', 'id, project_id, date, element_ids, forced_category, team_id'),
           fetchAllPaginated<ElementRow>('beam_elements', 'id, project_id, product_type, length, weight, factory'),
           fetchAllPaginated<any>('forecast_weeks', 'id, project_id, year, week_number'),
@@ -605,7 +607,7 @@ export default function LoadPlanning() {
 
   // Filtering — archived treated like active. Supports excluding a single filter
   // (used to compute available values in dropdowns for cumulative behaviour).
-  const filterFn = useCallback((cp: ProjectComputed, exclude?: 'cdt' | 'poseur' | 'cda' | 'usine' | 'status' | 'bdd' | 'product') => {
+  const filterFn = useCallback((cp: ProjectComputed, exclude?: 'cdt' | 'poseur' | 'cda' | 'cde' | 'usine' | 'status' | 'bdd' | 'product') => {
     const q = debouncedSearchText.trim().toLowerCase();
     // Period filter: include only projects with at least one real or forecast cell in the visible range.
     const hasAnyInPeriod = Object.values(cp.weeks).some(w => w.source !== 'none');
@@ -616,6 +618,7 @@ export default function LoadPlanning() {
     }
     if (exclude !== 'poseur' && filterPoseur.size > 0 && !filterPoseur.has(cp.poseurFilterKey)) return false;
     if (exclude !== 'cda' && filterCda.size > 0 && !filterCda.has(cp.cdaFilterKey)) return false;
+    if (exclude !== 'cde' && !matchesDesignManagerFilter(cp.project, filterCde)) return false;
     if (exclude !== 'usine' && filterUsine.size > 0) {
       let any = false;
       for (const u of cp.usines) { if (filterUsine.has(u)) { any = true; break; } }
@@ -648,7 +651,7 @@ export default function LoadPlanning() {
       if (!hay.includes(q)) return false;
     }
     return true;
-  }, [filterCdt, filterPoseur, filterCda, filterUsine, filterStatus, filterBdd, filterProduct, baseProjectMeta, debouncedSearchText]);
+  }, [filterCdt, filterPoseur, filterCda, filterCde, filterUsine, filterStatus, filterBdd, filterProduct, baseProjectMeta, debouncedSearchText]);
 
   const filteredProjects = useMemo(
     () => computedProjects.filter(cp => filterFn(cp)).map(cp => {
@@ -755,7 +758,7 @@ export default function LoadPlanning() {
 
   // Cumulative dropdowns — values available given other active filters
   const allCdts = useMemo(() => {
-    const list = computedProjects.filter(cp => filterFn(cp, 'cdt')).map(p => p.conductorFilterKey);
+    const list = computedProjects.filter(cp => !cp.isSupplyOnly && filterFn(cp, 'cdt')).map(p => p.conductorFilterKey);
     return sortWithSentinelLast(Array.from(new Set(list)), s => s, [UNASSIGNED_CDT]);
   }, [computedProjects, filterFn]);
   const allPoseurs = useMemo(() => {
@@ -769,6 +772,10 @@ export default function LoadPlanning() {
       if (b === UNASSIGNED_CDA) return 1;
       return a.localeCompare(b, 'fr');
     });
+  }, [computedProjects, filterFn]);
+  const allCdes = useMemo(() => {
+    const list = computedProjects.filter(cp => filterFn(cp, 'cde')).map(cp => getDesignManagerFilterKey(cp.project));
+    return Array.from(new Set(list)).sort((a, b) => a === b ? 0 : a === UNASSIGNED_CDE ? -1 : b === UNASSIGNED_CDE ? 1 : a.localeCompare(b, 'fr'));
   }, [computedProjects, filterFn]);
   const allUsines = useMemo(() => {
     const s = new Set<string>();
@@ -791,6 +798,7 @@ export default function LoadPlanning() {
       }
       if (filterPoseur.size > 0 && !filterPoseur.has(meta.poseurFilterKey)) return;
       if (filterCda.size > 0 && !filterCda.has(meta.cdaFilterKey)) return;
+      if (!matchesDesignManagerFilter(p, filterCde)) return;
       if (filterUsine.size > 0) {
         let any = false;
         for (const u of meta.usines) { if (filterUsine.has(u)) { any = true; break; } }
@@ -811,7 +819,7 @@ export default function LoadPlanning() {
       meta.productTypes.forEach(pt => present.add(pt));
     });
     return FORECAST_PRODUCT_TYPES.filter(t => present.has(t));
-  }, [projects, baseProjectMeta, filterCdt, filterPoseur, filterCda, filterUsine, filterBdd, filterStatus, debouncedSearchText]);
+  }, [projects, baseProjectMeta, filterCdt, filterPoseur, filterCda, filterCde, filterUsine, filterBdd, filterStatus, debouncedSearchText]);
 
   // Auto-deselect product values that became unavailable after another filter changed.
   useEffect(() => {
@@ -833,7 +841,7 @@ export default function LoadPlanning() {
   }, [computedProjects, filterFn]);
 
   const hasActiveFilters =
-    filterCdt.size > 0 || filterPoseur.size > 0 || filterCda.size > 0 || filterUsine.size > 0 || filterProduct.size > 0 ||
+    filterCdt.size > 0 || filterPoseur.size > 0 || filterCda.size > 0 || filterCde.size > 0 || filterUsine.size > 0 || filterProduct.size > 0 ||
     filterStatus.size > 0 || filterBdd.size > 0 || searchText.trim() !== '';
 
   const updateProjectField = useCallback(async (projectId: string, field: 'conductor' | 'subcontractor', value: string) => {
@@ -867,7 +875,7 @@ export default function LoadPlanning() {
   }, []);
 
   const resetFilters = () => {
-    setFilterCdt(new Set()); setFilterPoseur(new Set()); setFilterCda(new Set()); setFilterUsine(new Set()); setFilterProduct(new Set());
+    setFilterCdt(new Set()); setFilterPoseur(new Set()); setFilterCda(new Set()); setFilterCde(new Set()); setFilterUsine(new Set()); setFilterProduct(new Set());
     setFilterStatus(new Set()); setFilterBdd(new Set()); setSearchText('');
   };
 
@@ -1015,6 +1023,14 @@ export default function LoadPlanning() {
               selected={filterCda}
               onChange={setFilterCda}
               width="w-[230px]"
+            />
+            <MultiSelectFilter
+              label="Chargé d'études"
+              options={allCdes}
+              selected={filterCde}
+              onChange={setFilterCde}
+              width="w-[230px]"
+              allByDefault
             />
             <MultiSelectFilter
               label="Usine"
@@ -1753,20 +1769,22 @@ function PoseurLegend({ projects }: { projects: ProjectComputed[] }) {
 type MSOption = string | { value: string; label: string };
 
 function MultiSelectFilter({
-  label, options, selected, onChange, width,
+  label, options, selected, onChange, width, allByDefault = false,
 }: {
   label: string;
   options: MSOption[];
   selected: Set<string>;
   onChange: (s: Set<string>) => void;
   width: string;
+  allByDefault?: boolean;
 }) {
   const isActive = selected.size > 0;
   const norm = options.map(o => typeof o === 'string' ? { value: o, label: o } : o);
   const toggle = (v: string) => {
-    const next = new Set(selected);
+    const next = new Set(allByDefault && selected.size === 0 ? norm.map(o => o.value) : selected);
+    next.delete('__no_cde__');
     if (next.has(v)) next.delete(v); else next.add(v);
-    onChange(next);
+    onChange(allByDefault ? (next.size === norm.length ? new Set() : next.size === 0 ? new Set(['__no_cde__']) : next) : next);
   };
   return (
     <Popover>
@@ -1783,7 +1801,7 @@ function MultiSelectFilter({
           <div className="space-y-1">
             {norm.map(o => (
               <label key={o.value} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
-                <Checkbox checked={selected.has(o.value)} onCheckedChange={() => toggle(o.value)} />
+                <Checkbox checked={(allByDefault && selected.size === 0) || selected.has(o.value)} onCheckedChange={() => toggle(o.value)} />
                 <span className="text-xs">{o.label}</span>
               </label>
             ))}

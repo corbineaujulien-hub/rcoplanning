@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useDelivery } from '@/context/DeliveryContext';
-import { CONDUCTORS, SUBCONTRACTORS, BUSINESS_MANAGERS, Team, ForecastedTransport, FORECAST_TRANSPORT_CATEGORIES, ForecastTransportCategory, FORECAST_PRODUCT_TYPES } from '@/types/delivery';
+import { CONDUCTORS, SUBCONTRACTORS, BUSINESS_MANAGERS, DESIGN_MANAGERS, Team, ForecastedTransport, FORECAST_TRANSPORT_CATEGORIES, ForecastTransportCategory, FORECAST_PRODUCT_TYPES } from '@/types/delivery';
+import { getProjectInfoDisplayCDT } from '@/utils/supplyOnly';
 import { DebouncedInput } from '@/components/ui/debounced-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,7 +26,7 @@ export default function GeneralInfoTab() {
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
 
-  const update = (field: string, value: string | boolean) => {
+  const update = (field: string, value: string | boolean | null) => {
     setProjectInfo({ ...projectInfo, [field]: value });
   };
 
@@ -94,12 +95,13 @@ export default function GeneralInfoTab() {
               <HardHat className="h-5 w-5 text-accent" />
               Équipe
             </CardTitle>
-            <div className="w-64">
+            <div className="flex flex-wrap gap-2 min-w-0">
+            <div className="w-56 max-w-full">
               <Select
                 value={projectInfo.businessManager ? projectInfo.businessManager : '__none__'}
                 onValueChange={v => update('businessManager', v === '__none__' ? '' : v)}
               >
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="h-9" aria-label="Chargé d'affaires">
                   <SelectValue placeholder="— Chargé d'affaires —" />
                 </SelectTrigger>
                 <SelectContent>
@@ -109,6 +111,18 @@ export default function GeneralInfoTab() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="w-56 max-w-full">
+              <Select value={projectInfo.designManager || '__none__'} onValueChange={v => update('designManager', v === '__none__' ? null : v)}>
+                <SelectTrigger className="h-9" aria-label="Chargé d'études">
+                  <SelectValue placeholder="— Chargé d'études —" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Chargé d'études —</SelectItem>
+                  {DESIGN_MANAGERS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             </div>
           </div>
         </CardHeader>
@@ -124,7 +138,7 @@ export default function GeneralInfoTab() {
           <div className="space-y-2">
             <Label>Conducteur de travaux RECTOR</Label>
             {projectInfo.supplyOnly ? (
-              <Input value={projectInfo.clientName || 'Client non renseigné'} disabled />
+              <Input value={getProjectInfoDisplayCDT(projectInfo)} disabled />
             ) : (
             <Select
               value={projectInfo.conductor ? projectInfo.conductor : '__unassigned__'}

@@ -8,6 +8,7 @@ export interface ProjectInfo {
   contactName: string;
   contactPhone: string;
   businessManager?: string;
+  designManager?: string | null;
   showSaturdays?: boolean;
   showSundays?: boolean;
   databaseComplete?: boolean;
@@ -105,6 +106,14 @@ export const BUSINESS_MANAGERS = [
   'Bernard SIAUVE',
 ] as const;
 
+export const DESIGN_MANAGERS = [
+  'Bruno BARDET',
+  'Samuel BOUTIN',
+  'Michael CHAMORET',
+  'Gael CHEVALIER',
+  'Taoufik ELKHATTABI',
+] as const;
+
 export interface ForecastedTruck {
   usine: string;
   category: TransportCategory;
@@ -200,6 +209,7 @@ export const DEFAULT_PROJECT_INFO: ProjectInfo = {
   contactName: '',
   contactPhone: '',
   businessManager: '',
+  designManager: null,
   showSaturdays: false,
   showSundays: false,
   databaseComplete: false,

@@ -11,6 +11,7 @@ import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { exportWeekPdf } from '@/utils/pdfExportUtils';
 import { exportWeeklyExcelStyled } from '@/utils/weeklyExcelExport';
+import { getProjectInfoDisplayCDT } from '@/utils/supplyOnly';
 
 interface WeeklyPlanningTabProps {
   weekNumber: number;
@@ -338,8 +339,8 @@ export default function WeeklyPlanningTab({ weekNumber, year, teamId }: WeeklyPl
           {projectInfo.siteName && <p><strong>Chantier :</strong> {projectInfo.siteName} (OTP: {projectInfo.otpNumber})</p>}
           {projectInfo.clientName && <p><strong>Client :</strong> {projectInfo.clientName}</p>}
           {projectInfo.siteAddress && <p><strong>Adresse :</strong> {projectInfo.siteAddress}</p>}
-          {projectInfo.conductor && <p><strong>Conducteur :</strong> {projectInfo.conductor}</p>}
-          {projectInfo.subcontractor && <p><strong>Poseur :</strong> {projectInfo.subcontractor}</p>}
+          {(projectInfo.supplyOnly || projectInfo.conductor) && <p><strong>Conducteur :</strong> {projectInfo.supplyOnly ? getProjectInfoDisplayCDT(projectInfo) : projectInfo.conductor}</p>}
+          {(projectInfo.supplyOnly || projectInfo.subcontractor) && <p><strong>Poseur :</strong> {projectInfo.supplyOnly ? 'Fourniture seule' : projectInfo.subcontractor}</p>}
         </CardContent>
       </Card>
 

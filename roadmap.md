@@ -1,4 +1,7 @@
 # Évolutions ADV
+- [x] Ajouter l’affectation Chargé d’études et les affichages fourniture seule.
+- [x] Ajouter le filtre CDE cumulatif du planning et préserver sauvegardes/imports.
+- [x] Tester les règles et le parcours connecté du chargé d’études.
 - [x] Affichage optimiste des statuts/dates, confirmation et annulation sans rechargement.
 - [x] Synchronisation ADV et temps réel sans écraser les saisies ; tests du parcours.
 - [x] Garantie de paiement ST, statut Levée, scores, relances et historique.

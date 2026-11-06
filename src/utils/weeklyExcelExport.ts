@@ -1,4 +1,5 @@
 import XLSXStyle from 'xlsx-js-style';
+import { getProjectInfoDisplayCDT } from './supplyOnly';
 import { parseISO, format } from 'date-fns';
 import { BeamElement, ProjectInfo, Team, Truck, TRANSPORT_CATEGORIES } from '@/types/delivery';
 import {
@@ -94,10 +95,10 @@ function buildSheet({ trucks, weekNumber, projectInfo, teamLabel, getTruckElemen
   if (projectInfo.siteAddress) leftParts.push(projectInfo.siteAddress);
   if (projectInfo.clientName) leftParts.push(`Client: ${projectInfo.clientName}`);
   const rightParts: string[] = [];
-  if (projectInfo.conductor) {
-    rightParts.push(`Conducteur: ${projectInfo.conductor}${projectInfo.contactPhone ? ' – ' + projectInfo.contactPhone : ''}`);
+  if (projectInfo.supplyOnly || projectInfo.conductor) {
+    rightParts.push(`Conducteur: ${projectInfo.supplyOnly ? getProjectInfoDisplayCDT(projectInfo) : projectInfo.conductor}${!projectInfo.supplyOnly && projectInfo.contactPhone ? ' – ' + projectInfo.contactPhone : ''}`);
   }
-  if (projectInfo.subcontractor) rightParts.push(`Poseur: ${projectInfo.subcontractor}`);
+  if (projectInfo.supplyOnly || projectInfo.subcontractor) rightParts.push(`Poseur: ${projectInfo.supplyOnly ? 'Fourniture seule' : projectInfo.subcontractor}`);
   const headerText = [leftParts.join(' | '), rightParts.join(' | ')].filter(Boolean).join('     ');
   aoa.push([headerText, ...Array(nCols - 1).fill('')]);
   merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: nCols - 1 } });
