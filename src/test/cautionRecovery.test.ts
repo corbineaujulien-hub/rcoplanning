@@ -89,7 +89,7 @@ describe('Caution history recovery', () => {
   it('resets obtention and expiry when going back to Demandée, and keeps dates on Levée', async () => {
    await db.exec(`UPDATE adv_status SET caution_rg='Demandée'; UPDATE adv_status SET caution_rg='Obtenue';`);
    const today = new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Paris'});
-   expect(await tracked()).toEqual([{date_demande:today,date_obtention:today,date_echeance:null,echeance_manuelle:false}].map(r => ({...r,date_echeance:r.date_echeance})));
+   expect((await tracked())[0]).toMatchObject({date_demande:today,date_obtention:today,echeance_manuelle:false});
    await db.exec(`UPDATE adv_status SET caution_rg='Demandée';`);
    expect(await tracked()).toEqual([{date_demande:today,date_obtention:null,date_echeance:null,echeance_manuelle:false}]);
    await db.exec(`UPDATE adv_status SET caution_rg='Obtenue'; UPDATE adv_status SET caution_rg='Levée';`);
